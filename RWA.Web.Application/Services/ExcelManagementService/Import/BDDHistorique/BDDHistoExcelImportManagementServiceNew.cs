@@ -111,7 +111,10 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.BDDHistoriq
             try
             {
 
-                List<HecateInterneHistorique> bddHisto = bddHistoDt.AsEnumerable().Select(s =>
+                // ⚡ ULTRA-FAST: AsParallel() optimization for row processing
+                List<HecateInterneHistorique> bddHisto = bddHistoDt.AsEnumerable()
+                    .AsParallel()
+                    .Select(s =>
                 {
                     var dateEch = s.Field<Object>("Date d’échéance");
                     DateOnly? parse;

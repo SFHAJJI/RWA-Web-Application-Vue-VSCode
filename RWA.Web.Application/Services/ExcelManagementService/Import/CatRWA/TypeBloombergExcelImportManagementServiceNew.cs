@@ -40,11 +40,14 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.CatRWA
             }
             try
             {
-                IEnumerable<HecateTypeBloomberg> hecateTypeBloomberg = dt.AsEnumerable().Select(m => new HecateTypeBloomberg()
-                {
-                    IdTypeBloomberg = m.Field<string>("Code Bloomberg"),
-                    Libelle = m.Field<string>("Libelle Bloomberg")
-                }).Where(m => !string.IsNullOrEmpty(m.IdTypeBloomberg));
+                // ⚡ ULTRA-FAST: AsParallel() optimization for row processing
+                IEnumerable<HecateTypeBloomberg> hecateTypeBloomberg = dt.AsEnumerable()
+                    .AsParallel()
+                    .Select(m => new HecateTypeBloomberg()
+                    {
+                        IdTypeBloomberg = m.Field<string>("Code Bloomberg"),
+                        Libelle = m.Field<string>("Libelle Bloomberg")
+                    }).Where(m => !string.IsNullOrEmpty(m.IdTypeBloomberg));
                 _context.HecateTypeBloombergs.AddRange(hecateTypeBloomberg);
 
             }

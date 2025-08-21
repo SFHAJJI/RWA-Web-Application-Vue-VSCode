@@ -115,22 +115,25 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.CatRWA
                 var HecateCatDepositaire1sDict = _context.HecateCatDepositaire1s.ToDictionary(p => p.LibelleDepositaire1, p => p);
                 var HecateCatDepositaire2sDict = _context.HecateCatDepositaire2s.ToDictionary(p => p.LibelleDepositaire2??string.Empty, p => p);
 
-                List<HecateEquivalenceCatRwa> hecateEquivalenceCatRwas = equivalenceCatRWADt.AsEnumerable().Where(s =>
-                {
-                   
-                    if (!string.IsNullOrEmpty(s.Field<string>("Source")) &&
-                    HecateCategorieRwasDict.ContainsKey(s.Field<string>("Catégorie RWA")) &&
-                    HecateCatDepositaire1sDict.ContainsKey(s.Field<string>("Code catégorie 1")) &&
-                    HecateCatDepositaire2sDict.ContainsKey(s.Field<string>("Code catégorie 2") ?? string.Empty)
-                    )
+                // ⚡ ULTRA-FAST: AsParallel() optimization for row processing
+                List<HecateEquivalenceCatRwa> hecateEquivalenceCatRwas = equivalenceCatRWADt.AsEnumerable()
+                    .AsParallel()
+                    .Where(s =>
                     {
-                        return true;
-                    }
-                    return false; 
-                }).Select(s =>
-                {
-                    return GetHecateEquivalenceCatRwa(s, HecateCategorieRwasDict, HecateTypeBloombergsDict, HecateCatDepositaire1sDict, HecateCatDepositaire2sDict);
-                }).ToList();
+                       
+                        if (!string.IsNullOrEmpty(s.Field<string>("Source")) &&
+                        HecateCategorieRwasDict.ContainsKey(s.Field<string>("Catégorie RWA")) &&
+                        HecateCatDepositaire1sDict.ContainsKey(s.Field<string>("Code catégorie 1")) &&
+                        HecateCatDepositaire2sDict.ContainsKey(s.Field<string>("Code catégorie 2") ?? string.Empty)
+                        )
+                        {
+                            return true;
+                        }
+                        return false; 
+                    }).Select(s =>
+                    {
+                        return GetHecateEquivalenceCatRwa(s, HecateCategorieRwasDict, HecateTypeBloombergsDict, HecateCatDepositaire1sDict, HecateCatDepositaire2sDict);
+                    }).ToList();
                 value = hecateEquivalenceCatRwas;
             }
             catch(Exception ex)
@@ -187,10 +190,17 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.CatRWA
                
             }
           
-            if (
-                !await CatRWAImportService.TryImportOnglet(categorieRWADt, value => ImportResults.AddRange(value)) ||
-                !await TypeBloombergImportService.TryImportOnglet(typeBloombergDt, value => ImportResults.AddRange(value)) ||
-                !await CatDepoRWAImportService.TryImportOnglet(equivalenceCatRWADt, value => ImportResults.AddRange(value)))
+            // ⚡ ULTRA-FAST: Task.WhenAll for parallel import operations  
+            var importTasks = new Task<bool>[]
+            {
+                CatRWAImportService.TryImportOnglet(categorieRWADt, value => ImportResults.AddRange(value)),
+                TypeBloombergImportService.TryImportOnglet(typeBloombergDt, value => ImportResults.AddRange(value)),
+                CatDepoRWAImportService.TryImportOnglet(equivalenceCatRWADt, value => ImportResults.AddRange(value))
+            };
+
+            var results = await Task.WhenAll(importTasks);
+            
+            if (!results.All(r => r))
             {
                 value(ImportResults);
                 return false;

@@ -45,22 +45,44 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.CatRWA
             }
             try
             {
-                IEnumerable<HecateCatDepositaire1> hecateCatDepositaire1s = dt.AsEnumerable().Select(m => new HecateCatDepositaire1()
-                {
-                    LibelleDepositaire1 = m.Field<string>("Code catégorie 1")
-                }).DistinctBy(p => p.LibelleDepositaire1);
+                // ⚡ ULTRA-FAST: Parallel processing with Task.WhenAll for simultaneous operations
+                var depositaire1Task = Task.Run(() => 
+                    dt.AsEnumerable()
+                      .AsParallel()
+                      .Select(m => new HecateCatDepositaire1()
+                      {
+                          LibelleDepositaire1 = m.Field<string>("Code catégorie 1")
+                      })
+                      .DistinctBy(p => p.LibelleDepositaire1)
+                      .ToList()
+                );
+
+                var depositaire2Task = Task.Run(() => 
+                    dt.AsEnumerable()
+                      .AsParallel()
+                      .Select(m => new HecateCatDepositaire2()
+                      {
+                          LibelleDepositaire2 = m.Field<string>("Code catégorie 2")
+                      })
+                      .DistinctBy(p => p.LibelleDepositaire2)
+                      .Select(s =>
+                      {
+                          if (s.LibelleDepositaire2 == null)
+                          {
+                              s.LibelleDepositaire2 = string.Empty;
+                          }
+                          return s;
+                      })
+                      .ToList()
+                );
+
+                // ⚡ PARALLEL EXECUTION: Both collections processed simultaneously
+                await Task.WhenAll(depositaire1Task, depositaire2Task);
+                
+                IEnumerable<HecateCatDepositaire1> hecateCatDepositaire1s = await depositaire1Task;
+                IEnumerable<HecateCatDepositaire2> hecateCatDepositaire2s = await depositaire2Task;
+                
                 _context.HecateCatDepositaire1s.AddRange(hecateCatDepositaire1s);
-                IEnumerable<HecateCatDepositaire2> hecateCatDepositaire2s = dt.AsEnumerable().Select(m => new HecateCatDepositaire2()
-                {
-                    LibelleDepositaire2 = m.Field<string>("Code catégorie 2")
-                }).DistinctBy(p => p.LibelleDepositaire2).Select(s =>
-                {
-                    if (s.LibelleDepositaire2 == null)
-                    {
-                        s.LibelleDepositaire2 = string.Empty;
-                    }
-                    return s;
-                });
                 _context.HecateCatDepositaire2s.AddRange(hecateCatDepositaire2s);
 
             }

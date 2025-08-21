@@ -41,12 +41,15 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.CatRWA
             }
             try
             {
-                IEnumerable<HecateCategorieRwa> hecateCategorieRwas = dt.AsEnumerable().Select(m => new HecateCategorieRwa()
-                {
-                    IdCatRwa = m.Field<string>("Code RWA"),
-                    Libelle = m.Field<string>("Libelle Categorie RWA"),
-                    ValeurMobiliere = m.Field<string>("Valeur Mobiliere"),
-                }).Where(m=>!string.IsNullOrEmpty(m.IdCatRwa));
+                // ⚡ ULTRA-FAST: AsParallel() optimization for row processing
+                IEnumerable<HecateCategorieRwa> hecateCategorieRwas = dt.AsEnumerable()
+                    .AsParallel()
+                    .Select(m => new HecateCategorieRwa()
+                    {
+                        IdCatRwa = m.Field<string>("Code RWA"),
+                        Libelle = m.Field<string>("Libelle Categorie RWA"),
+                        ValeurMobiliere = m.Field<string>("Valeur Mobiliere"),
+                    }).Where(m=>!string.IsNullOrEmpty(m.IdCatRwa));
                 _context.HecateCategorieRwas.AddRange(hecateCategorieRwas);
 
             }

@@ -9,15 +9,6 @@
   font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
-/* Disable toast blur effect */
-.v-snackbar {
-  backdrop-filter: none !important;
-}
-
-.v-overlay--active .v-overlay__scrim {
-  backdrop-filter: none !important;
-}
-
 /* Modern Stepper Styling */
 .v-stepper {
   background: rgba(255, 255, 255, 0.9) !important;

@@ -105,6 +105,15 @@ namespace RWA.Web.Application
             app.UseSwaggerUI();
 
             app.UseHttpsRedirection();
+            
+            // Vite development server MUST come BEFORE static files
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseWebSockets();
+                // Use Vite Dev Server as middleware.
+                app.UseViteDevelopmentServer(true);
+            }
+            
             app.UseStaticFiles();
             
             // Add response caching middleware
