@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Data;
 
-namespace RWA.Web.Application.Services.ExcelManagementService.Import.CatRWA
+namespace RWA.Web.Application.Services.ExcelManagementService.Import.BDDHistorique
 {
     public class BDDHistoExcelImportManagementServiceNew : IExcelImportManagementService
     {

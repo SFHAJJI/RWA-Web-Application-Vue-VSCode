@@ -29,6 +29,7 @@ namespace RWA.Web.Application.Middleware
                         var env = serviceProvider.GetRequiredService<IWebHostEnvironment>();
                         if (env.IsDevelopment())
                         {
+                            // Start seeding in background - don't block the request
                             _ = Task.Run(async () =>
                             {
                                 try
@@ -58,9 +59,10 @@ namespace RWA.Web.Application.Middleware
                                         return;
                                     }
                                     
+                                    // Simple logger - we'll remove this in prod anyway
                                     var seeder = Activator.CreateInstance(seederType, 
                                         dbContext,
-                                        scopedServices.GetService(typeof(ILogger).MakeGenericType(seederType)),
+                                        _logger,
                                         env);
                                     
                                     if (seeder != null)
@@ -70,10 +72,17 @@ namespace RWA.Web.Application.Middleware
                                         {
                                             var task = (Task)seedMethod.Invoke(seeder, null)!;
                                             await task;
+                                            _logger.LogInformation("Development database setup and seeding completed successfully.");
+                                        }
+                                        else
+                                        {
+                                            _logger.LogError("Could not find SeedDatabaseAsync method on DatabaseSeederService");
                                         }
                                     }
-                                    
-                                    _logger.LogInformation("Development database setup and seeding completed successfully.");
+                                    else
+                                    {
+                                        _logger.LogError("Could not create instance of DatabaseSeederService");
+                                    }
                                 }
                                 catch (Exception ex)
                                 {
