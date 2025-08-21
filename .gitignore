@@ -45,3 +45,15 @@ launchSettings.json
 
 # Images
 Thumbs.db
+
+# Backup and temporary files (exclude from repository)
+*_backup.cs
+*_Clean.cs
+*_New.cs
+*_minimal.cs
+*_Fixed.cs
+Program_*.cs
+*Controller_*.cs
+*Service_*.cs
+*Provider_*.cs
+*Orchestrator_*.cs

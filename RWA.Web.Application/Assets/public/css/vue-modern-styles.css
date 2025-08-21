@@ -1,0 +1,505 @@
+/* ========================================
+   Modern Vue Component Styles
+   Purple Theme with Glassmorphism
+   ======================================== */
+
+/* Vue Component Global Enhancements */
+.v-application {
+  background: transparent !important;
+  font-family: 'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Modern Stepper Styling */
+.v-stepper {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15) !important;
+  overflow: hidden !important;
+}
+
+.v-stepper-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2) !important;
+}
+
+.v-stepper-item {
+  flex-direction: column !important;
+  align-items: center !important;
+  padding: 20px 15px !important;
+}
+
+.v-stepper-item__avatar {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #667eea !important;
+  border: 2px solid rgba(255, 255, 255, 0.8) !important;
+  transition: all 0.3s ease !important;
+}
+
+.v-stepper-item__avatar.v-stepper-item__avatar--complete {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: white !important;
+}
+
+.v-stepper-item__avatar.v-stepper-item__avatar--active {
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  color: white !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4) !important;
+}
+
+.v-stepper-item__content {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  margin-top: 10px !important;
+}
+
+.v-stepper-window {
+  background: transparent !important;
+  padding: 30px !important;
+}
+
+/* Modern Card Styling */
+.v-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(15px) !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(102, 126, 234, 0.1) !important;
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.15) !important;
+  transition: all 0.3s ease !important;
+}
+
+.v-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2) !important;
+}
+
+.v-card-title {
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  font-weight: 700 !important;
+  font-size: 1.3rem !important;
+  padding: 20px 24px 10px !important;
+}
+
+.v-card-text {
+  padding: 16px 24px !important;
+  color: #2c3e50 !important;
+  line-height: 1.6 !important;
+}
+
+.v-card-actions {
+  padding: 16px 24px 20px !important;
+  background: rgba(248, 249, 250, 0.5) !important;
+}
+
+/* Modern Button Styling */
+.v-btn {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: 0.5px !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.v-btn--variant-elevated {
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.25) !important;
+}
+
+.v-btn--variant-elevated:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3) !important;
+}
+
+.v-btn.bg-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+}
+
+.v-btn.bg-secondary {
+  background: linear-gradient(135deg, #8ea5f7, #a855f7) !important;
+}
+
+.v-btn.bg-success {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+}
+
+.v-btn.bg-warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+}
+
+.v-btn.bg-error {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+}
+
+/* Modern Data Table Styling */
+.v-data-table {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(15px) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.15) !important;
+}
+
+.v-data-table-header {
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+}
+
+.v-data-table-header th {
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  letter-spacing: 0.5px !important;
+  border: none !important;
+}
+
+.v-data-table tbody tr {
+  transition: all 0.2s ease !important;
+}
+
+.v-data-table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.05) !important;
+  transform: scale(1.01) !important;
+}
+
+.v-data-table tbody td {
+  border-color: rgba(102, 126, 234, 0.1) !important;
+  padding: 12px 16px !important;
+}
+
+/* Modern Alert Styling */
+.v-alert {
+  border-radius: 12px !important;
+  border-left: 4px solid !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(10px) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.v-alert.bg-success {
+  background: rgba(16, 185, 129, 0.1) !important;
+  border-left-color: #10b981 !important;
+  color: #065f46 !important;
+}
+
+.v-alert.bg-warning {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border-left-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+.v-alert.bg-error {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-left-color: #ef4444 !important;
+  color: #991b1b !important;
+}
+
+.v-alert.bg-info {
+  background: rgba(102, 126, 234, 0.1) !important;
+  border-left-color: #667eea !important;
+  color: #3730a3 !important;
+}
+
+/* Modern Input Styling */
+.v-field {
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  /* Removed backdrop-filter: blur(10px) !important; to fix input/dropdown blur */
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+.v-field:hover {
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15) !important;
+}
+
+.v-field--focused {
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.25) !important;
+}
+
+.v-field__outline {
+  color: rgba(102, 126, 234, 0.3) !important;
+}
+
+.v-field--focused .v-field__outline {
+  color: #667eea !important;
+  --v-field-border-width: 2px !important;
+}
+
+.v-label {
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}
+
+.v-field--focused .v-label {
+  color: #667eea !important;
+}
+
+/* Modern Select Styling */
+.v-select .v-field {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.v-list {
+  background: rgba(255, 255, 255, 0.95) !important;
+  /* Removed backdrop-filter: blur(20px) !important; to fix dropdown blur issue */
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.2) !important;
+  border: 1px solid rgba(102, 126, 234, 0.1) !important;
+}
+
+.v-list-item {
+  border-radius: 8px !important;
+  margin: 4px 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.v-list-item:hover {
+  background: rgba(102, 126, 234, 0.1) !important;
+  transform: translateX(4px) !important;
+}
+
+.v-list-item--active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15)) !important;
+  color: #667eea !important;
+}
+
+/* Modern Dialog Styling - overlay blur removed for dropdown compatibility */
+
+.v-dialog .v-card {
+  border-radius: 20px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(30px) !important;
+  box-shadow: 0 25px 50px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* Modern Tabs Styling */
+.v-tabs {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(15px) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1) !important;
+}
+
+.v-tab {
+  border-radius: 8px !important;
+  margin: 4px !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+
+.v-tab--selected {
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  color: white !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* Modern Chip Styling */
+.v-chip {
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+  background: rgba(102, 126, 234, 0.1) !important;
+  color: #667eea !important;
+  border: 1px solid rgba(102, 126, 234, 0.2) !important;
+}
+
+.v-chip.bg-success {
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.v-chip.bg-warning {
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: #f59e0b !important;
+  border-color: rgba(245, 158, 11, 0.2) !important;
+}
+
+.v-chip.bg-error {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Modern Progress Styling */
+.v-progress-linear {
+  border-radius: 10px !important;
+  background: rgba(102, 126, 234, 0.1) !important;
+  overflow: hidden !important;
+}
+
+.v-progress-linear .v-progress-linear__determinate {
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  border-radius: 10px !important;
+}
+
+/* Modern Expansion Panel Styling */
+.v-expansion-panels {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.15) !important;
+}
+
+.v-expansion-panel {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(15px) !important;
+  border-bottom: 1px solid rgba(102, 126, 234, 0.1) !important;
+}
+
+.v-expansion-panel-title {
+  font-weight: 600 !important;
+  color: #2c3e50 !important;
+}
+
+.v-expansion-panel-title--active {
+  color: #667eea !important;
+}
+
+/* Modern Navigation Drawer Styling */
+.v-navigation-drawer {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(30px) !important;
+  box-shadow: 4px 0 20px rgba(102, 126, 234, 0.15) !important;
+}
+
+/* Component Specific Enhancements */
+
+/* Workflow View Enhancements */
+.workflow-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.step-content {
+  min-height: 400px;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+/* Data Table Row Animation */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.v-data-table tbody tr {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.v-data-table tbody tr:nth-child(even) {
+  animation-delay: 0.05s;
+}
+
+.v-data-table tbody tr:nth-child(odd) {
+  animation-delay: 0.1s;
+}
+
+/* Error/Warning Highlight Animation */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 8px 30px rgba(239, 68, 68, 0.3);
+  }
+}
+
+.error-row {
+  background: rgba(239, 68, 68, 0.05) !important;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.warning-row {
+  background: rgba(245, 158, 11, 0.05) !important;
+}
+
+/* Success State Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.success-state {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Loading State */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.loading-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .v-stepper-header {
+    flex-direction: column !important;
+  }
+  
+  .v-stepper-item {
+    padding: 15px 10px !important;
+  }
+  
+  .v-card {
+    margin: 10px 0 !important;
+  }
+  
+  .v-data-table {
+    font-size: 0.8rem !important;
+  }
+  
+  .v-btn {
+    font-size: 0.875rem !important;
+    padding: 8px 16px !important;
+  }
+}
+
+/* Dark theme adjustments (if needed in future) */
+@media (prefers-color-scheme: dark) {
+  .v-card {
+    background: rgba(30, 26, 46, 0.9) !important;
+    color: #e8e3ff !important;
+  }
+  
+  .v-data-table {
+    background: rgba(30, 26, 46, 0.9) !important;
+  }
+  
+  .v-field {
+    background: rgba(30, 26, 46, 0.9) !important;
+  }
+}
+
+/* Simple fix: Make dropdown stay fixed when opened */
+.v-menu .v-overlay__content {
+  position: fixed !important;
+}

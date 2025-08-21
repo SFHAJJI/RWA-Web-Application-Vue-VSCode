@@ -1,0 +1,167 @@
+/* Home Page Styles - Original Colors with Animations */
+.home-container {
+    padding: 20px;
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+    max-width: 1200px;
+    width: 100%;
+    padding: 20px;
+}
+
+.module-card {
+    background-color: rgb(200, 176, 207); /* Original light purple */
+    color: rgb(0, 0, 0);
+    border: none;
+    border-radius: 8px;
+    padding: 0;
+    min-height: 200px;
+    cursor: pointer;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: Calibri, sans-serif;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.module-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.module-card:hover::before {
+    left: 100%;
+}
+
+.module-card:hover {
+    background-color: rgb(165, 127, 176); /* Original dark purple on hover */
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.module-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+}
+
+.module-icon {
+    font-size: 2.5em;
+    margin-bottom: 15px;
+    color: rgb(165, 127, 176);
+}
+
+.module-description {
+    font-size: 0.9em;
+    margin-top: 8px;
+    opacity: 0.8;
+    line-height: 1.4;
+}
+
+.module-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin: 0;
+    text-align: center;
+    color: rgb(0, 0, 0);
+}
+
+.module-status {
+    padding: 15px 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    text-align: center;
+    font-size: 0.9em;
+    font-weight: normal;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.status-active {
+    color: #2d6a2d;
+    font-weight: 600;
+}
+
+.status-coming-soon {
+    color: #8b6914;
+    font-weight: 600;
+}
+
+.helios-card {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.helios-card:hover {
+    transform: none;
+    background-color: rgb(200, 176, 207); /* Don't change color for disabled card */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.module-card {
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.module-card:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.module-card:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.module-card:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modules-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 10px;
+    }
+    
+    .module-card {
+        min-height: 150px;
+    }
+    
+    .module-content {
+        padding: 30px 20px 15px 20px;
+    }
+    
+    .module-title {
+        font-size: 1.5em;
+    }
+}
