@@ -1,0 +1,879 @@
+.btnConsolide
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    border: 0px;
+    margin: 0px 0px 0px 0px;
+    padding: 70px 0px 70px 0px;
+    width: 80%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+    font: bold 1.5em Calibri, sans-serif;
+    cursor: pointer;
+}
+
+.btnExport
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    border: 0px;
+    margin: 0px 0px 0px 0px;
+    padding: 30px 0px 30px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+    font: bold 1.5em Calibri, sans-serif;
+    cursor: pointer;
+}
+
+.btnImport
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    border: 0px;
+    margin: 0px 0px 0px 0px;
+    padding: 30px 0px 30px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+    font: bold 1.5em Calibri, sans-serif;
+    cursor: pointer;
+}
+
+.btnMenuReport:link, .btnMenuReport:visited, .btnMenuReport:active
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    margin: 0px 0px 0px 0px;
+    padding: 40px 0px 40px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btnMenuReport:hover
+{
+    background-color: rgb(165, 127, 176);
+    margin: 0px 0px 0px 0px;
+    padding: 40px 0px 40px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+}
+
+.btnMenuTableEquivalence:link, .btnMenuTableEquivalence:visited, .btnMenuTableEquivalence:active
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    margin: 0px 0px 0px 0px;
+    padding: 70px 0px 70px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btnMenuTableEquivalence:hover
+{
+    background-color: rgb(165, 127, 176);
+    margin: 0px 0px 0px 0px;
+    padding: 70px 0px 70px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+}
+
+.btnMenuInventairesNormalises:link, .btnMenuInventairesNormalises:visited, .btnMenuInventairesNormalises:active
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    margin: 0px 0px 0px 0px;
+    padding: 40px 0px 40px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btnMenuInventairesNormalises:hover
+{
+    background-color: rgb(165, 127, 176);
+    margin: 0px 0px 0px 0px;
+    padding: 40px 0px 40px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+}
+
+.btnMenuBDDHistorique:link, .btnMenuBDDHistorique:visited, .btnMenuBDDHistorique:active
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    margin: 0px 0px 0px 0px;
+    padding: 70px 0px 70px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btnMenuBDDHistorique:hover
+{
+    background-color: rgb(165, 127, 176);
+    margin: 0px 0px 0px 0px;
+    padding: 70px 0px 70px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+}
+
+.btnMenuPrincipalHecate:link, .btnMenuPrincipalHecate:visited, .btnMenuPrincipalHecate:active
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    margin: 0px 0px 0px 0px;
+    padding: 80px 0px 80px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btnMenuPrincipalHecate:hover
+{
+    background-color: rgb(165, 127, 176);
+    margin: 0;
+    padding: 80px 0px 80px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+}
+
+.btnMenuPrincipal:link, .btnMenuPrincipal:visited, .btnMenuPrincipal:active
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    margin: 0px;
+    padding: 160px 0px 160px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.btnMenuPrincipal:hover
+{
+    background-color: rgb(165, 127, 176);
+    margin: 0px 0px 0px 0px;
+    padding: 160px 0px 160px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+}
+
+.GridLog
+{
+    background-color: #fff;
+    margin: 5px 0 10px 0;
+    border: solid 1px #525252;
+    border-collapse: collapse;
+    font-family: Calibri;
+    font-size: 0.8em;
+    color: #474747;
+}
+
+.GridLog td
+{
+    padding: 2px;
+    border: solid 1px #c1c1c1;
+}
+
+.GridLog th
+{
+    padding: 4px 2px;
+    color: #fff;
+    background-color: #363670;
+    border-left: solid 1px #525252;
+    font-size: 0.9em;
+}
+
+.Grid
+{
+    background-color: #fff;
+    margin: 5px 0 10px 0;
+    border: solid 1px #525252;
+    border-collapse: collapse;
+    font-family: Calibri;
+    color: #474747;
+}
+
+.Grid td
+{
+    padding: 2px;
+    border: solid 1px #c1c1c1;
+}
+
+.Grid th
+{
+    padding: 4px 2px;
+    color: #fff;
+    background-color: #363670;
+    border-left: solid 1px #525252;
+    font-size: 0.9em;
+}
+
+.Gridaltcolor
+{
+    background-color: #f2f2f2;
+}
+
+.btnGrid
+{
+    background-color: rgb(200, 176, 207);
+    color: rgb(0,0,0);
+    border: 0px;
+    margin: 0px 0px 0px 0px;
+    padding: 5px 0px 5px 0px;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+    text-decoration: none;
+    font: bold 1.5em Calibri, sans-serif;
+    cursor: pointer;
+}
+
+/***********************/
+/*Propri�t�s CSS Helios*/
+/***********************/
+
+.red {color: Red;}
+.strong {font-weight: bold;}
+.italic {font-style: italic;}
+.lfloat {float: left;}
+.rfloat {float: right;}
+.clearfix {clear: both;}
+
+.blueBorder {border-color: blue;}
+.greenBorder {border-color: green;}
+.redBorder {border-color: red;}
+.yellowBorder {border-color: yellow;}
+
+html, body, #form1 { margin: 0; padding: 0; border: 0; height: 100%; }
+body, #form1, #divMasterWrapper { min-height: 100%; }
+
+#divMasterWrapper
+{
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    border: 1px solid rgb(219, 198, 255);
+    margin: 0 auto;
+    width: 90%;
+    background-color: #fff;
+}
+#divMasterHeader
+{
+    position: fixed;
+    z-index: 999;
+    top: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    vertical-align: middle;
+    height: 46px;
+    color: #581d74;
+    font: bold 1.8em "Helvetica Neue",Helvetica,Arial,sans-serif;
+    background-color: #fff;
+    border-bottom: 4px solid #581d74;
+}
+#divMasterSubHeader
+{
+    position: relative;
+    height: 100%;
+    width: 90%;
+    margin: auto;
+}
+#divMasterSubHeader #hlkLogOut img,
+#divMasterSubHeader #hklLogo img,
+#divMasterSubHeader #lblTitre
+{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 0;
+    border: none;
+    margin: auto;
+    height: 36px;
+}
+#divMasterSubHeader #hklLogo img
+{
+    left: 0;
+}
+#divMasterSubHeader #hlkLogOut img
+{
+    right: -15px;
+}
+#divMasterSubHeader #hlkLogOut img:hover,
+#divMasterSubHeader #hklLogo img:hover
+{
+    height: 38px;
+}
+#divMasterSubHeader #lblTitre
+{
+    right: 0;
+    margin: auto 36px auto 15px;
+    line-height: 36px;
+}
+#divMasterContent
+{
+    position: relative;
+    background-color: rgb(255, 255, 255);
+    padding: 0;
+    margin: 56px auto 10px auto;
+    height: 100%;
+}
+#divMasterFooter
+{
+    position: fixed;
+    z-index: 999;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    margin: 0 auto;
+    padding: 2px 5px;
+    vertical-align: middle;
+    height: 20px;
+    color: #581d74;
+    min-height: 20px;
+    font: normal 0.86em "Helvetica Neue",Helvetica,Arial,sans-serif;
+    background-color: #fff;
+    border-top: 1px solid #581d74;
+}
+#divMasterFooter #lblUserName
+{
+    position: absolute;
+    top: 2px;
+    bottom: 0;
+    left: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: left;
+    margin: auto;
+    display: block;
+}
+#divMasterFooter #lblUserName:before
+{
+    position: absolute;
+    top: -2px;
+    bottom: 0;
+    left: -16px;
+    content: url('../Images/user.ico');
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+#divMasterFooter #lblCopyright
+{
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: 16px;
+    line-height: 16px;
+    text-align: right;
+    margin: auto;
+}
+
+#hlkBackToTop
+{
+    position: fixed;
+    bottom: 30px;
+    right: 10px;
+    cursor: pointer;
+    width: 64px;
+    padding: 0;
+    border: 0;
+    text-decoration: none;
+}
+#hlkBackToTop img
+{
+    margin: 0;
+    padding: 0;
+    border: 0;
+    text-decoration: none;
+}
+.show
+{
+    opacity: 1;
+    transition: opacity 1s linear;
+}
+.hide
+{
+    opacity: 0;
+    transition: opacity 1s linear;
+}
+
+#hlkHideAllReports
+{
+    cursor: pointer;
+    float: right;
+    font-style: italic;
+    font-weight: bold;
+    margin: 0 10px 0 0;
+    padding: 0;
+}
+
+#divWrapper
+{
+    color: Black;
+    font-family: Calibri, sans-serif;
+    border: none;
+}
+#divTitle
+{
+    font-weight: 600;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    text-align: center;
+    margin: 2rem auto;
+    padding: 1.5rem 2rem;
+    display: block;
+    color: var(--bs-dark, #212529);
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid var(--bs-primary, #0d6efd);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    position: relative;
+    max-width: 600px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+#divTitle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--bs-primary, #0d6efd), var(--bs-info, #0dcaf0));
+    border-radius: 0.75rem 0.75rem 0 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #divTitle {
+        margin: 1.5rem auto;
+        padding: 1rem 1.5rem;
+        font-size: 1.5rem;
+    }
+}
+#divContent
+{
+    font-weight: bold;
+    font-size: 1em;
+    text-align: center;
+    width: 90%;
+    margin: 25px auto;
+}
+
+.lblMessage
+{
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    font: normal 1.1em Calibri, sans-serif;
+    color: Black;
+    text-align: center;
+    margin: 5px auto;
+    padding: 5px;
+    background-color: rgb(255, 246, 178);
+    border: 2px solid rgb(255, 219, 147);
+    display: block;
+}
+.lblMessage:empty
+{
+    visibility: collapse;
+}
+
+#divGridLog
+{
+    background-color: #fff;
+    font-family: Calibri;
+    font-size: 1em;
+    color: #474747;
+    border-collapse: collapse;
+    margin: 10px auto;
+    width: 100%;
+}
+#divGridLog table
+{
+    max-height: 520px;
+    width: 100%;
+    overflow: auto;
+}
+#divGridLog td
+{
+    font-weight: normal;
+    border-color: #c1c1c1;
+    padding: 5px;
+}
+#divGridLog th
+{
+    background-color: #363670;
+    font-size: 1.1em;
+    color: white;
+    border-left-color: #525252;
+    padding: 4px 2px;
+}
+
+.btnMenu
+{
+    font: normal 1em Calibri, sans-serif;
+    color: Black;
+    text-align:left;
+    margin: 5px auto;
+    padding: 20px 10px;
+    background-color: rgb(200, 176, 207);
+    border: 3px solid rgb(219, 198, 255);
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    display: block;
+    text-decoration: none;
+    cursor: pointer;
+}
+.btnMenu:hover,
+.btnMenu:focus
+{
+    background-color: rgb(165, 127, 176);
+}
+.btnMenu > .spanMenuTitle
+{
+    font: bold 1.3em Calibri, sans-serif;
+    margin-left: 10px;
+}
+.btnMenu .lblDateImport
+{
+    display: none;
+    font-style: italic;
+    margin-left: 5px;
+}
+.btnMenu:hover .lblDateImport,
+.btnMenu:focus .lblDateImport
+{
+    display: inline;
+}
+.btnMenuImport:focus:before
+{
+    content: url(../Images/cloud_up.png);
+}
+.btnMenuExport:focus:before
+{
+    content: url(../Images/cloud_down.png);
+}
+.btnMenuTraitement:focus:before
+{
+    content: url(../Images/cloud_sync.png);
+}
+.btnMenuImport:focus:before,
+.btnMenuExport:focus:before,
+.btnMenuTraitement:focus:before
+{
+    float: right;
+    margin-right: 32px;
+}
+.btnMenuImport .divMenuDesc,
+.btnMenuExport .divMenuDesc,
+.btnMenuTraitement .divMenuDesc
+{
+    font: italic 1.1em Calibri, sans-serif;
+    margin: 5px 10px 0 10px;
+    padding: 5px 5px 5px 20px;
+    display: none;
+    background-color: rgb(200, 176, 207);
+    border: 1px solid rgb(200, 176, 207);
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+}
+.btnMenuImport:focus .divMenuDesc,
+.btnMenuExport:focus .divMenuDesc,
+.btnMenuTraitement:focus .divMenuDesc
+{
+    display: block;
+}
+
+.divParamFamily
+{
+    padding: 0 5px;
+    margin: 10px auto;
+    border-width: 3px;
+    border-style: double;
+    border-radius: 5px;
+    border-color: #dbc6ff;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    background-color: #fff;
+    text-align: left;
+}
+.divParamFamily:hover
+{
+    background-color: #efefff;
+}
+.divParamFamily > .spanMenuTitle
+{
+    margin-left: 150px;
+    text-align: right;
+    font-style: italic;
+}
+.inineFlexDisplay {
+    display: inline-flex;
+}
+.btnMenuParam {
+    font: normal 1em Calibri, sans-serif;
+    color: Black;
+    text-align: left;
+    margin: 5px auto;
+    padding: 3px 10px;
+    background-color: rgb(200, 176, 207);
+    border: 3px solid rgb(219, 198, 255);
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    display: block;
+    text-decoration: none;
+    overflow: auto;
+    text-align: right;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+.simplebtnMenuParam {
+    font: normal 1em Calibri, sans-serif;
+    color: Black;
+    background-color: rgb(165, 127, 176);
+    border: 1px solid rgb(219, 198, 255);
+}
+.col > .spanMenuTitle {
+    font: bold 1.3em Calibri, sans-serif;
+    float: left;
+    text-align: left;
+}.btnMenuParam > .spanMenuTitle
+{
+    font: bold 1.3em Calibri, sans-serif;
+    margin: 17px 0px;
+    padding-left: 10px;
+    float: left;
+    text-align: left;
+}
+.btnMenuParam > .left {
+    font: bold 1.3em Calibri, sans-serif;
+    margin: 17px 0px;
+    padding-left: 10px;
+    float: left;
+    text-align: left;
+}
+.btnMenuParam .divMenuDescImport,
+.btnMenuParam .divMenuDescExport,
+.btnMenuParam .lblDateImport,
+.divMenuDescImport
+{
+    display: none;
+}
+.btnMenuParam .divMenuDescImport,
+.btnMenuParam .divMenuDescExport
+{
+    text-align: left;
+    font: italic 1.1em Calibri, sans-serif;
+    margin: 5px 10px 5px 20px;
+    padding: 5px 5px 5px 20px;
+    display: none;
+    background: #fff;
+    border: 1px solid rgb(165, 127, 176);
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+}
+.btnMenuParam .lblDateImport
+{
+    font: italic 1.1em Calibri, sans-serif;
+    margin: 20px 0 0 0;
+    padding-left: 10px;
+    float: left;
+    text-align: left;
+}
+.btnImport,
+.btnExport
+{
+    display: inline-block;
+    padding: 10px 25px;
+    margin: 5px;
+    background-color: rgb(165, 127, 176);
+    border: 1px solid rgb(219, 198, 255);
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    width: auto;
+    min-width: 0;
+    text-align: center;
+    cursor: pointer;
+}
+.btnImport:hover,
+.btnExport:hover,
+.btnImport:focus,
+.btnExport:focus
+{
+    color: rgb(242, 242, 242);
+    background-color: rgb(108, 82, 115);
+}
+.btnImport:focus ~ .spanMenuTitle,
+.btnExport:focus ~ .spanMenuTitle
+{
+    margin: 8px 0px;
+}
+.btnImport:hover ~ .lblDateImport,
+.btnImport:focus ~ .lblDateImport,
+.btnExport:hover ~ .lblDateImport,
+.btnExport:focus ~ .lblDateImport
+{
+    display: inline-block;
+}
+.btnImport:focus ~ .lblDateImport,
+.btnExport:focus ~ .lblDateImport
+{
+    display: inline-block;
+    margin: 10px 0px;
+}
+.btnImport:focus ~ .divMenuDescImport,
+.btnExport:focus ~ .divMenuDescExport
+{
+    display: block;
+}
+.btnImport:focus ~ .divMenuDescImport:before,
+.btnExport:focus ~ .divMenuDescExport:before
+{
+    float: left;
+    margin: -35px 10px auto -40px;
+}
+.btnImport:focus ~ .divMenuDescImport:before
+{
+    content: url(../Images/cloud_up.png);
+}
+.btnExport:focus ~ .divMenuDescExport:before
+{
+    content: url(../Images/cloud_down.png);
+}
+
+.btnMenuReports
+{
+    font: normal 1.3em Calibri, sans-serif;
+    font-weight:bold;
+    color: Black;
+    text-align: left;
+    margin: 5px auto;
+    padding: 3px 10px;
+    background-color: rgb(200, 176, 207);
+    border: 3px solid rgb(219, 198, 255);
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    display: block;
+    text-decoration: none;
+}
+.btnMenuReports > .spanMenuTitle
+{
+    display: block;
+    padding: 14px 0;
+    cursor: pointer;
+}
+.btnMenuReports > .imgPlus:before,
+.btnMenuReports > .imgMinus:before
+{
+    margin: 0 5px 0 0;
+    padding: 0;
+    border: 0;
+    vertical-align: -35%;
+}
+.btnMenuReports > .imgPlus:before
+{
+    content: url(../Images/plus.png);
+}
+.btnMenuReports > .imgMinus:before
+{
+    content: url(../Images/minus.png);
+}
+.divReportViewer
+{
+    display: none;
+}
+.rvReport
+{
+    position: relative;
+    overflow: auto;
+    width: 100%;
+    height: 100%;
+    max-height: 600px;
+    margin: 5px auto 20px auto;
+    padding: 0;
+    background-color: #fff;
+    margin-left: -1px;
+}
+.rvReport > table
+{
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 1px 5px 1px;
+}
+
+.spanMenuTitlePrincipal
+{
+    font: bold 1.6em Calibri, sans-serif;
+    text-align: center;
+}
+
+.breadcrumb
+{
+    padding: 8px 15px;
+    margin: 10px;
+    list-style: none;
+    background: none;
+}
+.breadcrumb span
+{
+    font: normal 1em Calibri, sans-serif;
+}
+.breadcrumb span a
+{
+    color: rgb(108, 82, 115);
+    text-decoration: none;
+    cursor: pointer;
+}
+.breadcrumb span a:hover
+{
+    color: rgb(165, 127, 176);
+    text-decoration: underline;
+}
+.breadcrumb > span > li
+{
+    display: inline-block;
+}
+.breadcrumb > span > li > a:active
+{
+    color: #999999;
+}
+.breadcrumb .rootNode
+{
+    color: rgb(90, 76, 109);
+}
+.breadcrumb .currentNode
+{
+    color: Black;
+    text-decoration: none;
+    font-weight: bold;
+}

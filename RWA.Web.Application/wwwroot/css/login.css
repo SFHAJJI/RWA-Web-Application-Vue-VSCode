@@ -1,0 +1,62 @@
+#divLogin {
+    width: 350px;
+    border: 5px solid #a57fb0;
+    padding: 10px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin: -225px 0 0 -195px;
+    font-family: Calibri, sans-serif;
+}
+
+#divTitle {
+    text-align: center;
+    margin: 15px 5px 0 5px;
+    padding: 5px;
+    font: bold 1.8em Calibri;
+}
+
+#lblMessage {
+    border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    font: normal 1.1em Calibri, sans-serif;
+    color: Black;
+    text-align: center;
+    margin: 10px;
+    padding: 5px;
+    background-color: #fff6b2;
+    border: 2px solid #ffdb93;
+    display: block;
+}
+
+    #lblMessage:empty {
+        visibility: collapse;
+    }
+
+#divButton {
+    text-align: center;
+    margin: 20px 10px 0 10px;
+}
+
+    #divButton input {
+        background-color: #a57fb0;
+        border: 1px solid #a57fb0;
+        border-radius: 5px;
+        -moz-border-radius: 5px;
+        -webkit-border-radius: 5px;
+        color: white;
+        font: normal 1em Calibri, sans-serif;
+        text-decoration: none;
+        padding: 16px 32px;
+        cursor: pointer;
+    }
+
+.divInput {
+    margin: 5px;
+}
+
+    .divInput input {
+        width: 99%;
+        height: 30px;
+    }

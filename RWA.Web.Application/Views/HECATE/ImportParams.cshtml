@@ -1,0 +1,50 @@
+﻿@model RWA.Web.Application.Models.HECATESettingViewModel
+@{
+    ViewData["Title"] = "Import/Export du paramétrage"; // Définir le titre de la page
+}
+
+<link rel="stylesheet" type="text/css" href="/css/menu.css" />
+<h2 class="text-center mb-4">@Model.PageTitle</h2>
+@if (!string.IsNullOrEmpty(Model.UploadResultMessage))
+{
+	<div class="alert alert-info">@Model.UploadResultMessage</div>
+}
+@if (Model.ImportResults.Any())
+{
+	<h4 class="mt-5">Résumé de l'importation</h4>
+	<table class="table table-bordered mt-3 divGridLog">
+		<thead class="thead-dark">
+			<tr>
+				<th>Date</th>
+				<th>Status</th>
+				<th>Processus</th>
+				<th>Message</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var result in Model.ImportResults)
+			{
+				<tr>
+					<td>@result.Date</td>
+					<td>
+						@if (result.Success)
+						{
+							<span class="text-success">Processed</span>
+						}
+						else
+						{
+							<span class="text-danger">Failed</span>
+						}
+					</td>
+					<td>@result.Process</td>
+					<td>@result.Message</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+@foreach (var model in Model.importExportViewModels)
+{
+
+    @await Html.PartialAsync("_PartialImportExport", model)
+}

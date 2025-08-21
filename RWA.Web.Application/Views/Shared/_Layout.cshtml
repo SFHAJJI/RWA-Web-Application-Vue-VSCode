@@ -1,0 +1,257 @@
+﻿@{
+	Layout = null; // Supprimez ceci si c'est pour d'autres vues aussi.
+}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>@ViewData["Title"] - RWA.Web.Application</title>
+
+	<link rel="stylesheet" href="~/RWA.Web.Application.styles.css" asp-append-version="true" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+	@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+
+	<!-- Bootstrap CSS - served by Vite in dev, copied to wwwroot in production -->
+	<link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+	
+	<!-- Modern Stylish Theme CSS -->
+	<link rel="stylesheet" href="/css/modern-styles.css" />
+	
+	<!-- Vue Component Modern Styles -->
+	<link rel="stylesheet" href="/css/vue-modern-styles.css" />
+	
+	<!-- Menu CSS for navigation styling -->
+	<link rel="stylesheet" href="/css/menu.css" />
+	
+	<!-- Navigation CSS for breadcrumbs -->
+	<link rel="stylesheet" href="/css/navigation.css" />
+
+	@functions {
+		private Microsoft.AspNetCore.Html.IHtmlContent RenderCssWithFallback(string localRelativePath, string cdnUrl, string cdnIntegrity)
+		{
+			var webRoot = Env.WebRootPath ?? "wwwroot";
+			var relative = localRelativePath.TrimStart('~', '/').Replace('/', System.IO.Path.DirectorySeparatorChar);
+			var abs = System.IO.Path.Combine(webRoot, relative);
+			if (System.IO.File.Exists(abs))
+			{
+				var bytes = System.IO.File.ReadAllBytes(abs);
+				var hash = System.Convert.ToBase64String(System.Security.Cryptography.SHA384.Create().ComputeHash(bytes));
+				var integrity = "sha384-" + hash;
+				return new Microsoft.AspNetCore.Html.HtmlString($"<link rel=\"stylesheet\" href=\"{localRelativePath}\" integrity=\"{integrity}\" crossorigin=\"anonymous\" />");
+			}
+			// local not present - render CDN link; include integrity if provided
+			if (!string.IsNullOrEmpty(cdnIntegrity))
+			{
+				return new Microsoft.AspNetCore.Html.HtmlString($"<link rel=\"stylesheet\" href=\"{cdnUrl}\" integrity=\"{cdnIntegrity}\" crossorigin=\"anonymous\" />");
+			}
+			return new Microsoft.AspNetCore.Html.HtmlString($"<link rel=\"stylesheet\" href=\"{cdnUrl}\" crossorigin=\"anonymous\" />");
+		}
+
+		private Microsoft.AspNetCore.Html.IHtmlContent RenderScriptWithFallback(string localRelativePath, string cdnUrl, string cdnIntegrity)
+		{
+			var webRoot = Env.WebRootPath ?? "wwwroot";
+			var relative = localRelativePath.TrimStart('~', '/').Replace('/', System.IO.Path.DirectorySeparatorChar);
+			var abs = System.IO.Path.Combine(webRoot, relative);
+			if (System.IO.File.Exists(abs))
+			{
+				var bytes = System.IO.File.ReadAllBytes(abs);
+				var hash = System.Convert.ToBase64String(System.Security.Cryptography.SHA384.Create().ComputeHash(bytes));
+				var integrity = "sha384-" + hash;
+				return new Microsoft.AspNetCore.Html.HtmlString($"<script src=\"{localRelativePath}\" integrity=\"{integrity}\" crossorigin=\"anonymous\"></script>");
+			}
+			if (!string.IsNullOrEmpty(cdnIntegrity))
+			{
+				return new Microsoft.AspNetCore.Html.HtmlString($"<script src=\"{cdnUrl}\" integrity=\"{cdnIntegrity}\" crossorigin=\"anonymous\"></script>");
+			}
+			return new Microsoft.AspNetCore.Html.HtmlString($"<script src=\"{cdnUrl}\" crossorigin=\"anonymous\"></script>");
+		}
+		private Microsoft.AspNetCore.Html.IHtmlContent RenderViteCss(string entry)
+		{
+			// In development rely on vite dev server via vite-href
+					if (Env.IsDevelopment())
+					{
+						// Emit explicit dev server tags so the Vite client and entry script load when running locally.
+						// Vite dev server serves from the `root` (Assets), so the entry is available at /main.ts.
+						var devTags = "<script type=\"module\" src=\"https://localhost:5173/@vite/client\"></script>" +
+									  "\n<script type=\"module\" src=\"https://localhost:5173/main.ts\"></script>";
+						return new Microsoft.AspNetCore.Html.HtmlString(devTags);
+					}
+
+			var manifestPath = System.IO.Path.Combine(Env.WebRootPath ?? "wwwroot", ".vite", "manifest.json");
+			if (!System.IO.File.Exists(manifestPath)) return Microsoft.AspNetCore.Html.HtmlString.Empty;
+
+			var json = System.IO.File.ReadAllText(manifestPath);
+			using var doc = System.Text.Json.JsonDocument.Parse(json);
+			var root = doc.RootElement;
+
+			// Try several possible keys that Vite might use in the manifest
+			string[] keysToTry = new[] { entry, $"./{entry}", entry.Replace("Assets/", "./Assets/"), entry.Replace("\\", "/") };
+			foreach (var k in keysToTry)
+			{
+				if (root.TryGetProperty(k, out var node))
+				{
+					var sb = new System.Text.StringBuilder();
+					if (node.TryGetProperty("css", out var cssArr) && cssArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+					{
+						foreach (var css in cssArr.EnumerateArray())
+						{
+							var href = "/" + css.GetString().TrimStart('/');
+							sb.Append($"<link rel=\"stylesheet\" href=\"{href}\" />\n");
+						}
+					}
+					return new Microsoft.AspNetCore.Html.HtmlString(sb.ToString());
+				}
+			}
+
+			return Microsoft.AspNetCore.Html.HtmlString.Empty;
+		}
+
+		private Microsoft.AspNetCore.Html.IHtmlContent RenderViteScript(string entry)
+		{
+			if (Env.IsDevelopment())
+			{
+				// Emit explicit dev server tags so the Vite client and entry script load when running locally.
+				var devTags = "<script type=\"module\" src=\"https://localhost:5173/@vite/client\"></script>" +
+							  "\n<script type=\"module\" src=\"https://localhost:5173/main.ts\"></script>";
+				return new Microsoft.AspNetCore.Html.HtmlString(devTags);
+			}
+
+			var manifestPath = System.IO.Path.Combine(Env.WebRootPath ?? "wwwroot", ".vite", "manifest.json");
+			if (!System.IO.File.Exists(manifestPath)) return Microsoft.AspNetCore.Html.HtmlString.Empty;
+
+			var json = System.IO.File.ReadAllText(manifestPath);
+			using var doc = System.Text.Json.JsonDocument.Parse(json);
+			var root = doc.RootElement;
+
+			string[] keysToTry = new[] { entry, $"./{entry}", entry.Replace("Assets/", "./Assets/"), entry.Replace("\\", "/") };
+			foreach (var k in keysToTry)
+			{
+				if (root.TryGetProperty(k, out var node))
+				{
+					var file = node.GetProperty("file").GetString();
+					var src = "/" + file.TrimStart('/');
+					return new Microsoft.AspNetCore.Html.HtmlString($"<script type=\"module\" src=\"{src}\"></script>");
+				}
+			}
+
+			return Microsoft.AspNetCore.Html.HtmlString.Empty;
+		}
+	}
+
+	@RenderViteCss("Assets/main.ts")
+	@RenderSection("head", required: false) <!-- Ajoutez cette ligne -->
+</head>
+<body>
+	<div class="container-fluid">
+		<!-- Simple Header with Left Logo, Centered Title, and Right Logout -->
+		<div id="divMasterHeader" class="d-flex justify-content-between align-items-center py-3 mb-3 border-bottom position-relative">
+			<!-- Logo on the left -->
+			<div class="d-flex align-items-center">
+				<a asp-controller="Home" asp-action="Index" class="text-decoration-none">
+					<img src="/Images/logo.png" alt="Logo Natixis NGAM" style="max-height: 40px;" />
+				</a>
+			</div>
+			
+			<!-- Centered RWA Application Title -->
+			<div class="position-absolute start-50 top-50 translate-middle">
+				<a asp-controller="Home" asp-action="Index" class="text-decoration-none">
+					<span class="h4 mb-0 text-primary fw-bold">RWA Application</span>
+				</a>
+			</div>
+			
+			<!-- Logout button positioned on the right -->
+			<div class="d-flex justify-content-end">
+				<form asp-controller="Account" asp-action="Logout" method="post" style="display:inline;">
+					<button type="submit" class="btn btn-outline-primary btn-sm d-flex align-items-center" title="Déconnexion" aria-label="Déconnexion">
+						<img src="/Images/logout.png" alt="Déconnexion" style="max-height: 20px;" class="me-2" />
+						Logout
+					</button>
+				</form>
+			</div>
+		</div>
+
+		<!-- Dynamic Breadcrumb -->
+		<nav aria-label="breadcrumb" class="breadcrumb-container">
+			<div class="container">
+				<ol class="breadcrumb modern-breadcrumb">
+					@{
+						var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+						var action = ViewContext.RouteData.Values["action"]?.ToString();
+					}
+					
+					<li class="breadcrumb-item">
+						<a asp-controller="Home" asp-action="Index">
+							<i class="bi bi-house-door me-1"></i>Home
+						</a>
+					</li>
+					
+					@if (controller != "Home")
+					{
+						@if (controller == "HECATE")
+						{
+							<li class="breadcrumb-item">
+								<a asp-controller="HECATE" asp-action="MenuPrincipalHecate">HECATE</a>
+							</li>
+							
+							@if (action != "MenuPrincipalHecate")
+							{
+								<li class="breadcrumb-item active" aria-current="page">
+									@{
+										var actionDisplay = action switch
+										{
+											"ImportParams" => "Import Parameters",
+											"MenuInventairesNormalises" => "Inventaires Normalisés",
+											"Tethys" => "TETHYS",
+											"HecateReport" => "Reports",
+											_ => action
+										};
+									}
+									@actionDisplay
+								</li>
+							}
+						}
+						else if (controller == "Market")
+						{
+							<li class="breadcrumb-item active" aria-current="page">RWA Market</li>
+						}
+						else
+						{
+							<li class="breadcrumb-item active" aria-current="page">@controller</li>
+						}
+					}
+				</ol>
+			</div>
+		</nav>
+
+		<div class="container main-content">
+			<main role="main" class="pb-3">
+				@RenderBody()
+			</main>
+		</div>
+	</div>
+
+	<div id="divMasterFooter" class="text-center mt-4 clearfix">
+		<div class="container d-flex justify-content-between align-items-center">
+			<div class="d-flex align-items-center">
+				<i class="bi bi-person-circle me-2"></i>
+				<span>@(User.Identity?.Name ?? "User")</span>
+			</div>
+			<span>Copyright © 2016 Natixis Global Asset Management - tous droits réservés</span>
+		</div>
+	</div>
+
+
+
+	<!-- jQuery and Bootstrap JS - served by Vite in dev, copied to wwwroot in production -->
+	<script src="/lib/jquery/dist/jquery.min.js"></script>
+	<script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+	
+	<!-- Modern Interactive Enhancements -->
+	<script src="/js/modern-interactions.js"></script>
+	
+	@RenderViteScript("Assets/main.ts")
+	@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

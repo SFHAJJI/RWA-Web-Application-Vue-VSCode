@@ -1,0 +1,65 @@
+{
+  "../node_modules/primeicons/fonts/primeicons.eot": {
+    "file": "primeicons-DMOk5skT.eot",
+    "src": "../node_modules/primeicons/fonts/primeicons.eot"
+  },
+  "../node_modules/primeicons/fonts/primeicons.svg": {
+    "file": "primeicons-Dr5RGzOO.svg",
+    "src": "../node_modules/primeicons/fonts/primeicons.svg"
+  },
+  "../node_modules/primeicons/fonts/primeicons.ttf": {
+    "file": "primeicons-MpK4pl85.ttf",
+    "src": "../node_modules/primeicons/fonts/primeicons.ttf"
+  },
+  "../node_modules/primeicons/fonts/primeicons.woff": {
+    "file": "primeicons-WjwUDZjB.woff",
+    "src": "../node_modules/primeicons/fonts/primeicons.woff"
+  },
+  "../node_modules/primeicons/fonts/primeicons.woff2": {
+    "file": "primeicons-C6QP2o4f.woff2",
+    "src": "../node_modules/primeicons/fonts/primeicons.woff2"
+  },
+  "_signalr-vendor-BwjK9eZE.js": {
+    "file": "signalr-vendor-BwjK9eZE.js",
+    "name": "signalr-vendor"
+  },
+  "_vendor-DgrpDgjj.js": {
+    "file": "vendor-DgrpDgjj.js",
+    "name": "vendor"
+  },
+  "_vuetify-vendor-Cs3PcoqG.css": {
+    "file": "vuetify-vendor-Cs3PcoqG.css",
+    "src": "_vuetify-vendor-Cs3PcoqG.css"
+  },
+  "_vuetify-vendor-DULFUn6R.js": {
+    "file": "vuetify-vendor-DULFUn6R.js",
+    "name": "vuetify-vendor",
+    "imports": [
+      "_vendor-DgrpDgjj.js"
+    ],
+    "css": [
+      "vuetify-vendor-Cs3PcoqG.css"
+    ]
+  },
+  "main.ts": {
+    "file": "main-DLJRdzuQ.js",
+    "name": "main",
+    "src": "main.ts",
+    "isEntry": true,
+    "imports": [
+      "_vuetify-vendor-DULFUn6R.js",
+      "_vendor-DgrpDgjj.js",
+      "_signalr-vendor-BwjK9eZE.js"
+    ],
+    "css": [
+      "main-gPQw9DgK.css"
+    ],
+    "assets": [
+      "primeicons-DMOk5skT.eot",
+      "primeicons-C6QP2o4f.woff2",
+      "primeicons-WjwUDZjB.woff",
+      "primeicons-MpK4pl85.ttf",
+      "primeicons-Dr5RGzOO.svg"
+    ]
+  }
+}

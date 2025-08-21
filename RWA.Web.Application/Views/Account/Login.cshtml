@@ -1,0 +1,93 @@
+﻿@model RWA.Web.Application.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Connexion";
+    Layout = "_AuthLayout";
+}
+
+<div class="login-container">
+    <img src="/Images/logo.png" alt="Logo Natixis NGAM" class="login-logo" />
+    
+    <h1 class="login-title">RWA Application</h1>
+    <p class="login-subtitle">Bienvenue, veuillez vous connecter</p>
+    
+    @if (!string.IsNullOrEmpty(Model?.ErrorMessage))
+    {
+        <div class="alert-error">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            @Model.ErrorMessage
+        </div>
+    }
+    
+    @if (!Html.ViewData.ModelState.IsValid)
+    {
+        <div class="alert-error">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Veuillez corriger les erreurs ci-dessous
+        </div>
+    }
+    
+    @using (Html.BeginForm("Login", "Account", FormMethod.Post, new { id = "loginForm", @class = "needs-validation", novalidate = "novalidate" }))
+    {
+        <div class="form-group">
+            @Html.LabelFor(model => model.Username, "Nom d'utilisateur", new { @class = "form-label" })
+            @Html.EditorFor(model => model.Username, new { 
+                htmlAttributes = new { 
+                    @class = "form-control", 
+                    id = "username", 
+                    placeholder = "Entrez votre nom d'utilisateur",
+                    required = "required"
+                } 
+            })
+            @Html.ValidationMessageFor(model => model.Username, "", new { @class = "text-danger" })
+        </div>
+        
+        <div class="form-group">
+            @Html.LabelFor(model => model.Password, "Mot de passe", new { @class = "form-label" })
+            @Html.EditorFor(model => model.Password, new { 
+                htmlAttributes = new { 
+                    @class = "form-control", 
+                    id = "password", 
+                    type = "password",
+                    placeholder = "Entrez votre mot de passe",
+                    required = "required"
+                } 
+            })
+            @Html.ValidationMessageFor(model => model.Password, "", new { @class = "text-danger" })
+        </div>
+        
+        <button type="submit" class="btn btn-login">
+            <i class="bi bi-box-arrow-in-right me-2"></i>
+            Se connecter
+        </button>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Focus on first input field
+        document.getElementById('username').focus();
+        
+        // Add some basic form validation feedback
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            const username = document.getElementById('username');
+            const password = document.getElementById('password');
+            
+            if (!username.value.trim() || !password.value.trim()) {
+                e.preventDefault();
+                if (!username.value.trim()) {
+                    username.classList.add('is-invalid');
+                }
+                if (!password.value.trim()) {
+                    password.classList.add('is-invalid');
+                }
+            }
+        });
+        
+        // Remove validation classes on input
+        document.querySelectorAll('.form-control').forEach(function(input) {
+            input.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
+        });
+    </script>
+}

@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<link href="~/css/home-page.css" rel="stylesheet" />
+<link href="~/css/modern-styles.css" rel="stylesheet" />
+
+<div class="home-container">
+    <div class="modules-grid">
+        <div class="module-card menu-card" onclick="location.href='@Url.Action("MenuPrincipalHecate", "HECATE")'">
+            <div class="module-content">
+                <h3 class="module-title">HECATE</h3>
+            </div>
+            <div class="module-status status-active">
+                <span>@ViewBag.HecateStatus</span>
+            </div>
+        </div>
+
+        <div class="module-card menu-card" onclick="location.href='@Url.Action("Index", "Market")'">
+            <div class="module-content">
+                <h3 class="module-title">RWA Market</h3>
+            </div>
+            <div class="module-status status-active">
+                <span>Open</span>
+            </div>
+        </div>
+
+        <div class="module-card menu-card helios-card">
+            <div class="module-content">
+                <h3 class="module-title">HELIOS</h3>
+            </div>
+            <div class="module-status status-coming-soon">
+                <span>Coming Soon</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="~/js/modern-interactions.js"></script>

@@ -1,0 +1,26 @@
+﻿@{
+    ViewData["Title"] = "Rapports HECATE"; // Définir le titre de la page
+}
+
+<link rel="stylesheet" type="text/css" href="/css/menu.css" />
+
+<div id="divWrapper">
+    <span id="divTitle">@ViewData["Title"]</span>
+    <div id="divContent">
+        <div class="btnMenuParam" asp-controller="HECATE" asp-action="GlobalReportHECATE">
+            <span class="spanMenuTitle">Résultats globaux</span>
+        </div>
+        <div class="btnMenuParam" asp-controller="HECATE" asp-action="RWACATReport">
+            <span class="spanMenuTitle">Résultats détaillés par categorie RWA</span>
+        </div>
+        <div class="btnMenuParam" asp-controller="HECATE" asp-action="FundReport">
+            <span class="spanMenuTitle">Résultats détaillés par fond</span>
+        </div>
+        <div class="btnMenuParam" asp-controller="HECATE" asp-action="MappingReport">
+            <span class="spanMenuTitle">Résultats détaillés par méthode de mapping (uniquement valeurs mobilières)</span>
+        </div>
+        <div class="btnMenuParam" asp-controller="HECATE" asp-action="ControlRport">
+            <span class="spanMenuTitle">Contrôles de cohérence des informations du CLO (Date de maturité et RAF)</span>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,71 @@
+﻿@{
+    ViewData["Title"] = "HECATE"; // Définir le titre de la page
+}
+
+<link rel="stylesheet" type="text/css" href="/css/home-page.css" />
+<link rel="stylesheet" type="text/css" href="/css/modern-styles.css" />
+
+<div class="home-container">
+    <!-- Removed page header text -->
+    <div class="modules-grid">
+        <div class="module-card" onclick="navigateToModule('/HECATE/ImportParams')">
+            <div class="module-icon">
+                <i class="fas fa-cogs"></i>
+            </div>
+            <div class="module-content">
+                <h3 class="module-title">Paramétrage</h3>
+                <p class="module-description">Configuration des paramètres système</p>
+                <div class="module-status status-ready">
+                    <span class="status-text">Prêt</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" onclick="navigateToModule('/HECATE/MenuInventairesNormalises')">
+            <div class="module-icon">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="module-content">
+                <h3 class="module-title">Inventaires Normalisés</h3>
+                <p class="module-description">Gestion des inventaires normalisés</p>
+                <div class="module-status status-ready">
+                    <span class="status-text">Prêt</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" onclick="navigateToModule('/HECATE/Tethys')">
+            <div class="module-icon">
+                <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div class="module-content">
+                <h3 class="module-title">TETHYS</h3>
+                <p class="module-description">Interface TETHYS</p>
+                <div class="module-status status-ready">
+                    <span class="status-text">Prêt</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" onclick="navigateToModule('/HECATE/HecateReport')">
+            <div class="module-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <div class="module-content">
+                <h3 class="module-title">Rapports</h3>
+                <p class="module-description">Génération de rapports</p>
+                <div class="module-status status-ready">
+                    <span class="status-text">Prêt</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/modern-interactions.js"></script>
+
+<script>
+    function navigateToModule(url) {
+        window.location.href = url;
+    }
+</script>
