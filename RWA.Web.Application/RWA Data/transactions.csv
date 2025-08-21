@@ -1,0 +1,11 @@
+Type,Montant,Date,Actif
+Achat,100.50,2023-01-01,Apple Inc.
+Vente,150.00,2023-01-02,Microsoft Corp.
+Achat,200.75,2023-01-03,Amazon.com Inc.
+Vente,130.25,2023-01-04,Google LLC
+Achat,75.00,2023-01-05,Facebook Inc.
+Vente,90.50,2023-01-06,Tesla Inc.
+Achat,250.00,2023-01-07,NVIDIA Corp.
+Vente,180.00,2023-01-08,Netflix Inc.
+Achat,120.00,2023-01-09,Adobe Systems Inc.
+Vente,160.00,2023-01-10,Salesforce.com Inc.
