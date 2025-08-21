@@ -1,1 +1,47 @@
-node_modules
+# .NET Core build artifacts
+**/bin/
+**/obj/
+**/out/
+**/Debug/
+**/Release/
+
+# Visual Studio files
+.vs/
+.vscode/settings.json
+
+# User-specific files
+*.csproj.user
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# TypeScript build output
+*.tsbuildinfo
+
+# Package files
+*.nupkg
+*.snupkg
+
+# Local development
+appsettings.Local.json
+launchSettings.json
+
+# Images
+Thumbs.db
