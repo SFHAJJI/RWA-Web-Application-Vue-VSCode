@@ -5,6 +5,7 @@ using RWA.Web.Application.Services.Ldap;
 using Vite.AspNetCore;
 using RWA.Web.Application.Hubs;
 using RWA.Web.Application.Middleware;
+using System.Linq.Dynamic.Core;
 
 namespace RWA.Web.Application
 {
@@ -12,10 +13,16 @@ namespace RWA.Web.Application
     {
         public static void Main(string[] args)
         {
+            // Configure Dynamic LINQ to be case-insensitive
+            ParsingConfig.Default.IsCaseSensitive = false;
+
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            builder.Services.AddControllersWithViews();
+            builder.Services.AddControllersWithViews().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            });
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddSignalR();

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <!-- Audit trigger button (small arrow on top left) -->
+    <!-- Audit trigger button -->
     <div 
       class="audit-trigger" 
       :class="{ 'active': isOpen }"
@@ -60,19 +60,11 @@
       </div>
 
       <!-- Data table section -->
-      <div class="audit-table-container" v-show="activeCard !== null">
-        <div class="table-header">
-          <h4>{{ auditTables[activeCard]?.title }}</h4>
-        </div>
-        
+      <div class="audit-table-container" v-if="activeCard !== null">
         <div class="table-content">
-          <EnhancedDataTable
-            :headers="currentTableColumns"
-            :items="currentTableData"
-            :items-length="currentTableItemsLength"
-            :loading="tableLoading"
-            @update:options="loadServerItems"
-          />
+          <HistoryDataTable v-if="auditTables[activeCard].name === 'history'" />
+          <TethysDataTable v-if="auditTables[activeCard].name === 'tethys'" />
+          <!-- Note: Inventory table is not implemented with server-side processing in this refactor -->
         </div>
       </div>
     </ResizablePanel>
@@ -80,9 +72,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
+import axios from 'axios';
 import ResizablePanel from './audit/ResizablePanel.vue';
-import EnhancedDataTable from './audit/EnhancedDataTable.vue';
+import HistoryDataTable from './audit/HistoryDataTable.vue';
+import TethysDataTable from './audit/TethysDataTable.vue';
 
 interface AuditTable {
   name: string;
@@ -97,14 +91,13 @@ interface AuditTable {
 // Panel state
 const isOpen = ref(false);
 const activeCard = ref<number | null>(null);
-const tableLoading = ref(false);
 
 // Audit tables configuration
 const auditTables = reactive<AuditTable[]>([
   {
     name: 'inventory',
     title: 'Inventaire Normalisé',
-    description: 'Table principale du workflow - HecateInventaireNormalise',
+    description: 'Table principale - HecateInventaireNormalise',
     icon: 'mdi-database',
     color: 'primary',
     count: 0,
@@ -130,49 +123,8 @@ const auditTables = reactive<AuditTable[]>([
   }
 ]);
 
-// Table data
-const tableData = reactive<Record<string, any[]>>({
-  inventory: [],
-  history: [],
-  tethys: []
-});
-
-const tableColumns = reactive<Record<string, any[]>>({
-  inventory: [],
-  history: [],
-  tethys: []
-});
-
-const tableItemsLength = reactive<Record<string, number>>({
-  inventory: 0,
-  history: 0,
-  tethys: 0
-});
-
-// Computed properties
-const currentTableData = computed(() => {
-  if (activeCard.value === null) return [];
-  const tableName = auditTables[activeCard.value].name;
-  return tableData[tableName];
-});
-
-const currentTableColumns = computed(() => {
-  if (activeCard.value === null) return [];
-  const tableName = auditTables[activeCard.value].name;
-  return tableColumns[tableName];
-});
-
-const currentTableItemsLength = computed(() => {
-  if (activeCard.value === null) return 0;
-  const tableName = auditTables[activeCard.value].name;
-  return tableItemsLength[tableName];
-});
-
 // Methods
-const togglePanel = () => {
-  if (isOpen.value) closePanel();
-  else openPanel();
-};
+const togglePanel = () => isOpen.value ? closePanel() : openPanel();
 
 const openPanel = async () => {
   isOpen.value = true;
@@ -184,87 +136,26 @@ const closePanel = () => {
   activeCard.value = null;
 };
 
-const selectCard = async (index: number) => {
+const selectCard = (index: number) => {
   if (activeCard.value === index) {
     activeCard.value = null;
     return;
   }
-  
   activeCard.value = index;
-  const table = auditTables[index];
-  
-  // Load columns if not already loaded, data will be loaded by the datatable's event
-  if (tableColumns[table.name].length === 0) {
-    await loadTableSchema(table);
-  }
 };
 
 const loadTableCounts = async () => {
   try {
     for (const table of auditTables) {
-      const response = await fetch(`${table.apiEndpoint}/count`);
-      if (response.ok) {
-        const data = await response.json();
-        table.count = data.count || 0;
-      }
+      const response = await axios.get(`${table.apiEndpoint}/count`);
+      table.count = response.data.count || 0;
     }
   } catch (error) {
     console.error('Error loading table counts:', error);
   }
 };
 
-const loadTableSchema = async (table: AuditTable) => {
-  try {
-    const columnsResponse = await fetch(`${table.apiEndpoint}/columns`);
-    if (columnsResponse.ok) {
-      const columnsData = await columnsResponse.json();
-      tableColumns[table.name] = columnsData || [];
-    }
-  } catch (error) {
-    console.error(`Error loading ${table.name} schema:`, error);
-  }
-};
-
-const loadServerItems = async (options: any) => {
-  if (activeCard.value === null) return;
-  
-  const table = auditTables[activeCard.value];
-  tableLoading.value = true;
-
-  try {
-    const { page, itemsPerPage, sortBy, filters } = options;
-    
-    const requestBody = {
-      page: page,
-      pageSize: itemsPerPage,
-      sortBy: sortBy.length > 0 ? sortBy[0].key : null,
-      sortDesc: sortBy.length > 0 ? sortBy[0].order === 'desc' : false,
-      filters: filters || {}
-    };
-
-    const response = await fetch(`${table.apiEndpoint}/data`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      tableData[table.name] = data.items || [];
-      tableItemsLength[table.name] = data.totalItems || 0;
-    }
-  } catch (error) {
-    console.error(`Error loading ${table.name} data:`, error);
-    tableData[table.name] = [];
-    tableItemsLength[table.name] = 0;
-  } finally {
-    tableLoading.value = false;
-  }
-};
-
-// Initialize on mount
-onMounted(async () => {
-  await loadTableCounts();
-});
+onMounted(loadTableCounts);
 </script>
+
 <style src="../public/css/audit-panel.css" scoped></style>

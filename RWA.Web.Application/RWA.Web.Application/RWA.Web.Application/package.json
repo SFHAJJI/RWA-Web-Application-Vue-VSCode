@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "vitenet-net-mvc": "file:../..",
-    "vitenet-net-mvc-deep": "file:../.."
-  }
-}

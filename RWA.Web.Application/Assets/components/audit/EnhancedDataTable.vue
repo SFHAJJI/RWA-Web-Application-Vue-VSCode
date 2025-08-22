@@ -1,52 +1,25 @@
 <template>
-  <div>
-    <v-data-table-server
-      v-model:items-per-page="options.itemsPerPage"
-      :headers="tableHeaders"
-      :items="items"
-      :items-length="itemsLength"
-      :loading="loading"
-      :search="search"
-      class="audit-table"
-      density="compact"
-      fixed-header
-      hover
-      @update:options="updateOptions"
-    >
-      <template v-slot:headers="{ columns }">
-        <tr>
-          <th v-for="column in columns" :key="column.key">
-            <span>{{ column.title }}</span>
-          </th>
-        </tr>
-        <tr class="filter-row">
-          <th v-for="header in columns" :key="`${header.key}-filter`">
-            <v-text-field
-              v-if="header.key !== 'data-table-select' && header.key !== 'data-table-expand'"
-              v-model="filters[header.key]"
-              dense
-              hide-details
-              class="filter-input"
-              :placeholder="`Filtrer ${header.title}`"
-              @update:model-value="debouncedFilterUpdate"
-            ></v-text-field>
-          </th>
-        </tr>
-      </template>
-    </v-data-table-server>
-    <div v-if="loading && items.length === 0" class="table-loading">
-      <v-progress-circular indeterminate color="primary"></v-progress-circular>
-      <p>Chargement des données...</p>
-    </div>
-    <div v-else-if="!loading && items.length === 0" class="table-empty">
-      <v-icon size="48" color="grey">mdi-database-off</v-icon>
-      <p>Aucune donnée disponible</p>
-    </div>
-  </div>
+  <v-data-table-server
+    v-model:items-per-page="options.itemsPerPage"
+    :headers="tableHeaders"
+    :items="items"
+    :items-length="itemsLength"
+    :loading="loading"
+    :search="search"
+    class="audit-table"
+    density="compact"
+    fixed-header
+    hover
+    @update:options="updateOptions"
+  >
+    <template v-slot:top>
+      <slot name="filters"></slot>
+    </template>
+  </v-data-table-server>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 
 // Props
 const props = defineProps({
@@ -54,6 +27,7 @@ const props = defineProps({
   items: { type: Array as () => any[], required: true },
   itemsLength: { type: Number, required: true },
   loading: { type: Boolean, required: true },
+  search: { type: String, required: true }
 });
 
 // Emits
@@ -65,11 +39,7 @@ const options = ref({
   itemsPerPage: 10,
   sortBy: [],
   groupBy: [],
-  search: '',
 });
-
-const filters = reactive<Record<string, string>>({});
-const search = ref(''); // This will be used to trigger updates
 
 // Computed properties
 const tableHeaders = computed(() => {
@@ -84,39 +54,12 @@ const tableHeaders = computed(() => {
 // Methods
 const updateOptions = (newOptions: any) => {
   options.value = newOptions;
-  emit('update:options', { ...newOptions, filters: { ...filters } });
+  emit('update:options', newOptions);
 };
-
-// Debounce function
-let debounceTimer: number;
-const debouncedFilterUpdate = () => {
-  clearTimeout(debounceTimer);
-  debounceTimer = window.setTimeout(() => {
-    // Trigger a change that the watcher can pick up
-    updateOptions(options.value);
-  }, 500); // 500ms delay
-};
-
-// Watch for option changes to emit to parent
-watch(options, () => {
-    // Don't emit here directly, let updateOptions handle it to include filters
-}, { deep: true });
-
 </script>
 
 <style scoped>
-.filter-row th {
-  padding: 8px 16px !important;
-}
-.filter-input {
-  max-width: 100%;
-}
-.table-loading, .table-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  color: #888;
+.audit-table {
+  height: 100%;
 }
 </style>
