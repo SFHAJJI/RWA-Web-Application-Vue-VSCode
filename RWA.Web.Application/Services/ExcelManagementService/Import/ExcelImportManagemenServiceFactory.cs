@@ -20,10 +20,11 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import
             using (var scope = _serviceProvider.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<RwaContext>();
+                var columnMappings = scope.ServiceProvider.GetRequiredService<IOptions<ExcelColumnMappings>>();
                 switch (importExportType)
                 {
                     case ImportExportType.BDDHistorique:
-                        return new BDDHistoExcelImportManagementServiceNew(context);
+                        return new BDDHistoExcelImportManagementServiceNew(context, columnMappings);
                     case ImportExportType.MappingCatRWA:
                         return new EqCatRWAExcelImportManagementServiceNew(context);
                     default:

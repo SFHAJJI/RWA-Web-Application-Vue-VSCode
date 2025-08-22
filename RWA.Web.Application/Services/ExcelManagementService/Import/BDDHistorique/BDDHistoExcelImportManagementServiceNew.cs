@@ -7,6 +7,7 @@ using System.Drawing;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Data;
+using System.Text.RegularExpressions;
 
 namespace RWA.Web.Application.Services.ExcelManagementService.Import.BDDHistorique
 {
@@ -22,9 +23,12 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.BDDHistoriq
         private readonly string SUCESSFULL_IMPORT = "Fichier importé avec succès";
         private List<ImportResult> ImportResults = new List<ImportResult>();
         protected RwaContext _context { get; set; }
-        public BDDHistoExcelImportManagementServiceNew(RwaContext context)
+        private readonly ExcelColumnMappings _columnMappings;
+
+        public BDDHistoExcelImportManagementServiceNew(RwaContext context, IOptions<ExcelColumnMappings> columnMappings)
         {
             _context = context;
+            _columnMappings = columnMappings.Value;
         }
         public async Task<HECATESettingViewModel> ImportExcel(IFormFile file)
         {
@@ -110,44 +114,23 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.BDDHistoriq
         {
             try
             {
-
+                var columnMap = CreateColumnMap(bddHistoDt, _columnMappings.BDDHistorique);
                 // ⚡ ULTRA-FAST: AsParallel() optimization for row processing
                 List<HecateInterneHistorique> bddHisto = bddHistoDt.AsEnumerable()
                     .AsParallel()
-                    .Select(s =>
-                {
-                    var dateEch = s.Field<Object>("Date d’échéance");
-                    DateOnly? parse;
-                    if (dateEch != null)
+                    .Select(row => new HecateInterneHistorique
                     {
-                        if (DateTime.TryParse(dateEch.ToString(), out DateTime res))
-                        {
-                            parse = DateOnly.FromDateTime(res);
-                        }
-                        else
-                        {
-                            parse = null;
-                        }
-
-                    }
-                    else
-                    {
-                        parse = null;
-                    }
-                    return new HecateInterneHistorique()
-                    {
-                        Source = s.Field<string>("Source"),
-                        RefCategorieRwa = s.Field<string>("Catégorie RWA"),
-                        IdentifiantUniqueRetenu = s.Field<string>("Identifiant unique retenu"),
-                        Raf = s.Field<string>("RAF"),
-                        LibelleOrigine = s.Field<string>("Libellé d’origine"),
-                        DateEcheance = parse,
-                        IdentifiantOrigine = s.Field<string>("Identifiant d'origine"),
-                        Bbgticker = s.Field<string>("BBG Ticker"),
-                        LibelleTypeDette = "SUBORDONNE",
+                        Source = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.Source)]) ?? string.Empty,
+                        RefCategorieRwa = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.CategorieRWA)]) ?? string.Empty,
+                        IdentifiantUniqueRetenu = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.IdentifiantUniqueRetenu)]) ?? string.Empty,
+                        Raf = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.RAF)]) ?? string.Empty,
+                        LibelleOrigine = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.LibelleOrigine)]) ?? string.Empty,
+                        DateEcheance = TryParseDateOnly(row.Field<object>(columnMap[nameof(_columnMappings.BDDHistorique.DateEcheance)]) ?? null),
+                        IdentifiantOrigine = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.IdentifiantOrigine)]) ?? string.Empty,
+                        Bbgticker = string.Empty, // Not in worksheet columns provided
+                        LibelleTypeDette = "SUBORDONNE", // Always set to 'SUBORDONNE' as requested
                         LastUpdate = DateTime.Now.ToString("dd-MM-yyyy_Hmmss")
-                    };
-                }).ToList();
+                    }).ToList();
                 value = bddHisto;
             }
             catch (Exception ex)
@@ -158,6 +141,45 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Import.BDDHistoriq
             }
             return true;
 
+        }
+        private static DateOnly? TryParseDateOnly(object? dateValue)
+        {
+            if (dateValue == null) return null;
+
+            if (DateTime.TryParse(dateValue.ToString(), out DateTime result))
+                return DateOnly.FromDateTime(result);
+
+            return null;
+        }
+        private Dictionary<string, string> CreateColumnMap<T>(DataTable dt, T mapping)
+        {
+            var map = new Dictionary<string, string>();
+            var properties = typeof(T).GetProperties();
+            var dtColumns = dt.Columns.Cast<DataColumn>().ToList();
+
+            foreach (var prop in properties)
+            {
+                var expectedName = (string)prop.GetValue(mapping)!;
+                var normalizedExpectedName = NormalizeString(expectedName);
+
+                var matchedColumn = dtColumns.FirstOrDefault(c => NormalizeString(c.ColumnName) == normalizedExpectedName);
+
+                if (matchedColumn != null)
+                {
+                    map[prop.Name] = matchedColumn.ColumnName;
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️  Column mapping not found for '{expectedName}'");
+                }
+            }
+            return map;
+        }
+
+        private string NormalizeString(string input)
+        {
+            // Remove all non-alphanumeric characters and convert to lower case
+            return Regex.Replace(input, "[^a-zA-Z0-9]", "").ToLower();
         }
         private List<ImportResult> GetImportResults(bool IsSuccessful = false, params string[] args)
         {
