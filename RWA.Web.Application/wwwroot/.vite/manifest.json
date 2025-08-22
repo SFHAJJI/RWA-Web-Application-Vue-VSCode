@@ -23,36 +23,36 @@
     "file": "signalr-vendor-BwjK9eZE.js",
     "name": "signalr-vendor"
   },
-  "_vendor-B5oAHIpZ.js": {
-    "file": "vendor-B5oAHIpZ.js",
+  "_vendor-g78bUqAZ.js": {
+    "file": "vendor-g78bUqAZ.js",
     "name": "vendor"
   },
   "_vuetify-vendor-Cs3PcoqG.css": {
     "file": "vuetify-vendor-Cs3PcoqG.css",
     "src": "_vuetify-vendor-Cs3PcoqG.css"
   },
-  "_vuetify-vendor-TsjR0sxG.js": {
-    "file": "vuetify-vendor-TsjR0sxG.js",
+  "_vuetify-vendor-DhhqeVUU.js": {
+    "file": "vuetify-vendor-DhhqeVUU.js",
     "name": "vuetify-vendor",
     "imports": [
-      "_vendor-B5oAHIpZ.js"
+      "_vendor-g78bUqAZ.js"
     ],
     "css": [
       "vuetify-vendor-Cs3PcoqG.css"
     ]
   },
   "main.ts": {
-    "file": "main-n7b7kM6s.js",
+    "file": "main-CdVDm1jl.js",
     "name": "main",
     "src": "main.ts",
     "isEntry": true,
     "imports": [
-      "_vuetify-vendor-TsjR0sxG.js",
-      "_vendor-B5oAHIpZ.js",
+      "_vuetify-vendor-DhhqeVUU.js",
+      "_vendor-g78bUqAZ.js",
       "_signalr-vendor-BwjK9eZE.js"
     ],
     "css": [
-      "main-n5p3f2_V.css"
+      "main-D4jLcwni.css"
     ],
     "assets": [
       "primeicons-DMOk5skT.eot",

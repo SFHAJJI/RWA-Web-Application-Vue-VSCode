@@ -59,26 +59,25 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpGet("inventory/data")]
-        public IActionResult GetInventoryData([FromQuery] int limit = 100)
+        public IActionResult GetInventoryData()
         {
             try
             {
                 var data = _context.HecateInventaireNormalises
                     .OrderByDescending(x => x.PeriodeCloture)
-                    .Take(limit)
                     .Select(x => new
                     {
-                        x.Identifiant,
-                        x.Nom,
-                        x.Source,
-                        x.Categorie1,
-                        x.Categorie2,
-                        x.DeviseDeCotation,
-                        x.ValeurDeMarche,
-                        x.RefCategorieRwa,
-                        x.PeriodeCloture,
-                        x.DateMaturite,
-                        x.DateExpiration
+                        identifiant = x.Identifiant,
+                        nom = x.Nom,
+                        source = x.Source,
+                        categorie1 = x.Categorie1,
+                        categorie2 = x.Categorie2,
+                        deviseDeCotation = x.DeviseDeCotation,
+                        valeurDeMarche = x.ValeurDeMarche,
+                        refCategorieRwa = x.RefCategorieRwa,
+                        periodeCloture = x.PeriodeCloture,
+                        dateMaturite = x.DateMaturite,
+                        dateExpiration = x.DateExpiration
                     })
                     .ToList();
 
@@ -131,25 +130,24 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpGet("history/data")]
-        public IActionResult GetHistoryData([FromQuery] int limit = 100)
+        public IActionResult GetHistoryData()
         {
             try
             {
                 var data = _context.HecateInterneHistoriques
                     .OrderByDescending(x => x.LastUpdate)
-                    .Take(limit)
                     .Select(x => new
                     {
-                        x.Source,
-                        x.IdentifiantOrigine,
-                        x.RefCategorieRwa,
-                        x.IdentifiantUniqueRetenu,
-                        x.Raf,
-                        x.LibelleOrigine,
-                        x.DateEcheance,
-                        x.Bbgticker,
-                        x.LibelleTypeDette,
-                        x.LastUpdate
+                        source = x.Source,
+                        identifiantOrigine = x.IdentifiantOrigine,
+                        refCategorieRwa = x.RefCategorieRwa,
+                        identifiantUniqueRetenu = x.IdentifiantUniqueRetenu,
+                        raf = x.Raf,
+                        libelleOrigine = x.LibelleOrigine,
+                        dateEcheance = x.DateEcheance,
+                        bbgticker = x.Bbgticker,
+                        libelleTypeDette = x.LibelleTypeDette,
+                        lastUpdate = x.LastUpdate
                     })
                     .ToList();
 

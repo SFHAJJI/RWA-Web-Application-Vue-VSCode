@@ -60,3 +60,12 @@ Program_*.cs
 
 # Large files
 RWA.Web.Application/RWA Data/Seeding/Tethys/Extract_BOA_14112024.txt
+
+# Ignore files in wwwroot, but not the folders
+RWA.Web.Application/wwwroot/*.*
+!RWA.Web.Application/wwwroot/.vite/
+!RWA.Web.Application/wwwroot/css/
+!RWA.Web.Application/wwwroot/fonts/
+!RWA.Web.Application/wwwroot/images/
+!RWA.Web.Application/wwwroot/js/
+!RWA.Web.Application/wwwroot/lib/

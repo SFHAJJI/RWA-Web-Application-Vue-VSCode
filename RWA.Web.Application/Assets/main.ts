@@ -1,4 +1,5 @@
 import "./assets/styles/main.css";
+import "./public/css/audit-panel.css";
 import 'vuetify/styles';
 import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
