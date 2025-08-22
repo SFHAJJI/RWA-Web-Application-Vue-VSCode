@@ -1,15 +1,41 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
+            "name": ".NET Core Launch (web)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/RWA.Web.Application/bin/Debug/net8.0/RWA.Web.Application.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/RWA.Web.Application",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": "Launch Chrome against localhost",
             "type": "chrome",
             "request": "launch",
-            "name": "Launch Chrome against localhost",
-            "url": "http://localhost:8080",
-            "webRoot": "${workspaceFolder}"
+            "url": "http://localhost:5085",
+            "webRoot": "${workspaceFolder}/RWA.Web.Application/Assets"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Launch .NET Core and Chrome",
+            "configurations": [
+                ".NET Core Launch (web)",
+                "Launch Chrome against localhost"
+            ]
         }
     ]
 }

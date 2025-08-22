@@ -33,6 +33,8 @@ namespace RWA.Web.Application
             builder.Services.Configure<LdapSettings>(builder.Configuration.GetSection("Ldap"));
             // Bind workflow status mapping options so advancement/error rules are configurable at runtime
             builder.Services.Configure<WorkflowStatusMappingOptions>(builder.Configuration.GetSection("WorkflowStatusMapping"));
+            // Bind Excel column mappings options for seeding process
+            builder.Services.Configure<ExcelColumnMappings>(builder.Configuration.GetSection("ExcelColumnMappings"));
             builder.Services.AddScoped<ILdapAuthService, LdapAuthService>();
             // Validation services - use FluentValidation-based service
             builder.Services.AddSingleton<Services.Validation.FluentValidationService>();
