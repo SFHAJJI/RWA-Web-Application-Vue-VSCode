@@ -3,36 +3,38 @@ using RWA.Web.Application.Models;
 using System.Diagnostics;
 using System.Data;
 using System.Collections;
+using Microsoft.Extensions.Options;
 using RWA.Web.Application.Services.ExcelManagementService.Import;
+using System.Text.RegularExpressions;
 
 namespace RWA.Web.Application.Services.Seeding
 {
     public class DatabaseSeederService
     {
         private readonly RwaContext _context;
-        private readonly ILogger _logger;
         private readonly IWebHostEnvironment _environment;
+        private readonly ExcelColumnMappings _columnMappings;
         private readonly string _rwaDatoDir;
 
-        public DatabaseSeederService(RwaContext context, ILogger logger, IWebHostEnvironment environment)
+        public DatabaseSeederService(RwaContext context, IWebHostEnvironment environment, IOptions<ExcelColumnMappings> columnMappings)
         {
             _context = context;
-            _logger = logger;
             _environment = environment;
+            _columnMappings = columnMappings.Value;
             _rwaDatoDir = Path.Combine(environment.ContentRootPath, "RWA Data", "Seeding");
         }
 
         public async Task SeedDatabaseAsync()
         {
             var totalStopwatch = Stopwatch.StartNew();
-            _logger.LogInformation("🚀 ULTRA-FAST PARALLEL DATATABLE SEEDING INITIATED");
+            Console.WriteLine("🚀 ULTRA-FAST PARALLEL DATATABLE SEEDING INITIATED");
 
             try
             {
                 // Quick check if already seeded
                 if (await _context.CommonUsers.AnyAsync())
                 {
-                    _logger.LogInformation("⚡ Database already seeded - SKIPPING");
+                    Console.WriteLine("⚡ Database already seeded - SKIPPING");
                     return;
                 }
 
@@ -46,22 +48,22 @@ namespace RWA.Web.Application.Services.Seeding
                     SeedHecateCatDepositaire2FromEquivalenceFileAsync()
                 };
 
-                _logger.LogInformation("⚡ PHASE 1: Launching 5 parallel independent DataTable seeds from EquivalenceCatRWA.xlsx...");
+                Console.WriteLine("⚡ PHASE 1: Launching 5 parallel independent DataTable seeds from EquivalenceCatRWA.xlsx...");
                 await Task.WhenAll(phase1Tasks);
 
                 // PHASE 2: 🎯 DEPENDENT TABLE (awaits Phase 1 completion)
-                _logger.LogInformation("⚡ PHASE 2: Processing dependent table with FK lookups...");
+                Console.WriteLine("⚡ PHASE 2: Processing dependent table with FK lookups...");
                 await SeedHecateEquivalenceCatRwaAsync();
 
                 // PHASE 3: 👥 USER DATA
                 await SeedUsersAsync();
 
                 totalStopwatch.Stop();
-                _logger.LogInformation($"🏆 ULTRA-FAST SEEDING COMPLETED: {totalStopwatch.ElapsedMilliseconds}ms total");
+                Console.WriteLine($"🏆 ULTRA-FAST SEEDING COMPLETED: {totalStopwatch.ElapsedMilliseconds}ms total");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 SEEDING FAILED: {ex.Message}");
+                Console.WriteLine($"💥 SEEDING FAILED: {ex.Message}");
                 throw;
             }
         }
@@ -71,10 +73,10 @@ namespace RWA.Web.Application.Services.Seeding
             var sw = Stopwatch.StartNew();
             try
             {
-                var filePath = Path.Combine(_rwaDatoDir, "Templates", "HECATE", "BDDHistorique.xlsx");
+                var filePath = Path.Combine(_rwaDatoDir, "Config", "BDDHistorique.xlsx");
                 if (!File.Exists(filePath))
                 {
-                    _logger.LogWarning($"⚠️  BDD Historique file not found: {filePath}");
+                    Console.WriteLine($"⚠️  BDD Historique file not found: {filePath}");
                     return;
                 }
 
@@ -85,18 +87,19 @@ namespace RWA.Web.Application.Services.Seeding
                 
                 if (bddDt?.Rows.Count > 0)
                 {
+                    var columnMap = CreateColumnMap(bddDt, _columnMappings.BDDHistorique);
                     // PARALLEL: AsParallel() for row processing + bulk insert
                     var entities = bddDt.AsEnumerable()
                         .AsParallel()
                         .Select(row => new HecateInterneHistorique
                         {
-                            Source = row.Field<string>("Source") ?? string.Empty,
-                            RefCategorieRwa = row.Field<string>("Catégorie RWA") ?? string.Empty,
-                            IdentifiantUniqueRetenu = row.Field<string>("Identifiant unique retenu") ?? string.Empty,
-                            Raf = row.Field<string>("RAF") ?? string.Empty,
-                            LibelleOrigine = row.Field<string>("Libellé d'origine") ?? string.Empty,
-                            DateEcheance = TryParseDateOnly(row.Field<object>("Date d'échéance") ?? DateTime.MinValue),
-                            IdentifiantOrigine = row.Field<string>("Identifiant d'origine") ?? string.Empty,
+                            Source = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.Source)]) ?? string.Empty,
+                            RefCategorieRwa = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.CategorieRWA)]) ?? string.Empty,
+                            IdentifiantUniqueRetenu = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.IdentifiantUniqueRetenu)]) ?? string.Empty,
+                            Raf = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.RAF)]) ?? string.Empty,
+                            LibelleOrigine = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.LibelleOrigine)]) ?? string.Empty,
+                            DateEcheance = TryParseDateOnly(row.Field<object>(columnMap[nameof(_columnMappings.BDDHistorique.DateEcheance)]) ?? null),
+                            IdentifiantOrigine = row.Field<string>(columnMap[nameof(_columnMappings.BDDHistorique.IdentifiantOrigine)]) ?? string.Empty,
                             Bbgticker = string.Empty, // Not in worksheet columns provided
                             LibelleTypeDette = "SUBORDONNE", // Always set to 'SUBORDONNE' as requested
                             LastUpdate = DateTime.Now.ToString("dd-MM-yyyy_Hmmss")
@@ -108,12 +111,12 @@ namespace RWA.Web.Application.Services.Seeding
                     await _context.SaveChangesAsync();
                     
                     sw.Stop();
-                    _logger.LogInformation($"⚡ BDD Historique: {entities.Count} records in {sw.ElapsedMilliseconds}ms");
+                    Console.WriteLine($"⚡ BDD Historique: {entities.Count} records in {sw.ElapsedMilliseconds}ms");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 BDD Historique failed: {ex.Message}");
+                Console.WriteLine($"💥 BDD Historique failed: {ex.Message}");
             }
         }
 
@@ -125,7 +128,7 @@ namespace RWA.Web.Application.Services.Seeding
                 var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
                 if (!File.Exists(filePath))
                 {
-                    _logger.LogWarning($"⚠️  EquivalenceCatRWA file not found: {filePath}");
+                    Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
                     return;
                 }
 
@@ -135,13 +138,14 @@ namespace RWA.Web.Application.Services.Seeding
                 
                 if (catDt?.Rows.Count > 0)
                 {
+                    var columnMap = CreateColumnMap(catDt, _columnMappings.EquivalenceCatRWA.CategorieRWA);
                     var entities = catDt.AsEnumerable()
                         .AsParallel()
                         .Select(row => new HecateCategorieRwa
                         {
-                            IdCatRwa = row.Field<string>("Code RWA") ?? string.Empty,
-                            Libelle = row.Field<string>("Libelle Categorie RWA") ?? string.Empty,
-                            ValeurMobiliere = row.Field<string>("Valeur Mobiliere") ?? string.Empty
+                            IdCatRwa = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.CategorieRWA.CodeRWA)]) ?? string.Empty,
+                            Libelle = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.CategorieRWA.LibelleCategorieRWA)]) ?? string.Empty,
+                            ValeurMobiliere = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.CategorieRWA.ValeurMobiliere)]) ?? string.Empty,
                         })
                         .Where(e => !string.IsNullOrEmpty(e.IdCatRwa))
                         .ToList();
@@ -150,12 +154,12 @@ namespace RWA.Web.Application.Services.Seeding
                     await _context.SaveChangesAsync();
                     
                     sw.Stop();
-                    _logger.LogInformation($"⚡ HecateCategorieRwa (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
+                    Console.WriteLine($"⚡ HecateCategorieRwa (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 HecateCategorieRwa (from EquivalenceCatRWA) failed: {ex.Message}");
+                Console.WriteLine($"💥 HecateCategorieRwa (from EquivalenceCatRWA) failed: {ex.Message}");
             }
         }
 
@@ -167,7 +171,7 @@ namespace RWA.Web.Application.Services.Seeding
                 var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
                 if (!File.Exists(filePath))
                 {
-                    _logger.LogWarning($"⚠️  EquivalenceCatRWA file not found: {filePath}");
+                    Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
                     return;
                 }
 
@@ -177,12 +181,13 @@ namespace RWA.Web.Application.Services.Seeding
                 
                 if (typeDt?.Rows.Count > 0)
                 {
+                    var columnMap = CreateColumnMap(typeDt, _columnMappings.EquivalenceCatRWA.TypeBloomberg);
                     var entities = typeDt.AsEnumerable()
                         .AsParallel()
                         .Select(row => new HecateTypeBloomberg
                         {
-                            IdTypeBloomberg = row.Field<string>("Code Bloomberg") ?? string.Empty,
-                            Libelle = row.Field<string>("Libelle Bloomberg") ?? string.Empty
+                            IdTypeBloomberg = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.TypeBloomberg.CodeBloomberg)]) ?? string.Empty,
+                            Libelle = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.TypeBloomberg.LibelleBloomberg)]) ?? string.Empty
                         })
                         .Where(e => !string.IsNullOrEmpty(e.IdTypeBloomberg))
                         .ToList();
@@ -191,12 +196,12 @@ namespace RWA.Web.Application.Services.Seeding
                     await _context.SaveChangesAsync();
                     
                     sw.Stop();
-                    _logger.LogInformation($"⚡ HecateTypeBloomberg (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
+                    Console.WriteLine($"⚡ HecateTypeBloomberg (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 HecateTypeBloomberg (from EquivalenceCatRWA) failed: {ex.Message}");
+                Console.WriteLine($"💥 HecateTypeBloomberg (from EquivalenceCatRWA) failed: {ex.Message}");
             }
         }
 
@@ -208,7 +213,7 @@ namespace RWA.Web.Application.Services.Seeding
                 var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
                 if (!File.Exists(filePath))
                 {
-                    _logger.LogWarning($"⚠️  EquivalenceCatRWA file not found: {filePath}");
+                    Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
                     return;
                 }
 
@@ -218,9 +223,10 @@ namespace RWA.Web.Application.Services.Seeding
                 
                 if (eqDt?.Rows.Count > 0)
                 {
+                    var columnMap = CreateColumnMap(eqDt, _columnMappings.EquivalenceCatRWA.EquivalenceCatRWA);
                     var entities = eqDt.AsEnumerable()
                         .AsParallel()
-                        .Select(row => row.Field<string>("Code catégorie 1"))
+                        .Select(row => row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire1)]))
                         .Where(code => !string.IsNullOrEmpty(code))
                         .Distinct()
                         .Select((code, index) => new HecateCatDepositaire1
@@ -234,12 +240,12 @@ namespace RWA.Web.Application.Services.Seeding
                     await _context.SaveChangesAsync();
                     
                     sw.Stop();
-                    _logger.LogInformation($"⚡ HecateCatDepositaire1 (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
+                    Console.WriteLine($"⚡ HecateCatDepositaire1 (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 HecateCatDepositaire1 (from EquivalenceCatRWA) failed: {ex.Message}");
+                Console.WriteLine($"💥 HecateCatDepositaire1 (from EquivalenceCatRWA) failed: {ex.Message}");
             }
         }
 
@@ -251,7 +257,7 @@ namespace RWA.Web.Application.Services.Seeding
                 var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
                 if (!File.Exists(filePath))
                 {
-                    _logger.LogWarning($"⚠️  EquivalenceCatRWA file not found: {filePath}");
+                    Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
                     return;
                 }
 
@@ -261,9 +267,10 @@ namespace RWA.Web.Application.Services.Seeding
                 
                 if (eqDt?.Rows.Count > 0)
                 {
+                    var columnMap = CreateColumnMap(eqDt, _columnMappings.EquivalenceCatRWA.EquivalenceCatRWA);
                     var entities = eqDt.AsEnumerable()
                         .AsParallel()
-                        .Select(row => row.Field<string>("Code catégorie 2"))
+                        .Select(row => row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire2)]))
                         .Where(code => !string.IsNullOrEmpty(code))
                         .Distinct()
                         .Select((code, index) => new HecateCatDepositaire2
@@ -277,12 +284,12 @@ namespace RWA.Web.Application.Services.Seeding
                     await _context.SaveChangesAsync();
                     
                     sw.Stop();
-                    _logger.LogInformation($"⚡ HecateCatDepositaire2 (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
+                    Console.WriteLine($"⚡ HecateCatDepositaire2 (from EquivalenceCatRWA): {entities.Count} records in {sw.ElapsedMilliseconds}ms");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 HecateCatDepositaire2 (from EquivalenceCatRWA) failed: {ex.Message}");
+                Console.WriteLine($"💥 HecateCatDepositaire2 (from EquivalenceCatRWA) failed: {ex.Message}");
             }
         }
 
@@ -294,7 +301,7 @@ namespace RWA.Web.Application.Services.Seeding
                 var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
                 if (!File.Exists(filePath))
                 {
-                    _logger.LogWarning($"⚠️  EquivalenceCatRWA file not found: {filePath}");
+                    Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
                     return;
                 }
 
@@ -310,30 +317,31 @@ namespace RWA.Web.Application.Services.Seeding
                 
                 if (eqDt?.Rows.Count > 0)
                 {
+                    var columnMap = CreateColumnMap(eqDt, _columnMappings.EquivalenceCatRWA.EquivalenceCatRWA);
                     var entities = eqDt.AsEnumerable()
                         .AsParallel()
-                        .Where(row => 
+                        .Where(row =>
                         {
-                            var source = row.Field<string>("Source") ?? string.Empty;
-                            var catRwa = row.Field<string>("Catégorie RWA") ?? string.Empty;
-                            var codeCat1 = row.Field<string>("Code catégorie 1") ?? string.Empty;
-                            var codeCat2 = row.Field<string>("Code catégorie 2") ?? string.Empty;
-                            var typeBloomberg = row.Field<string>("Type Bloomberg") ?? string.Empty;
-                            
+                            var source = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.Source)]) ?? string.Empty;
+                            var catRwa = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CategorieRWA)]) ?? string.Empty;
+                            var codeCat1 = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire1)]) ?? string.Empty;
+                            var codeCat2 = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire2)]) ?? string.Empty;
+                            var typeBloomberg = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.TypeBloomberg)]) ?? string.Empty;
+
                             return !string.IsNullOrEmpty(source) && !string.IsNullOrEmpty(catRwa) &&
-                                   catRwaLookup.ContainsKey(catRwa) && 
-                                   catDepo1Lookup.ContainsKey(codeCat1) && 
+                                   catRwaLookup.ContainsKey(catRwa) &&
+                                   catDepo1Lookup.ContainsKey(codeCat1) &&
                                    catDepo2Lookup.ContainsKey(codeCat2) &&
                                    typeBloombergLookup.ContainsKey(typeBloomberg);
                         })
-                        .Select(row => 
+                        .Select(row =>
                         {
-                            var source = row.Field<string>("Source") ?? string.Empty;
-                            var catRwa = row.Field<string>("Catégorie RWA") ?? string.Empty;
-                            var codeCat1 = row.Field<string>("Code catégorie 1") ?? string.Empty;
-                            var codeCat2 = row.Field<string>("Code catégorie 2") ?? string.Empty;
-                            var typeBloomberg = row.Field<string>("Type Bloomberg") ?? string.Empty;
-                            
+                            var source = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.Source)]) ?? string.Empty;
+                            var catRwa = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CategorieRWA)]) ?? string.Empty;
+                            var codeCat1 = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire1)]) ?? string.Empty;
+                            var codeCat2 = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire2)]) ?? string.Empty;
+                            var typeBloomberg = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.TypeBloomberg)]) ?? string.Empty;
+
                             return new HecateEquivalenceCatRwa
                             {
                                 Source = source,
@@ -354,12 +362,12 @@ namespace RWA.Web.Application.Services.Seeding
                     await _context.SaveChangesAsync();
                     
                     sw.Stop();
-                    _logger.LogInformation($"⚡ HecateEquivalenceCatRwa: {entities.Count} records in {sw.ElapsedMilliseconds}ms");
+                    Console.WriteLine($"⚡ HecateEquivalenceCatRwa: {entities.Count} records in {sw.ElapsedMilliseconds}ms");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 HecateEquivalenceCatRwa failed: {ex.Message}");
+                Console.WriteLine($"💥 HecateEquivalenceCatRwa failed: {ex.Message}");
             }
         }
 
@@ -381,11 +389,11 @@ namespace RWA.Web.Application.Services.Seeding
                 await _context.SaveChangesAsync();
                 
                 sw.Stop();
-                _logger.LogInformation($"⚡ Users: {users.Length} records in {sw.ElapsedMilliseconds}ms");
+                Console.WriteLine($"⚡ Users: {users.Length} records in {sw.ElapsedMilliseconds}ms");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"💥 Users failed: {ex.Message}");
+                Console.WriteLine($"💥 Users failed: {ex.Message}");
             }
         }
 
@@ -402,6 +410,37 @@ namespace RWA.Web.Application.Services.Seeding
         public async Task<bool> IsSeededAsync()
         {
             return await _context.HecateCategorieRwas.AnyAsync();
+        }
+
+        private Dictionary<string, string> CreateColumnMap<T>(DataTable dt, T mapping)
+        {
+            var map = new Dictionary<string, string>();
+            var properties = typeof(T).GetProperties();
+            var dtColumns = dt.Columns.Cast<DataColumn>().ToList();
+
+            foreach (var prop in properties)
+            {
+                var expectedName = (string)prop.GetValue(mapping)!;
+                var normalizedExpectedName = NormalizeString(expectedName);
+                
+                var matchedColumn = dtColumns.FirstOrDefault(c => NormalizeString(c.ColumnName) == normalizedExpectedName);
+
+                if (matchedColumn != null)
+                {
+                    map[prop.Name] = matchedColumn.ColumnName;
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️  Column mapping not found for '{expectedName}'");
+                }
+            }
+            return map;
+        }
+
+        private string NormalizeString(string input)
+        {
+            // Remove all non-alphanumeric characters and convert to lower case
+            return Regex.Replace(input, "[^a-zA-Z0-9]", "").ToLower();
         }
     }
 }

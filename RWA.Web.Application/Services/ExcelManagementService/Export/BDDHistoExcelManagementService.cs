@@ -27,46 +27,34 @@ namespace RWA.Web.Application.Services.ExcelManagementService.Export
 
             var bddWorksheet = package.Workbook.Worksheets.FirstOrDefault(x => x.Name == "BDD");
 
-
-            var hecateInterneHistoriques = _context.HecateInterneHistoriques.ToList();
-
-
-            ExcelNamedStyleXml ns = package.Workbook.Styles.CreateNamedStyle("BDD");
-            ns.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            ns.Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
-
-
-            ExcelNamedStyleXml nsDate = package.Workbook.Styles.CreateNamedStyle("BDDDate");
-            nsDate.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            nsDate.Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
-            nsDate.Style.Numberformat.Format = "dd/mm/yyyy";
-            for (int i = 0; i < hecateInterneHistoriques.Count(); i++)
+            if (bddWorksheet != null)
             {
-                bddWorksheet.Cells[i + 2, 1].Value = hecateInterneHistoriques[i].Source;
-                bddWorksheet.Cells[i + 2, 1].StyleName = "BDD";
-                bddWorksheet.Cells[i + 2, 2].Value = hecateInterneHistoriques[i].RefCategorieRwa;
-                bddWorksheet.Cells[i + 2, 2].StyleName = "BDD";
-                bddWorksheet.Cells[i + 2, 3].Value = hecateInterneHistoriques[i].IdentifiantUniqueRetenu;
-                bddWorksheet.Cells[i + 2, 3].StyleName = "BDD";
-                bddWorksheet.Cells[i + 2, 4].Value = hecateInterneHistoriques[i].Raf;
-                bddWorksheet.Cells[i + 2, 4].StyleName = "BDD";
-                bddWorksheet.Cells[i + 2, 5].Value = hecateInterneHistoriques[i].LibelleOrigine;
-                bddWorksheet.Cells[i + 2, 5].StyleName = "BDD";
-                bddWorksheet.Cells[i + 2, 6].Value = hecateInterneHistoriques[i].DateEcheance;
-                bddWorksheet.Cells[i + 2, 6].StyleName = "BDDDate";
-                bddWorksheet.Cells[i + 2, 7].Value = hecateInterneHistoriques[i].IdentifiantOrigine;
-                bddWorksheet.Cells[i + 2, 7].StyleName = "BDD";
-                bddWorksheet.Cells[i + 2, 8].Value = hecateInterneHistoriques[i].Bbgticker;
-                bddWorksheet.Cells[i + 2, 8].StyleName = "BDD";
-                bddWorksheet.Cells[i + 2, 9].Value = hecateInterneHistoriques[i].LibelleTypeDette;
-                bddWorksheet.Cells[i + 2, 9].StyleName = "BDD";
+                var hecateInterneHistoriques = _context.HecateInterneHistoriques.AsNoTracking().Select(e => new {
+                    e.Source,
+                    e.RefCategorieRwa,
+                    e.IdentifiantUniqueRetenu,
+                    e.Raf,
+                    e.LibelleOrigine,
+                    e.DateEcheance,
+                    e.IdentifiantOrigine,
+                    e.Bbgticker,
+                    e.LibelleTypeDette
+                }).ToList();
+                
+                // Use LoadFromCollection for bulk writing - much faster
+                bddWorksheet.Cells["A2"].LoadFromCollection(hecateInterneHistoriques, false);
 
+                // Apply styles after data is loaded
+                var dataRange = bddWorksheet.Cells[2, 1, hecateInterneHistoriques.Count + 1, 9];
+                dataRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                dataRange.Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
+                var dateColumn = bddWorksheet.Cells[2, 6, hecateInterneHistoriques.Count + 1, 6];
+                dateColumn.Style.Numberformat.Format = "dd/mm/yyyy";
 
+                bddWorksheet.Cells["A1:I1"].AutoFilter = true;
+                bddWorksheet.Cells[bddWorksheet.Dimension.Address].AutoFitColumns();
             }
-
-            bddWorksheet.Cells["A1:I1"].AutoFilter = true;
-            bddWorksheet.Column(4).AutoFit();
             return package;
 
         }

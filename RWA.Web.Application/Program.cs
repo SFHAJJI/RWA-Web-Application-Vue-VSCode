@@ -45,8 +45,13 @@ namespace RWA.Web.Application
             builder.Services.AddTransient<FluentValidation.IValidator<RWA.Web.Application.Models.WorkflowStep>, RWA.Web.Application.Services.Validation.Fluent.RwaCategoryMappingFluentValidator>();
 
             builder.Services.AddSingleton<Services.Validation.IValidatorsFactory, Services.Validation.ValidatorsFactory>();
+            builder.Services.AddScoped<Services.ExcelManagementService.Export.ExcelManagementServiceFactory>();
+            builder.Services.AddScoped<Services.ExcelManagementService.Import.ExcelImportManagemenServiceFactory>();
 
-            // Note: DatabaseSeederService is instantiated via reflection in middleware to avoid compilation issues
+            if (builder.Environment.IsDevelopment())
+            {
+                builder.Services.AddScoped<Services.Seeding.DatabaseSeederService>();
+            }
 
             builder.Services.AddAuthentication("MyCookieAuth")
                 .AddCookie("MyCookieAuth", options =>
@@ -84,7 +89,7 @@ namespace RWA.Web.Application
             if (builder.Environment.IsDevelopment())
             {
                 // In development, use in-memory database (configured by middleware)
-                builder.Services.AddDbContext<RwaContext>(options =>
+                builder.Services.AddDbContextFactory<RwaContext>(options =>
                     options.UseInMemoryDatabase("RWA_Development_DB"));
             }
             else

@@ -4,28 +4,32 @@ using RWA.Web.Application.Models;
 using OfficeOpenXml;
 using RWA.Web.Application.Services.ExcelManagementService.Import.CatRWA;
 using RWA.Web.Application.Services.ExcelManagementService.Import.BDDHistorique;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace RWA.Web.Application.Services.ExcelManagementService.Import
 {
     public class ExcelImportManagemenServiceFactory
     {
-        private RwaContext _context { get; set; }
-        public ExcelImportManagemenServiceFactory(RwaContext context)
+        private readonly IServiceProvider _serviceProvider;
+        public ExcelImportManagemenServiceFactory(IServiceProvider serviceProvider)
         {
-            _context = context;
+            _serviceProvider = serviceProvider;
         }
         public IExcelImportManagementService GetExcelManagementService(ImportExportType importExportType)
         {
-            switch (importExportType)
+            using (var scope = _serviceProvider.CreateScope())
             {
-                case ImportExportType.BDDHistorique:
-                    return new BDDHistoExcelImportManagementServiceNew(_context);
-                case ImportExportType.MappingCatRWA:
-                    return new EqCatRWAExcelImportManagementServiceNew(_context);
-                default:
-                    return null;
+                var context = scope.ServiceProvider.GetRequiredService<RwaContext>();
+                switch (importExportType)
+                {
+                    case ImportExportType.BDDHistorique:
+                        return new BDDHistoExcelImportManagementServiceNew(context);
+                    case ImportExportType.MappingCatRWA:
+                        return new EqCatRWAExcelImportManagementServiceNew(context);
+                    default:
+                        return null;
+                }
             }
-      
         }
     }
 }

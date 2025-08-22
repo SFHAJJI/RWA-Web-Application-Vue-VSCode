@@ -19,13 +19,18 @@ namespace RWA.Web.Application.Controllers
     public class HECATEController : Controller
     {
         private readonly RwaContext _context;
-        private HECATESettingViewModel _settingviewModel;
+        private HECATESettingViewModel _settingviewModel = new HECATESettingViewModel();
+        private readonly ExcelManagementServiceFactory _excelManagementServiceFactory;
+        private readonly ExcelImportManagemenServiceFactory _excelImportManagemenServiceFactory;
 
-        public HECATEController(RwaContext context)
+        public HECATEController(
+            RwaContext context,
+            ExcelManagementServiceFactory excelManagementServiceFactory,
+            ExcelImportManagemenServiceFactory excelImportManagemenServiceFactory)
         {
             _context = context;
-            //var test = _context.HecateCategorieRwas.ToList();
-            //var test2 = test;
+            _excelManagementServiceFactory = excelManagementServiceFactory;
+            _excelImportManagemenServiceFactory = excelImportManagemenServiceFactory;
         }
         [HttpGet]
         [Authorize]
@@ -70,7 +75,7 @@ namespace RWA.Web.Application.Controllers
         {
             try
             {
-                var ExcelManagementService = new ExcelManagementServiceFactory(_context).GetExcelManagementService(importExportType);
+                var ExcelManagementService = _excelManagementServiceFactory.GetExcelManagementService(importExportType);
 
                 using (var package = ExcelManagementService.CreateExcel(out string fileName))
                 {
@@ -106,7 +111,7 @@ namespace RWA.Web.Application.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Import([FromForm] ImportExportViewModel model)
         {
-            var ExcelImportManagementService = new ExcelImportManagemenServiceFactory(_context).GetExcelManagementService(ImportExportViewModel.Dict[model.TooltipMessage]);
+            var ExcelImportManagementService = _excelImportManagemenServiceFactory.GetExcelManagementService(ImportExportViewModel.Dict[model.TooltipMessage]);
             var hecateSettingViewModel = await ExcelImportManagementService.ImportExcel(model.FileUpload);
             return View("ImportParams", hecateSettingViewModel);
          
