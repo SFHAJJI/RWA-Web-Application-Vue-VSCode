@@ -57,3 +57,6 @@ Program_*.cs
 *Service_*.cs
 *Provider_*.cs
 *Orchestrator_*.cs
+
+# Large files
+RWA.Web.Application/RWA Data/Seeding/Tethys/Extract_BOA_14112024.txt
