@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RWA.Web.Application.Models;
+using RWA.Web.Application.Models.Dtos;
+using System.Linq.Dynamic.Core;
 
 namespace RWA.Web.Application.Controllers
 {
@@ -129,29 +131,142 @@ namespace RWA.Web.Application.Controllers
             }
         }
 
-        [HttpGet("history/data")]
-        public IActionResult GetHistoryData()
+        [HttpPost("history/data")]
+        public async Task<IActionResult> GetHistoryData([FromBody] DataTableRequest request)
         {
             try
             {
-                var data = _context.HecateInterneHistoriques
-                    .OrderByDescending(x => x.LastUpdate)
-                    .Select(x => new
-                    {
-                        source = x.Source,
-                        identifiantOrigine = x.IdentifiantOrigine,
-                        refCategorieRwa = x.RefCategorieRwa,
-                        identifiantUniqueRetenu = x.IdentifiantUniqueRetenu,
-                        raf = x.Raf,
-                        libelleOrigine = x.LibelleOrigine,
-                        dateEcheance = x.DateEcheance,
-                        bbgticker = x.Bbgticker,
-                        libelleTypeDette = x.LibelleTypeDette,
-                        lastUpdate = x.LastUpdate
-                    })
-                    .ToList();
+                var query = _context.HecateInterneHistoriques.AsQueryable();
 
-                return Ok(new { rows = data });
+                // Filtering
+                if (request.Filters != null)
+                {
+                    foreach (var filter in request.Filters)
+                    {
+                        if (!string.IsNullOrEmpty(filter.Value))
+                        {
+                            query = query.Where($"{filter.Key}.Contains(@0)", filter.Value);
+                        }
+                    }
+                }
+
+                var totalItems = await query.CountAsync();
+
+                // Sorting
+                if (!string.IsNullOrEmpty(request.SortBy))
+                {
+                    query = query.OrderBy($"{request.SortBy} {(request.SortDesc ? "descending" : "ascending")}");
+                }
+                else
+                {
+                    query = query.OrderByDescending(x => x.LastUpdate);
+                }
+
+                // Pagination
+                var pagedData = await query
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync();
+
+                return Ok(new DataTablesResponse<HecateInterneHistorique>
+                {
+                    Items = pagedData,
+                    TotalItems = totalItems
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("tethys/count")]
+        public IActionResult GetTethysCount()
+        {
+            try
+            {
+                var count = _context.HecateTethys.Count();
+                return Ok(new { count });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("tethys/columns")]
+        public IActionResult GetTethysColumns()
+        {
+            try
+            {
+                var columns = new[]
+                {
+                    new { text = "Identifiant RAF", value = "identifiantRaf" },
+                    new { text = "Libelle Court", value = "libelleCourt" },
+                    new { text = "Raison Sociale", value = "raisonSociale" },
+                    new { text = "Pays de Residence", value = "paysDeResidence" },
+                    new { text = "Pays de Nationalite", value = "paysDeNationalite" },
+                    new { text = "Numero et Nom de Rue", value = "numeroEtNomDeRue" },
+                    new { text = "Ville", value = "ville" },
+                    new { text = "Categorie Tethys", value = "categorieTethys" },
+                    new { text = "NAF NACE", value = "nafNace" },
+                    new { text = "Code ISIN", value = "codeIsin" },
+                    new { text = "Segment de Risque", value = "segmentDeRisque" },
+                    new { text = "Segmentation BPCE", value = "segmentationBpce" },
+                    new { text = "Code CUSIP", value = "codeCusip" },
+                    new { text = "RAF Tete Groupe Reglementaire", value = "rafTeteGroupeReglementaire" },
+                    new { text = "Nom Tete Groupe Reglementaire", value = "nomTeteGroupeReglementaire" },
+                    new { text = "Date Notation Interne", value = "dateNotationInterne" },
+                    new { text = "Code Notation", value = "codeNotation" },
+                    new { text = "Code Conso", value = "codeConso" },
+                    new { text = "Code Apparentement", value = "codeApparentement" }
+                };
+                return Ok(columns);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("tethys/data")]
+        public async Task<IActionResult> GetTethysData([FromBody] DataTableRequest request)
+        {
+            try
+            {
+                var query = _context.HecateTethys.AsQueryable();
+
+                // Filtering
+                if (request.Filters != null)
+                {
+                    foreach (var filter in request.Filters)
+                    {
+                        if (!string.IsNullOrEmpty(filter.Value))
+                        {
+                            query = query.Where($"{filter.Key}.Contains(@0)", filter.Value);
+                        }
+                    }
+                }
+
+                var totalItems = await query.CountAsync();
+
+                // Sorting
+                if (!string.IsNullOrEmpty(request.SortBy))
+                {
+                    query = query.OrderBy($"{request.SortBy} {(request.SortDesc ? "descending" : "ascending")}");
+                }
+
+                // Pagination
+                var pagedData = await query
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync();
+
+                return Ok(new DataTablesResponse<HecateTethy>
+                {
+                    Items = pagedData,
+                    TotalItems = totalItems
+                });
             }
             catch (Exception ex)
             {

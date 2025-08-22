@@ -2,7 +2,6 @@ import "./assets/styles/main.css";
 import "./public/css/audit-panel.css";
 import 'vuetify/styles';
 import { createVuetify } from 'vuetify';
-import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
 
@@ -14,7 +13,6 @@ import { useWorkflowStore } from './stores/workflow';
 const app = createApp(App);
 const pinia = createPinia();
 const vuetify = createVuetify({
-    components,
     directives,
         icons: {
                 defaultSet: 'mdi',

@@ -10,6 +10,8 @@ import path from 'path';
 import vue from "@vitejs/plugin-vue";
 import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
+import { VuetifyResolver } from 'unplugin-vue-components/resolvers';
+import vuetify from 'vite-plugin-vuetify';
 
 // Get base folder for certificates.
 const baseFolder =
@@ -53,8 +55,12 @@ export default defineConfig(async () => {
     const config: UserConfig = {
         plugins: [
             vue(),
+            vuetify({ autoImport: true }),
             Components({
-                resolvers: [PrimeVueResolver()],
+                resolvers: [
+                    PrimeVueResolver(),
+                    VuetifyResolver()
+                ],
             })
         ],
         appType: 'custom',

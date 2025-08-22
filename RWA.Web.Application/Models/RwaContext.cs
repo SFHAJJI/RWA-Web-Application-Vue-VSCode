@@ -1355,9 +1355,9 @@ public partial class RwaContext : DbContext
 
         modelBuilder.Entity<HecateTethy>(entity =>
         {
-            entity
-                .HasNoKey()
-                .ToTable("HECATE_TETHYS");
+            entity.HasKey(e => new { e.IdentifiantRaf, e.CodeIsin, e.CodeCusip });
+
+            entity.ToTable("HECATE_TETHYS");
 
             entity.HasIndex(e => e.CodeIsin, "IX1_HECATE_TETHYS");
 

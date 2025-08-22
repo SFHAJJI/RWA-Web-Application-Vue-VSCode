@@ -69,7 +69,9 @@
           <EnhancedDataTable
             :headers="currentTableColumns"
             :items="currentTableData"
+            :items-length="currentTableItemsLength"
             :loading="tableLoading"
+            @update:options="loadServerItems"
           />
         </div>
       </div>
@@ -116,18 +118,35 @@ const auditTables = reactive<AuditTable[]>([
     color: 'secondary',
     count: 0,
     apiEndpoint: '/api/audit/history'
+  },
+  {
+    name: 'tethys', 
+    title: 'Tethys',
+    description: 'Données Tethys - HecateTethy',
+    icon: 'mdi-alpha-t-box',
+    color: 'green',
+    count: 0,
+    apiEndpoint: '/api/audit/tethys'
   }
 ]);
 
 // Table data
 const tableData = reactive<Record<string, any[]>>({
   inventory: [],
-  history: []
+  history: [],
+  tethys: []
 });
 
 const tableColumns = reactive<Record<string, any[]>>({
   inventory: [],
-  history: []
+  history: [],
+  tethys: []
+});
+
+const tableItemsLength = reactive<Record<string, number>>({
+  inventory: 0,
+  history: 0,
+  tethys: 0
 });
 
 // Computed properties
@@ -143,33 +162,30 @@ const currentTableColumns = computed(() => {
   return tableColumns[tableName];
 });
 
+const currentTableItemsLength = computed(() => {
+  if (activeCard.value === null) return 0;
+  const tableName = auditTables[activeCard.value].name;
+  return tableItemsLength[tableName];
+});
+
 // Methods
 const togglePanel = () => {
-  console.log('Toggling panel');
-  if (isOpen.value) {
-    closePanel();
-  } else {
-    openPanel();
-  }
+  if (isOpen.value) closePanel();
+  else openPanel();
 };
 
 const openPanel = async () => {
-  console.log('Opening panel');
   isOpen.value = true;
-  // Load counts when panel opens
   await loadTableCounts();
 };
 
 const closePanel = () => {
-  console.log('Closing panel');
   isOpen.value = false;
   activeCard.value = null;
 };
 
 const selectCard = async (index: number) => {
-  console.log(`Card ${index} selected`);
   if (activeCard.value === index) {
-    // Close if clicking on active card
     activeCard.value = null;
     return;
   }
@@ -177,21 +193,19 @@ const selectCard = async (index: number) => {
   activeCard.value = index;
   const table = auditTables[index];
   
-  // Load table data if not already loaded
-  if (tableData[table.name].length === 0) {
-    await loadTableData(table);
+  // Load columns if not already loaded, data will be loaded by the datatable's event
+  if (tableColumns[table.name].length === 0) {
+    await loadTableSchema(table);
   }
 };
 
 const loadTableCounts = async () => {
-  console.log('Loading table counts');
   try {
     for (const table of auditTables) {
       const response = await fetch(`${table.apiEndpoint}/count`);
       if (response.ok) {
         const data = await response.json();
         table.count = data.count || 0;
-        console.log(`Count for ${table.name}: ${table.count}`);
       }
     }
   } catch (error) {
@@ -199,28 +213,50 @@ const loadTableCounts = async () => {
   }
 };
 
-const loadTableData = async (table: AuditTable) => {
-  console.log(`Loading table data for ${table.name}`);
-  tableLoading.value = true;
-  
+const loadTableSchema = async (table: AuditTable) => {
   try {
-    // Load columns schema
     const columnsResponse = await fetch(`${table.apiEndpoint}/columns`);
     if (columnsResponse.ok) {
       const columnsData = await columnsResponse.json();
       tableColumns[table.name] = columnsData || [];
-      console.log(`Columns for ${table.name}:`, tableColumns[table.name]);
     }
+  } catch (error) {
+    console.error(`Error loading ${table.name} schema:`, error);
+  }
+};
+
+const loadServerItems = async (options: any) => {
+  if (activeCard.value === null) return;
+  
+  const table = auditTables[activeCard.value];
+  tableLoading.value = true;
+
+  try {
+    const { page, itemsPerPage, sortBy, filters } = options;
     
-    // Load data
-    const dataResponse = await fetch(`${table.apiEndpoint}/data`);
-    if (dataResponse.ok) {
-      const data = await dataResponse.json();
-      tableData[table.name] = data.rows || [];
-      console.log(`Data for ${table.name}:`, tableData[table.name]);
+    const requestBody = {
+      page: page,
+      pageSize: itemsPerPage,
+      sortBy: sortBy.length > 0 ? sortBy[0].key : null,
+      sortDesc: sortBy.length > 0 ? sortBy[0].order === 'desc' : false,
+      filters: filters || {}
+    };
+
+    const response = await fetch(`${table.apiEndpoint}/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      tableData[table.name] = data.items || [];
+      tableItemsLength[table.name] = data.totalItems || 0;
     }
   } catch (error) {
     console.error(`Error loading ${table.name} data:`, error);
+    tableData[table.name] = [];
+    tableItemsLength[table.name] = 0;
   } finally {
     tableLoading.value = false;
   }
@@ -228,8 +264,6 @@ const loadTableData = async (table: AuditTable) => {
 
 // Initialize on mount
 onMounted(async () => {
-  console.log('AuditPanel mounted');
-  // Pre-load counts
   await loadTableCounts();
 });
 </script>

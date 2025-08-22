@@ -45,7 +45,8 @@ namespace RWA.Web.Application.Services.Seeding
                     SeedHecateCategorieRwaFromEquivalenceFileAsync(),
                     SeedHecateTypeBloombergFromEquivalenceFileAsync(),
                     SeedHecateCatDepositaire1FromEquivalenceFileAsync(),
-                    SeedHecateCatDepositaire2FromEquivalenceFileAsync()
+                    SeedHecateCatDepositaire2FromEquivalenceFileAsync(),
+                    SeedTethysAsync()
                 };
 
                 Console.WriteLine("⚡ PHASE 1: Launching 5 parallel independent DataTable seeds from EquivalenceCatRWA.xlsx...");
@@ -441,6 +442,95 @@ namespace RWA.Web.Application.Services.Seeding
         {
             // Remove all non-alphanumeric characters and convert to lower case
             return Regex.Replace(input, "[^a-zA-Z0-9]", "").ToLower();
+        }
+
+        private async Task SeedTethysAsync()
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                var filePath = Path.Combine(_environment.ContentRootPath, "RWA Data", "Seeding", "Tethys", "Extract_BOA_14112024.txt");
+                if (!File.Exists(filePath))
+                {
+                    Console.WriteLine($"⚠️  Tethys file not found: {filePath}");
+                    return;
+                }
+
+                var batch = new List<HecateTethy>();
+                var batchSize = 10000; // Process in batches of 10,000
+                var processedKeys = new HashSet<(string, string, string)>(); // Track composite keys
+
+                using (var reader = new StreamReader(filePath))
+                {
+                    string line;
+                    while ((line = await reader.ReadLineAsync()) != null)
+                    {
+                        var fields = line.Split(';');
+                        if (fields.Length >= 19)
+                        {
+                            var identifiantRaf = fields[0];
+                            var codeIsin = fields[9];
+                            var codeCusip = fields[12];
+
+                            if (string.IsNullOrEmpty(identifiantRaf) || string.IsNullOrEmpty(codeIsin) || string.IsNullOrEmpty(codeCusip))
+                            {
+                                continue; // Skip if any part of the composite key is null/empty
+                            }
+
+                            var compositeKey = (identifiantRaf, codeIsin, codeCusip);
+                            if (!processedKeys.Add(compositeKey))
+                            {
+                                Console.WriteLine($"[DUPLICATE DETECTED] Found duplicate Tethys key: (IdentifiantRaf: {identifiantRaf}, CodeIsin: {codeIsin}, CodeCusip: {codeCusip})");
+                                continue; // Skip already processed key
+                            }
+
+                            batch.Add(new HecateTethy
+                            {
+                                IdentifiantRaf = identifiantRaf,
+                                LibelleCourt = fields[1],
+                                RaisonSociale = fields[2],
+                                PaysDeResidence = fields[3],
+                                PaysDeNationalite = fields[4],
+                                NumeroEtNomDeRue = fields[5],
+                                Ville = fields[6],
+                                CategorieTethys = fields[7],
+                                NafNace = fields[8],
+                                CodeIsin = codeIsin,
+                                SegmentDeRisque = fields[10],
+                                SegmentationBpce = fields[11],
+                                CodeCusip = codeCusip,
+                                RafTeteGroupeReglementaire = fields[13],
+                                NomTeteGroupeReglementaire = fields[14],
+                                DateNotationInterne = fields[15],
+                                CodeNotation = fields[16],
+                                CodeConso = fields[17],
+                                CodeApparentement = fields[18]
+                            });
+
+                            if (batch.Count >= batchSize)
+                            {
+                                await _context.HecateTethys.AddRangeAsync(batch);
+                                await _context.SaveChangesAsync();
+                                batch.Clear();
+                            }
+                        }
+                    }
+                }
+
+                // Save any remaining records
+                if (batch.Any())
+                {
+                    await _context.HecateTethys.AddRangeAsync(batch);
+                    await _context.SaveChangesAsync();
+                }
+
+                sw.Stop();
+                Console.WriteLine($"⚡ Tethys: {_context.HecateTethys.Count()} records in {sw.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"💥 Tethys failed: {ex.Message}");
+            }
         }
     }
 }

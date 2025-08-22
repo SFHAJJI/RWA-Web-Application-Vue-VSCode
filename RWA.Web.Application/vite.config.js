@@ -45,6 +45,8 @@ import path from 'path';
 import vue from "@vitejs/plugin-vue";
 import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
+import { VuetifyResolver } from 'unplugin-vue-components/resolvers';
+import vuetify from 'vite-plugin-vuetify';
 // Get base folder for certificates.
 var baseFolder = process.env.APPDATA !== undefined && process.env.APPDATA !== ''
     ? "".concat(process.env.APPDATA, "/ASP.NET/https")
@@ -89,8 +91,12 @@ export default defineConfig(function () { return __awaiter(void 0, void 0, void 
                 config = {
                     plugins: [
                         vue(),
+                        vuetify({ autoImport: true }),
                         Components({
-                            resolvers: [PrimeVueResolver()],
+                            resolvers: [
+                                PrimeVueResolver(),
+                                VuetifyResolver()
+                            ],
                         })
                     ],
                     appType: 'custom',

@@ -1,23 +1,22 @@
 <template>
   <div>
-    <v-data-table
-      v-if="items.length > 0"
+    <v-data-table-server
+      v-model:items-per-page="options.itemsPerPage"
       :headers="tableHeaders"
-      :items="filteredItems"
+      :items="items"
+      :items-length="itemsLength"
       :loading="loading"
+      :search="search"
       class="audit-table"
       density="compact"
-      :items-per-page="itemsPerPage"
-      :page.sync="page"
-      @update:page="page = $event"
       fixed-header
       hover
+      @update:options="updateOptions"
     >
-      <template v-slot:headers="{ columns, getSortIcon, toggleSort }">
+      <template v-slot:headers="{ columns }">
         <tr>
-          <th v-for="column in columns" :key="column.key" :class="{ 'sortable': column.sortable }" @click="() => column.sortable && toggleSort(column)">
+          <th v-for="column in columns" :key="column.key">
             <span>{{ column.title }}</span>
-            <v-icon v-if="column.sortable" :icon="getSortIcon(column)" size="small"></v-icon>
           </th>
         </tr>
         <tr class="filter-row">
@@ -29,31 +28,17 @@
               hide-details
               class="filter-input"
               :placeholder="`Filtrer ${header.title}`"
+              @update:model-value="debouncedFilterUpdate"
             ></v-text-field>
           </th>
         </tr>
       </template>
-      <template v-slot:bottom>
-        <div class="d-flex justify-space-between align-center pa-2">
-          <v-radio-group v-model="itemsPerPage" inline dense hide-details>
-            <v-radio label="5" :value="5"></v-radio>
-            <v-radio label="10" :value="10"></v-radio>
-            <v-radio label="25" :value="25"></v-radio>
-            <v-radio label="50" :value="50"></v-radio>
-          </v-radio-group>
-          <v-pagination
-            v-model="page"
-            :length="pageCount"
-            :total-visible="5"
-          ></v-pagination>
-        </div>
-      </template>
-    </v-data-table>
-    <div v-else-if="loading" class="table-loading">
+    </v-data-table-server>
+    <div v-if="loading && items.length === 0" class="table-loading">
       <v-progress-circular indeterminate color="primary"></v-progress-circular>
       <p>Chargement des données...</p>
     </div>
-    <div v-else class="table-empty">
+    <div v-else-if="!loading && items.length === 0" class="table-empty">
       <v-icon size="48" color="grey">mdi-database-off</v-icon>
       <p>Aucune donnée disponible</p>
     </div>
@@ -63,46 +48,30 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 
+// Props
 const props = defineProps({
-  headers: {
-    type: Array,
-    required: true,
-  },
-  items: {
-    type: Array,
-    required: true,
-  },
-  loading: {
-    type: Boolean,
-    required: true,
-  },
+  headers: { type: Array as () => any[], required: true },
+  items: { type: Array as () => any[], required: true },
+  itemsLength: { type: Number, required: true },
+  loading: { type: Boolean, required: true },
 });
 
-const page = ref(1);
-const itemsPerPage = ref(10);
+// Emits
+const emit = defineEmits(['update:options']);
+
+// State
+const options = ref({
+  page: 1,
+  itemsPerPage: 10,
+  sortBy: [],
+  groupBy: [],
+  search: '',
+});
+
 const filters = reactive<Record<string, string>>({});
+const search = ref(''); // This will be used to trigger updates
 
-const filteredItems = computed(() => {
-  let data = props.items;
-  const activeFilters = Object.keys(filters).filter(key => filters[key]);
-
-  if (activeFilters.length === 0) {
-    return data;
-  }
-
-  return data.filter(item => {
-    return activeFilters.every(key => {
-      const filterValue = filters[key]?.toLowerCase();
-      const itemValue = String(item[key])?.toLowerCase();
-      return itemValue.includes(filterValue);
-    });
-  });
-});
-
-const pageCount = computed(() => {
-  return Math.ceil(filteredItems.value.length / itemsPerPage.value);
-});
-
+// Computed properties
 const tableHeaders = computed(() => {
   return props.headers.map((header: any) => ({
     title: header.text,
@@ -112,21 +81,42 @@ const tableHeaders = computed(() => {
   }));
 });
 
-watch(filters, () => {
-  page.value = 1;
-});
+// Methods
+const updateOptions = (newOptions: any) => {
+  options.value = newOptions;
+  emit('update:options', { ...newOptions, filters: { ...filters } });
+};
+
+// Debounce function
+let debounceTimer: number;
+const debouncedFilterUpdate = () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = window.setTimeout(() => {
+    // Trigger a change that the watcher can pick up
+    updateOptions(options.value);
+  }, 500); // 500ms delay
+};
+
+// Watch for option changes to emit to parent
+watch(options, () => {
+    // Don't emit here directly, let updateOptions handle it to include filters
+}, { deep: true });
+
 </script>
 
 <style scoped>
 .filter-row th {
   padding: 8px 16px !important;
 }
-
-.filter-input .v-input__control {
-  height: 32px;
+.filter-input {
+  max-width: 100%;
 }
-
-.filter-input .v-input__slot {
+.table-loading, .table-empty {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #888;
 }
 </style>
