@@ -30,57 +30,78 @@ namespace RWA.Web.Application.Services.Workflow
                 throw new ArgumentNullException(nameof(parsedFile));
             }
 
-            var rows = parsedFile.ParsedTable.AsEnumerable().Select((r, i) =>
-            {
-                var ent = new HecateInventaireNormalise();
-                // column-aware mapping: tolerate various column names coming from Excel/CSV
-                string? Col(string[] candidates)
+            var rows = parsedFile.ParsedTable.AsEnumerable()
+                .Select((r, i) =>
                 {
-                    foreach (var c in candidates)
-                        if (r.Table.Columns.Contains(c)) return c;
-                    return null;
-                }
+                    var ent = new HecateInventaireNormalise();
+                    // column-aware mapping: tolerate various column names coming from Excel/CSV
+                    string? Col(string[] candidates)
+                    {
+                        foreach (var c in candidates)
+                            if (r.Table.Columns.Contains(c)) return c;
+                        return null;
+                    }
 
-                var colIdent = Col(new[] { "Asset ID", "Identifiant", "Identifiant Origine", "IdentifiantOrigine" });
-                var colNom = Col(new[] { "Asset Description", "Nom", "Asset Description" });
-                var colVm = Col(new[] { "Market Value", "ValeurDeMarche", "MarketValue" });
-                var colCat1 = Col(new[] { "Asset Type 1", "Categorie1", "Category1" });
-                var colCat2 = Col(new[] { "Asset Type 2", "Categorie2", "Category2" });
-                var colDev = Col(new[] { "Local Currency", "DeviseDeCotation", "Devise" });
-                var colTaux = Col(new[] { "Obligation Rate", "TauxObligation" });
-                var colMat = Col(new[] { "Maturity Date", "DateMaturite" });
-                var colExp = Col(new[] { "Expiration Date", "DateExpiration" });
-                var colTiers = Col(new[] { "Counterparty", "Tiers" });
-                var colRaf = Col(new[] { "RAF", "RAF", "Raf" });
-                var colSource = Col(new[] { "Source", "Source" });
-                var colDateFinContrat = Col(new[] { "DateFinContrat" });
-                var colBoaSj = Col(new[] { "BOA_SJ" });
-                var colBoaCont = Col(new[] { "BOA_Contrepartie" });
-                var colBoaDef = Col(new[] { "BOA_DEFAUT" });
+                    var colIdent = Col(new[] { "Asset ID", "Identifiant", "Identifiant Origine", "IdentifiantOrigine" });
+                    var colNom = Col(new[] { "Asset Description", "Nom", "Asset Description" });
+                    var colVm = Col(new[] { "Market Value", "ValeurDeMarche", "MarketValue" });
+                    var colCat1 = Col(new[] { "Asset Type 1", "Categorie1", "Category1" });
+                    var colCat2 = Col(new[] { "Asset Type 2", "Categorie2", "Category2" });
+                    var colDev = Col(new[] { "Local Currency", "DeviseDeCotation", "Devise" });
+                    var colTaux = Col(new[] { "Obligation Rate", "TauxObligation" });
+                    var colMat = Col(new[] { "Maturity Date", "DateMaturite" });
+                    var colExp = Col(new[] { "Expiration Date", "DateExpiration" });
+                    var colTiers = Col(new[] { "Counterparty", "Tiers" });
+                    var colRaf = Col(new[] { "RAF", "RAF", "Raf" });
+                    var colSource = Col(new[] { "Source", "Source" });
+                    var colDateFinContrat = Col(new[] { "DateFinContrat" });
+                    var colBoaSj = Col(new[] { "BOA_SJ" });
+                    var colBoaCont = Col(new[] { "BOA_Contrepartie" });
+                    var colBoaDef = Col(new[] { "BOA_DEFAUT" });
 
-                ent.IdentifiantOrigine = colIdent != null && !(r[colIdent] is DBNull) ? r[colIdent].ToString() ?? string.Empty : string.Empty;
-                ent.Identifiant = string.Empty;
-                ent.Nom = colNom != null && !(r[colNom] is DBNull) ? r[colNom].ToString() ?? string.Empty : string.Empty;
-                if (colVm != null && double.TryParse(r[colVm]?.ToString(), out var vm)) ent.ValeurDeMarche = vm;
-                ent.Categorie1 = colCat1 != null ? Convert.ToString(r[colCat1])! : null;
-                ent.Categorie2 = colCat2 != null ? Convert.ToString(r[colCat2])! : null;
-                ent.DeviseDeCotation = colDev != null && !(r[colDev] is DBNull) ? r[colDev].ToString() ?? string.Empty : "EUR";
-                if (colTaux != null && decimal.TryParse(r[colTaux]?.ToString(), out var taux)) ent.TauxObligation = taux;
-                if (colMat != null && DateOnly.TryParse(r[colMat]?.ToString(), out var dm)) ent.DateMaturite = dm;
-                if (colExp != null && DateOnly.TryParse(r[colExp]?.ToString(), out var de)) ent.DateExpiration = de;
-                ent.Tiers = colTiers != null && !(r[colTiers] is DBNull) ? r[colTiers].ToString() : null;
-                ent.Raf = colRaf != null && !(r[colRaf] is DBNull) ? r[colRaf].ToString() : null;
-                ent.BoaSj = colBoaSj != null && !(r[colBoaSj] is DBNull) ? r[colBoaSj].ToString() : null;
-                ent.BoaContrepartie = colBoaCont != null && !(r[colBoaCont] is DBNull) ? r[colBoaCont].ToString() : null;
-                ent.BoaDefaut = colBoaDef != null && !(r[colBoaDef] is DBNull) ? r[colBoaDef].ToString() : null;
-                // set defaults for non-nullable fields in HecateInventaireNormalise
-                ent.PeriodeCloture = colDateFinContrat != null && !(r[colDateFinContrat] is DBNull) ? r[colDateFinContrat].ToString() : null;
-                ent.Source = colSource != null && !(r[colSource] is DBNull) ? r[colSource].ToString() : null;
-                ent.Identifiant = ent.IdentifiantOrigine ?? string.Empty;
-                ent.RefTypeDepot = 0;
-                ent.RefTypeResultat = 0;
-                return ent;
-            }).ToList();
+                    ent.IdentifiantOrigine = colIdent != null && !(r[colIdent] is DBNull) ? r[colIdent].ToString()?.Trim() ?? string.Empty : string.Empty;
+                    ent.Identifiant = string.Empty;
+                    ent.Nom = colNom != null && !(r[colNom] is DBNull) ? r[colNom].ToString()?.Trim() ?? string.Empty : string.Empty;
+                    if (colVm != null && double.TryParse(r[colVm]?.ToString(), out var vm)) ent.ValeurDeMarche = vm;
+                    ent.Categorie1 = colCat1 != null ? Convert.ToString(r[colCat1])?.Trim() : null;
+                    ent.Categorie2 = colCat2 != null ? Convert.ToString(r[colCat2])?.Trim() : null;
+
+                    var devise = colDev != null && !(r[colDev] is DBNull) ? r[colDev].ToString()?.Trim() : "EUR";
+                    ent.DeviseDeCotation = devise?.Length == 3 ? devise : "EUR";
+
+                    var tauxStr = r[colTaux]?.ToString()?.Trim();
+                    if (tauxStr == "-") ent.TauxObligation = 0;
+                    else if (decimal.TryParse(tauxStr, out var taux)) ent.TauxObligation = taux;
+
+                    var matStr = r[colMat]?.ToString();
+                    if (DateOnly.TryParse(matStr, out var dm) && dm.Year != 1900) ent.DateMaturite = dm;
+
+                    var expStr = r[colExp]?.ToString();
+                    if (DateOnly.TryParse(expStr, out var de) && de.Year != 1900) ent.DateExpiration = de;
+
+                    ent.Tiers = colTiers != null && !(r[colTiers] is DBNull) ? r[colTiers].ToString()?.Trim() : null;
+
+                    var rafStr = colRaf != null && !(r[colRaf] is DBNull) ? r[colRaf].ToString()?.Trim() : null;
+                    if (!string.IsNullOrEmpty(rafStr))
+                    {
+                        ent.Raf = rafStr.PadLeft(7, '0');
+                    }
+
+                    ent.BoaSj = colBoaSj != null && !(r[colBoaSj] is DBNull) ? r[colBoaSj].ToString()?.Trim() : null;
+                    ent.BoaContrepartie = colBoaCont != null && !(r[colBoaCont] is DBNull) ? r[colBoaCont].ToString()?.Trim() : null;
+                    ent.BoaDefaut = colBoaDef != null && !(r[colBoaDef] is DBNull) ? r[colBoaDef].ToString()?.Trim() : null;
+
+                    ent.PeriodeCloture = colDateFinContrat != null && !(r[colDateFinContrat] is DBNull) ? r[colDateFinContrat].ToString() : null;
+                    ent.Source = colSource != null && !(r[colSource] is DBNull) ? r[colSource].ToString() : null;
+                    ent.Identifiant = ent.IdentifiantOrigine ?? string.Empty;
+                    ent.RefTypeDepot = 0;
+                    ent.RefTypeResultat = 0;
+                    return ent;
+                })
+                .Where(ent => ent.ValeurDeMarche < -0.1 || ent.ValeurDeMarche > 0.1)
+                .ToList();
+
+            
 
             var savedCount = await _dbProvider.PersistInventoryRowsAsync(rows);
 
