@@ -48,7 +48,8 @@ namespace RWA.Web.Application.Controllers
                 {
                     columns = new[]
                     {
-                        new { text = "Identifiant Unique", value = "identifiantUniqueRetenu" },
+                        new { text = "Identifiant", value = "identifiant" },
+                        new { text = "Identifiant Unique Retenu", value = "identifiantUniqueRetenu" },
                         new { text = "RAF", value = "raf" },
                         new { text = "Ref Cat RWA", value = "refCategorieRwa" },
                         new { text = "Nom", value = "nom" },
@@ -59,7 +60,22 @@ namespace RWA.Web.Application.Controllers
                         new { text = "Valeur de Marché", value = "valeurDeMarche" },
                         new { text = "Période Clôture", value = "periodeCloture" },
                         new { text = "Date Maturité", value = "dateMaturite" },
-                        new { text = "Date Expiration", value = "dateExpiration" }
+                        new { text = "Date Expiration", value = "dateExpiration" },
+                        new { text = "Num Ligne", value = "numLigne" },
+                        new { text = "Taux Obligation", value = "tauxObligation" },
+                        new { text = "Tiers", value = "tiers" },
+                        new { text = "BOA SJ", value = "boaSj" },
+                        new { text = "BOA Contrepartie", value = "boaContrepartie" },
+                        new { text = "BOA Defaut", value = "boaDefaut" },
+                        new { text = "Identifiant Origine", value = "identifiantOrigine" },
+                        new { text = "RAF Enrichi", value = "rafenrichi" },
+                        new { text = "Libelle Origine", value = "libelleOrigine" },
+                        new { text = "Date Fin Contrat", value = "dateFinContrat" },
+                        new { text = "Commentaires", value = "commentaires" },
+                        new { text = "Bloomberg", value = "bloomberg" },
+                        new { text = "Ref Type Depot", value = "refTypeDepot" },
+                        new { text = "Ref Type Resultat", value = "refTypeResultat" },
+                        new { text = "Code Resultat", value = "codeResultat" }
                     };
                     _cache.Set("InventoryColumns", columns, TimeSpan.FromMinutes(10));
                 }

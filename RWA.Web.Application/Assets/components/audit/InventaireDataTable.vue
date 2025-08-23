@@ -9,9 +9,9 @@
   >
     <template #filters>
       <div class="filter-controls">
-        <v-text-field v-model="filters.IdentifiantUnique" density="compact" placeholder="Identifiant Unique..." hide-details class="filter-item"></v-text-field>
-        <v-text-field v-model="filters.Raf" density="compact" placeholder="RAF..." hide-details class="filter-item"></v-text-field>
-        <v-text-field v-model="filters.RefCatRWA" density="compact" placeholder="Ref Cat RWA..." hide-details class="filter-item"></v-text-field>
+        <v-text-field v-model="filters.identifiantUniqueRetenu" density="compact" placeholder="Identifiant Unique..." hide-details class="filter-item"></v-text-field>
+        <v-text-field v-model="filters.raf" density="compact" placeholder="RAF..." hide-details class="filter-item"></v-text-field>
+        <v-text-field v-model="filters.refCategorieRwa" density="compact" placeholder="Ref Cat RWA..." hide-details class="filter-item"></v-text-field>
       </div>
     </template>
   </EnhancedDataTable>
@@ -33,9 +33,9 @@ const {
   filters,
   loadServerItems,
 } = useDataTable('/api/audit/inventory/data', {
-  IdentifiantUnique: '',
-  Raf: '',
-  RefCatRWA: '',
+  identifiantUniqueRetenu: '',
+  raf: '',
+  refCategorieRwa: '',
 });
 
 onMounted(async () => {
