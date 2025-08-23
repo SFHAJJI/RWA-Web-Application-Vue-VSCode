@@ -97,9 +97,9 @@ namespace RWA.Web.Application.Services.Workflow
         }
 
         /// <summary>
-        /// Fires upload triggers with UploadResultContext
+        /// Fires upload triggers with AggregateUploadResultContext
         /// </summary>
-        private async Task FireUploadTriggerAsync(Trigger trigger, UploadResultContext context)
+        private async Task FireUploadTriggerAsync(Trigger trigger, AggregateUploadResultContext context)
         {
             var triggerToFire = trigger switch
             {

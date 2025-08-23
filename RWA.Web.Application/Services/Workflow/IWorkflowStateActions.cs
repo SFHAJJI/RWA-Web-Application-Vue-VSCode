@@ -8,7 +8,7 @@ namespace RWA.Web.Application.Services.Workflow
     /// <summary>
     /// Delegates for specific trigger types to provide type safety and clarity
     /// </summary>
-    public delegate Task UploadTriggerCallbackDelegate(Trigger trigger, UploadResultContext context);
+    public delegate Task UploadTriggerCallbackDelegate(Trigger trigger, AggregateUploadResultContext context);
     public delegate Task ValidationTriggerCallbackDelegate(Trigger trigger, ValidationResultContext context);
     public delegate Task ErrorTriggerCallbackDelegate(Trigger trigger, UnexpectedErrorContext context);
     public delegate Task NextStepTriggerCallbackDelegate(Trigger trigger);
@@ -45,9 +45,9 @@ namespace RWA.Web.Application.Services.Workflow
 
         // Internal transition actions with parameters
         Task OnTriggerUploadAsync(List<(string FileName, byte[] Content)> files);
-        Task OnUploadPendingAsync(UploadResultContext context);
-        Task OnUploadSuccessAsync(UploadResultContext context);
-        Task OnUploadFailedAsync(UploadResultContext context);
+        Task OnUploadPendingAsync(AggregateUploadResultContext context);
+        Task OnUploadSuccessAsync(AggregateUploadResultContext context);
+        Task OnUploadFailedAsync(AggregateUploadResultContext context);
         Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingDto> mappings);
         Task OnApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings);
         Task OnValidationSuccessAsync(ValidationResultContext context);

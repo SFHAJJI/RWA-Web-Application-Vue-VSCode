@@ -21,7 +21,7 @@ namespace RWA.Web.Application.Services.Workflow
         /// Save uploaded file to wwwroot/uploads, parse using ExcelDataContext.ReadFromExcel and return a result containing parsed DataTable and any missing columns.
         /// This method does both parsing AND database persistence.
         /// </summary>
-        Task<InventoryImportResult> ImportAsync(string fileName, byte[] fileContents);
+        Task<InventoryImportResult> ImportAsync(InventoryImportResult parsedFile);
 
         /// <summary>
         /// Parse uploaded file for validation purposes only - no database persistence.

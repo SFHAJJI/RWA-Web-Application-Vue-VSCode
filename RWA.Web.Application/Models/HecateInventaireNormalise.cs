@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace RWA.Web.Application.Models;
 
@@ -9,6 +11,8 @@ public partial class HecateInventaireNormalise
 
     public string Source { get; set; } = null!;
 
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int NumLigne { get; set; }
 
     public string Identifiant { get; set; } = null!;

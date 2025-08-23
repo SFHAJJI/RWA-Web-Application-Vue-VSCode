@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-export type ToastItem = { id: number; type: 'info'|'warning'|'error'; message: string };
+export type ToastItem = { id: number; type: 'info'|'warning'|'error'|'success'; message: string };
 
 export const useToastStore = defineStore('toast', () => {
     const queue = ref<ToastItem[]>([]);

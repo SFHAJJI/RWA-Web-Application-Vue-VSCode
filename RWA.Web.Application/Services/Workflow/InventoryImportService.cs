@@ -8,52 +8,91 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using System.Collections.Generic;
 using System.Text.Json;
+using RWA.Web.Application.Models;
 
 namespace RWA.Web.Application.Services.Workflow
 {
     public class InventoryImportService : IInventoryImportService
     {
         private readonly IWebHostEnvironment _env;
-        private readonly IInventoryMapper _mapper;
+        private readonly IWorkflowDbProvider _dbProvider;
 
-        public InventoryImportService(IWebHostEnvironment env, IInventoryMapper mapper = null)
+        public InventoryImportService(IWebHostEnvironment env, IWorkflowDbProvider dbProvider)
         {
             _env = env ?? throw new ArgumentNullException(nameof(env));
-            _mapper = mapper; // optional; if null, we'll fallback to a basic mapping in the controller
+            _dbProvider = dbProvider ?? throw new ArgumentNullException(nameof(dbProvider));
         }
 
-        public async Task<InventoryImportResult> ImportAsync(string fileName, byte[] fileContents)
+        public async Task<InventoryImportResult> ImportAsync(InventoryImportResult parsedFile)
         {
-            var parseResult = await ParseOnlyAsync(fileName, fileContents);
-            if (!parseResult.Success)
+            if (parsedFile == null)
             {
-                return parseResult;
+                throw new ArgumentNullException(nameof(parsedFile));
             }
 
-            // Now do the actual import (database persistence)
-            string parsedJson = null;
-            int mappedCount = 0;
-            if (_mapper != null && parseResult.ParsedTable != null)
+            var rows = parsedFile.ParsedTable.AsEnumerable().Select((r, i) =>
             {
-                var mapRes = await _mapper.MapAsync(parseResult.ParsedTable);
-                parsedJson = mapRes.jsonRows;
-                mappedCount = mapRes.mappedCount;
-            }
-            else
-            {
-                parsedJson = parseResult.ParsedRowsJson;
-                mappedCount = parseResult.RowsParsed;
-            }
+                var ent = new HecateInventaireNormalise();
+                // column-aware mapping: tolerate various column names coming from Excel/CSV
+                string? Col(string[] candidates)
+                {
+                    foreach (var c in candidates)
+                        if (r.Table.Columns.Contains(c)) return c;
+                    return null;
+                }
+
+                var colIdent = Col(new[] { "Asset ID", "Identifiant", "Identifiant Origine", "IdentifiantOrigine" });
+                var colNom = Col(new[] { "Asset Description", "Nom", "Asset Description" });
+                var colVm = Col(new[] { "Market Value", "ValeurDeMarche", "MarketValue" });
+                var colCat1 = Col(new[] { "Asset Type 1", "Categorie1", "Category1" });
+                var colCat2 = Col(new[] { "Asset Type 2", "Categorie2", "Category2" });
+                var colDev = Col(new[] { "Local Currency", "DeviseDeCotation", "Devise" });
+                var colTaux = Col(new[] { "Obligation Rate", "TauxObligation" });
+                var colMat = Col(new[] { "Maturity Date", "DateMaturite" });
+                var colExp = Col(new[] { "Expiration Date", "DateExpiration" });
+                var colTiers = Col(new[] { "Counterparty", "Tiers" });
+                var colRaf = Col(new[] { "RAF", "RAF", "Raf" });
+                var colSource = Col(new[] { "Source", "Source" });
+                var colDateFinContrat = Col(new[] { "DateFinContrat" });
+                var colBoaSj = Col(new[] { "BOA_SJ" });
+                var colBoaCont = Col(new[] { "BOA_Contrepartie" });
+                var colBoaDef = Col(new[] { "BOA_DEFAUT" });
+
+                ent.IdentifiantOrigine = colIdent != null && !(r[colIdent] is DBNull) ? r[colIdent].ToString() ?? string.Empty : string.Empty;
+                ent.Identifiant = string.Empty;
+                ent.Nom = colNom != null && !(r[colNom] is DBNull) ? r[colNom].ToString() ?? string.Empty : string.Empty;
+                if (colVm != null && double.TryParse(r[colVm]?.ToString(), out var vm)) ent.ValeurDeMarche = vm;
+                ent.Categorie1 = colCat1 != null ? Convert.ToString(r[colCat1])! : null;
+                ent.Categorie2 = colCat2 != null ? Convert.ToString(r[colCat2])! : null;
+                ent.DeviseDeCotation = colDev != null && !(r[colDev] is DBNull) ? r[colDev].ToString() ?? string.Empty : "EUR";
+                if (colTaux != null && decimal.TryParse(r[colTaux]?.ToString(), out var taux)) ent.TauxObligation = taux;
+                if (colMat != null && DateOnly.TryParse(r[colMat]?.ToString(), out var dm)) ent.DateMaturite = dm;
+                if (colExp != null && DateOnly.TryParse(r[colExp]?.ToString(), out var de)) ent.DateExpiration = de;
+                ent.Tiers = colTiers != null && !(r[colTiers] is DBNull) ? r[colTiers].ToString() : null;
+                ent.Raf = colRaf != null && !(r[colRaf] is DBNull) ? r[colRaf].ToString() : null;
+                ent.BoaSj = colBoaSj != null && !(r[colBoaSj] is DBNull) ? r[colBoaSj].ToString() : null;
+                ent.BoaContrepartie = colBoaCont != null && !(r[colBoaCont] is DBNull) ? r[colBoaCont].ToString() : null;
+                ent.BoaDefaut = colBoaDef != null && !(r[colBoaDef] is DBNull) ? r[colBoaDef].ToString() : null;
+                // set defaults for non-nullable fields in HecateInventaireNormalise
+                ent.PeriodeCloture = colDateFinContrat != null && !(r[colDateFinContrat] is DBNull) ? r[colDateFinContrat].ToString() : null;
+                ent.Source = colSource != null && !(r[colSource] is DBNull) ? r[colSource].ToString() : null;
+                ent.Identifiant = ent.IdentifiantOrigine ?? string.Empty;
+                ent.RefTypeDepot = 0;
+                ent.RefTypeResultat = 0;
+                return ent;
+            }).ToList();
+
+            var savedCount = await _dbProvider.PersistInventoryRowsAsync(rows);
 
             return new InventoryImportResult
             {
                 Success = true,
-                MissingColumns = parseResult.MissingColumns,
-                RowsParsed = parseResult.RowsParsed,
-                RowsSaved = mappedCount,
-                SavedFilePath = parseResult.SavedFilePath,
-                ParsedTable = parseResult.ParsedTable,
-                ParsedRowsJson = parsedJson
+                MissingColumns = parsedFile.MissingColumns,
+                RowsParsed = parsedFile.RowsParsed,
+                RowsSaved = savedCount,
+                SavedFilePath = parsedFile.SavedFilePath,
+                ParsedTable = parsedFile.ParsedTable,
+                ParsedRowsJson = parsedFile.ParsedRowsJson
             };
         }
 

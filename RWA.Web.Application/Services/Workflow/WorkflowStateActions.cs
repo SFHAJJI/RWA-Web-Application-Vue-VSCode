@@ -31,8 +31,6 @@ namespace RWA.Web.Application.Services.Workflow
         private ErrorTriggerCallbackDelegate? _errorTriggerCallback;
         private NextStepTriggerCallbackDelegate? _nextStepTriggerCallback;
 
-        // Store current upload context for use across workflow methods
-        private List<(string FileName, byte[] Content)>? _currentFiles;
 
         public WorkflowStateActions(
             IInventoryImportService importService,
@@ -402,14 +400,15 @@ namespace RWA.Web.Application.Services.Workflow
         /// <summary>
         /// Triggers the appropriate validation callback based on the aggregated validation result.
         /// </summary>
-        private async Task TriggerValidationCallbackAsync(ValidationResult aggregateValidationResult)
+        private async Task TriggerValidationCallbackAsync(ValidationResult aggregateValidationResult, List<InventoryImportResult> parsedFiles)
         {
             Console.WriteLine($"[TriggerValidationCallbackAsync] Aggregate validation completed with status: {aggregateValidationResult.OverallStatus}");
 
             var context = new ValidationResultContext
             {
                 StepName = "UploadInventory",
-                ValidationResult = aggregateValidationResult
+                ValidationResult = aggregateValidationResult,
+                ParsedFiles = parsedFiles
             };
 
             if (_validationTriggerCallback != null)
@@ -437,9 +436,6 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 Console.WriteLine($"[OnTriggerUploadAsync] Processing upload: {files.Count} files - [{string.Join(", ", files.Select(f => $"{f.FileName} ({f.Content.Length} bytes)"))}]");
 
-                // Store files in instance variable to be accessed by subsequent steps
-                _currentFiles = files;
-
                 var fileProcessingResults = new List<FileProcessingResult>();
                 var validators = _validatorsFactory.GetValidatorsFor("Upload inventory");
                 foreach (var file in files)
@@ -448,71 +444,68 @@ namespace RWA.Web.Application.Services.Workflow
                     fileProcessingResults.Add(result);
                 }
 
+                var parsedFiles = fileProcessingResults.Select(r => r.ParseResult).ToList();
+
                 // Aggregate validation results from all files
                 var allValidationMessages = fileProcessingResults.SelectMany(r => r.ValidationMessages).ToList();
                 var aggregateValidationResult = new ValidationResult(allValidationMessages);
 
                 // Trigger the appropriate response based on the aggregated result
-                await TriggerValidationCallbackAsync(aggregateValidationResult);
+                await TriggerValidationCallbackAsync(aggregateValidationResult, parsedFiles);
 
             }, new { fileCount = files.Count, fileNames = string.Join(", ", files.Select(f => f.FileName)) });
         }
 
-        public async Task OnUploadPendingAsync(UploadResultContext context)
+        public async Task OnUploadPendingAsync(AggregateUploadResultContext aggregateContext)
         {
             await ExecuteSafelyAsync(nameof(OnUploadPendingAsync), "UploadInventory", async () =>
             {
-                Console.WriteLine($"[OnUploadPendingAsync] Starting database import for file: {context.FileName}");
-
-                // ImportAsync for actual database persistence
-                var importResult = await _importService.ImportAsync(context.FileName, context.Bytes);
-
-                if (importResult.Success)
+                var importTasks = aggregateContext.Results.Select(async context =>
                 {
-                    Console.WriteLine($"[OnUploadPendingAsync] Import successful: {importResult.RowsSaved} rows saved");
-
-                    // Update context with successful import result
+                    var importResult = await _importService.ImportAsync(context.ImportResult);
                     context.ImportResult = importResult;
+                    if (!importResult.Success)
+                    {
+                        context.ErrorMessage = "Database import failed";
+                    }
+                    return context;
+                }).ToList();
 
-                    // Trigger UploadSuccess
+                await Task.WhenAll(importTasks);
+
+                if (aggregateContext.IsSuccess)
+                {
                     if (_uploadTriggerCallback != null)
                     {
-                        await _uploadTriggerCallback(Trigger.UploadSuccess, context);
+                        await _uploadTriggerCallback(Trigger.UploadSuccess, aggregateContext);
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"[OnUploadPendingAsync] Import failed: Success={importResult.Success}");
-
-                    // Update context with failed import result
-                    context.ImportResult = importResult;
-                    context.ErrorMessage = "Database import failed";
-
-                    // Trigger UploadFailed
                     if (_uploadTriggerCallback != null)
                     {
-                        await _uploadTriggerCallback(Trigger.UploadFailed, context);
+                        await _uploadTriggerCallback(Trigger.UploadFailed, aggregateContext);
                     }
                 }
-            }, context);
+            }, aggregateContext);
         }
 
-        public async Task OnUploadSuccessAsync(UploadResultContext context)
+        public async Task OnUploadSuccessAsync(AggregateUploadResultContext context)
         {
             await ExecuteSafelyAsync(nameof(OnUploadSuccessAsync), "UploadInventory", async () =>
             {
-                Console.WriteLine($"[OnUploadSuccessAsync] Upload completed successfully for {context.FileName}");
+                Console.WriteLine($"[OnUploadSuccessAsync] Upload completed successfully for all files.");
 
                 // ATOMIC UPDATE: Update current step to SuccessStatus
                 await _dbProvider.UpdateStepStatusAndDataAsync("Upload inventory", _statusOptions.SuccessStatus, string.Empty);
                 Console.WriteLine($"[OnUploadSuccessAsync] Set step status to SuccessStatus using atomic update");
 
-                // Success notification
-                var successMessage = context.ImportResult?.Success == true
-                    ? $"Successfully uploaded {context.FileName} with {context.ImportResult.RowsSaved} items"
-                    : $"Successfully uploaded {context.FileName}";
-
-                await SendToastNotificationAsync("success", successMessage);
+                // Success notification for all successful files
+                var fileList = string.Join("\n", context.Results.Where(r => r.IsSuccess).Select(r => r.FileName));
+                if (!string.IsNullOrEmpty(fileList))
+                {
+                    await SendToastNotificationAsync("success", $"Successfully uploaded files:\n{fileList}");
+                }
 
                 // Fire NextUploadToRWACatManager trigger to transition to next state
                 if (_nextStepTriggerCallback != null)
@@ -523,21 +516,21 @@ namespace RWA.Web.Application.Services.Workflow
             }, context);
         }
 
-        public async Task OnUploadFailedAsync(UploadResultContext context)
+        public async Task OnUploadFailedAsync(AggregateUploadResultContext context)
         {
             await ExecuteSafelyAsync(nameof(OnUploadFailedAsync), "UploadInventory", async () =>
             {
-                Console.WriteLine($"[OnUploadFailedAsync] Upload failed for {context.FileName}: {context.ErrorMessage}");
-
                 // Update step status to ErrorStatus
                 await UpdateStepStatusAsync("Upload inventory", _statusOptions.ErrorStatus);
 
-                // Error notification
-                var errorMessage = !string.IsNullOrEmpty(context.ErrorMessage)
-                    ? $"Upload failed: {context.ErrorMessage}"
-                    : $"Upload failed for {context.FileName}";
-
-                await SendToastNotificationAsync("error", errorMessage, "Retry", "retry_upload");
+                // Error notification for each failed file
+                foreach (var result in context.Results.Where(r => !r.IsSuccess))
+                {
+                    var errorMessage = !string.IsNullOrEmpty(result.ErrorMessage)
+                        ? $"Upload failed for {result.FileName}: {result.ErrorMessage}"
+                        : $"Upload failed for {result.FileName}";
+                    await SendToastNotificationAsync("error", errorMessage, "Retry", "retry_upload");
+                }
             }, context);
         }
 
@@ -608,31 +601,24 @@ namespace RWA.Web.Application.Services.Workflow
                 await _dbProvider.UpdateStepStatusAndDataAsync("Upload inventory", _statusOptions.CurrentStatus, string.Empty);
                 Console.WriteLine($"[OnValidationSuccessAsync] Validation messages cleared successfully");
 
-                // Notify UI with updated steps (clean approach)
-                await NotifyWorkflowStepsUpdatedAsync();
-
-                // Trigger UploadPending for each file to start database import
-                if (_currentFiles != null && _uploadTriggerCallback != null)
+                // Trigger UploadPending for all files to start database import
+                if (context.ParsedFiles != null && _uploadTriggerCallback != null)
                 {
-                    Console.WriteLine($"[OnValidationSuccessAsync] Triggering UploadPending for {_currentFiles.Count} files.");
-                    foreach (var file in _currentFiles)
+                    var aggregateContext = new AggregateUploadResultContext
                     {
-                        var uploadContext = new UploadResultContext
+                        Results = context.ParsedFiles.Select(file => new UploadResultContext
                         {
                             FileName = file.FileName,
-                            Bytes = file.Content,
-                            ValidationResult = context.ValidationResult // The aggregate result is passed here
-                        };
-                        await _uploadTriggerCallback(Trigger.UploadPending, uploadContext);
-                    }
+                            ImportResult = file,
+                            ValidationResult = context.ValidationResult
+                        }).ToList()
+                    };
+                    await _uploadTriggerCallback(Trigger.UploadPending, aggregateContext);
                 }
                 else
                 {
-                    Console.WriteLine($"[OnValidationSuccessAsync] WARNING: _currentFiles is null or _uploadTriggerCallback is null. Cannot proceed with upload.");
+                    Console.WriteLine($"[OnValidationSuccessAsync] WARNING: ParsedFiles is null or _uploadTriggerCallback is null. Cannot proceed with upload.");
                 }
-
-                // Clear the stored files after processing
-                _currentFiles = null;
             }, context);
         }
 
@@ -664,27 +650,23 @@ namespace RWA.Web.Application.Services.Workflow
                 await NotifyWorkflowStepsUpdatedAsync();
 
                 // Trigger UploadPending for each file to start database import
-                if (_currentFiles != null && _uploadTriggerCallback != null)
+                if (context.ParsedFiles != null && _uploadTriggerCallback != null)
                 {
-                    Console.WriteLine($"[OnValidationWarningAsync] Triggering UploadPending for {_currentFiles.Count} files despite warnings.");
-                    foreach (var file in _currentFiles)
+                    var aggregateContext = new AggregateUploadResultContext
                     {
-                        var uploadContext = new UploadResultContext
+                        Results = context.ParsedFiles.Select(file => new UploadResultContext
                         {
                             FileName = file.FileName,
-                            Bytes = file.Content,
-                            ValidationResult = context.ValidationResult // The aggregate result is passed here
-                        };
-                        await _uploadTriggerCallback(Trigger.UploadPending, uploadContext);
-                    }
+                            ImportResult = file,
+                            ValidationResult = context.ValidationResult
+                        }).ToList()
+                    };
+                    await _uploadTriggerCallback(Trigger.UploadPending, aggregateContext);
                 }
                 else
                 {
-                    Console.WriteLine($"[OnValidationWarningAsync] WARNING: _currentFiles is null or _uploadTriggerCallback is null. Cannot proceed with upload.");
+                    Console.WriteLine($"[OnValidationWarningAsync] WARNING: ParsedFiles is null or _uploadTriggerCallback is null. Cannot proceed with upload.");
                 }
-
-                // Clear the stored files after processing
-                _currentFiles = null;
             }, context);
         }
 
@@ -715,9 +697,6 @@ namespace RWA.Web.Application.Services.Workflow
 
                 // Notify UI with updated steps (clean approach)
                 await NotifyWorkflowStepsUpdatedAsync();
-
-                // Clear the stored files as the process is aborted
-                _currentFiles = null;
 
                 // DO NOT proceed to import when there are validation errors
                 await Task.CompletedTask;
@@ -864,6 +843,8 @@ namespace RWA.Web.Application.Services.Workflow
                 // 3. Get updated steps and send to UI via SignalR
                 var steps = await _dbProvider.GetWorkflowStepsAsync();
                 await _hubContext.Clients.All.SendAsync("WorkflowStepsUpdated", steps);
+
+                await SendToastNotificationAsync("success", "Reset finished");
                 
                 Console.WriteLine("Workflow reset completed successfully.");
                 return true;

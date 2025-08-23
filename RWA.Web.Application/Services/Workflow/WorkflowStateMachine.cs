@@ -35,9 +35,9 @@ namespace RWA.Web.Application.Services.Workflow
 
         // Events for internal transition actions with parameters
         public event Func<List<(string FileName, byte[] Content)>, Task>? TriggerUpload;
-        public event Func<UploadResultContext, Task>? UploadPending;
-        public event Func<UploadResultContext, Task>? UploadSuccess;
-        public event Func<UploadResultContext, Task>? UploadFailed;
+        public event Func<AggregateUploadResultContext, Task>? UploadPending;
+        public event Func<AggregateUploadResultContext, Task>? UploadSuccess;
+        public event Func<AggregateUploadResultContext, Task>? UploadFailed;
         public event Func<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>, Task>? ApplyRwaMappings;
         public event Func<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>, Task>? ApplyEquivalenceMappings;
         public event Func<ValidationResultContext, Task>? ValidationSuccess;
@@ -53,9 +53,9 @@ namespace RWA.Web.Application.Services.Workflow
         private StateMachine<State, Trigger>.TriggerWithParameters<List<(string FileName, byte[] Content)>>? _setUploadTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>>? _applyRwaMappingsTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? _applyEquivalencesTrigger;
-        private StateMachine<State, Trigger>.TriggerWithParameters<UploadResultContext>? _uploadPendingTrigger;
-        private StateMachine<State, Trigger>.TriggerWithParameters<UploadResultContext>? _uploadSuccessTrigger;
-        private StateMachine<State, Trigger>.TriggerWithParameters<UploadResultContext>? _uploadFailedTrigger;
+        private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadPendingTrigger;
+        private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadSuccessTrigger;
+        private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadFailedTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<ValidationResultContext>? _validationSuccessTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<ValidationResultContext>? _validationWarningTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<ValidationResultContext>? _validationErrorTrigger;
@@ -76,9 +76,9 @@ namespace RWA.Web.Application.Services.Workflow
             _setUploadTrigger = _machine.SetTriggerParameters<List<(string FileName, byte[] Content)>>(Trigger.UploadInventoryFiles);
             _applyRwaMappingsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>>(Trigger.ApplyRwaMappings);
             _applyEquivalencesTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>(Trigger.ApplyEquivalenceMappings);
-            _uploadPendingTrigger = _machine.SetTriggerParameters<UploadResultContext>(Trigger.UploadPending);
-            _uploadSuccessTrigger = _machine.SetTriggerParameters<UploadResultContext>(Trigger.UploadSuccess);
-            _uploadFailedTrigger = _machine.SetTriggerParameters<UploadResultContext>(Trigger.UploadFailed);
+            _uploadPendingTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadPending);
+            _uploadSuccessTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadSuccess);
+            _uploadFailedTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadFailed);
             _validationSuccessTrigger = _machine.SetTriggerParameters<ValidationResultContext>(Trigger.ValidationSuccess);
             _validationWarningTrigger = _machine.SetTriggerParameters<ValidationResultContext>(Trigger.ValidationWarning);
             _validationErrorTrigger = _machine.SetTriggerParameters<ValidationResultContext>(Trigger.ValidationError);
@@ -95,11 +95,11 @@ namespace RWA.Web.Application.Services.Workflow
                 .OnExitAsync(async () => await InvokeEventAsync(UploadInventoryExit, "Upload inventory"))
                 .InternalTransition<List<(string FileName, byte[] Content)>>(_setUploadTrigger!, async (files, transition) =>
                     await InvokeEventAsync(TriggerUpload, files))
-                .InternalTransition<UploadResultContext>(_uploadPendingTrigger!, async (context, transition) =>
+                .InternalTransition<AggregateUploadResultContext>(_uploadPendingTrigger!, async (context, transition) =>
                     await InvokeEventAsync(UploadPending, context))
-                .InternalTransition<UploadResultContext>(_uploadSuccessTrigger!, async (context, transition) =>
+                .InternalTransition<AggregateUploadResultContext>(_uploadSuccessTrigger!, async (context, transition) =>
                     await InvokeEventAsync(UploadSuccess, context))
-                .InternalTransition<UploadResultContext>(_uploadFailedTrigger!, async (context, transition) =>
+                .InternalTransition<AggregateUploadResultContext>(_uploadFailedTrigger!, async (context, transition) =>
                     await InvokeEventAsync(UploadFailed, context))
                 .InternalTransition<ValidationResultContext>(_validationSuccessTrigger!, async (context, transition) =>
                     await InvokeEventAsync(ValidationSuccess, context))
@@ -247,9 +247,9 @@ namespace RWA.Web.Application.Services.Workflow
         public StateMachine<State, Trigger>.TriggerWithParameters<List<(string FileName, byte[] Content)>>? SetUploadTrigger => _setUploadTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>>? ApplyRwaMappingsTrigger => _applyRwaMappingsTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? ApplyEquivalencesTrigger => _applyEquivalencesTrigger;
-        public StateMachine<State, Trigger>.TriggerWithParameters<UploadResultContext>? UploadPendingTrigger => _uploadPendingTrigger;
-        public StateMachine<State, Trigger>.TriggerWithParameters<UploadResultContext>? UploadSuccessTrigger => _uploadSuccessTrigger;
-        public StateMachine<State, Trigger>.TriggerWithParameters<UploadResultContext>? UploadFailedTrigger => _uploadFailedTrigger;
+        public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadPendingTrigger => _uploadPendingTrigger;
+        public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadSuccessTrigger => _uploadSuccessTrigger;
+        public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadFailedTrigger => _uploadFailedTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<ValidationResultContext>? ValidationSuccessTrigger => _validationSuccessTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<ValidationResultContext>? ValidationWarningTrigger => _validationWarningTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<ValidationResultContext>? ValidationErrorTrigger => _validationErrorTrigger;
