@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace RWA.Web.Application.Services.Workflow
@@ -31,8 +32,7 @@ namespace RWA.Web.Application.Services.Workflow
         private NextStepTriggerCallbackDelegate? _nextStepTriggerCallback;
 
         // Store current upload context for use across workflow methods
-        private string? _currentFileName;
-        private byte[]? _currentFileContent;
+        private List<(string FileName, byte[] Content)>? _currentFiles;
 
         public WorkflowStateActions(
             IInventoryImportService importService,
@@ -348,99 +348,113 @@ namespace RWA.Web.Application.Services.Workflow
         }
 
         // Internal transition actions with parameters
+
+        /// <summary>
+        /// A helper class to hold the result of processing a single file.
+        /// </summary>
+        private class FileProcessingResult
+        {
+            public string FileName { get; set; }
+            public InventoryImportResult ParseResult { get; set; }
+            public List<ValidationMessage> ValidationMessages { get; set; }
+        }
+
+        /// <summary>
+        /// Processes and validates a single uploaded file.
+        /// </summary>
+        private async Task<FileProcessingResult> ProcessAndValidateFileAsync((string FileName, byte[] Content) file, IEnumerable<IValidator<WorkflowStep>> validators)
+        {
+            Console.WriteLine($"[ProcessAndValidateFileAsync] Processing file: {file.FileName}");
+
+            // 1. Parse the file
+            var parseResult = await _importService.ParseOnlyAsync(file.FileName, file.Content);
+            parseResult.FileName = file.FileName; // Ensure filename is set in result
+            Console.WriteLine($"[ProcessAndValidateFileAsync] Parse successful for {file.FileName}: {parseResult.RowsParsed} rows parsed");
+
+            // 2. Create WorkflowStep for validation
+            var workflowStep = new Models.WorkflowStep
+            {
+                StepName = "UploadInventory",
+                Status = _statusOptions.CurrentStatus,
+                DataPayload = parseResult.ParsedRowsJson
+            };
+
+            // 3. Run validation
+            var validationResult = await _validationService.RunValidatorsAsync(workflowStep, validators);
+
+            // 4. Enrich validation messages with FileName
+            foreach (var message in validationResult.Messages)
+            {
+                if (message.ErrorData == null)
+                {
+                    message.ErrorData = new { FileName = file.FileName, SavedFilePath = file.FileName };
+                }
+            }
+
+            return new FileProcessingResult
+            {
+                FileName = file.FileName,
+                ParseResult = parseResult,
+                ValidationMessages = validationResult.Messages.ToList()
+            };
+        }
+
+        /// <summary>
+        /// Triggers the appropriate validation callback based on the aggregated validation result.
+        /// </summary>
+        private async Task TriggerValidationCallbackAsync(ValidationResult aggregateValidationResult)
+        {
+            Console.WriteLine($"[TriggerValidationCallbackAsync] Aggregate validation completed with status: {aggregateValidationResult.OverallStatus}");
+
+            var context = new ValidationResultContext
+            {
+                StepName = "UploadInventory",
+                ValidationResult = aggregateValidationResult
+            };
+
+            if (_validationTriggerCallback != null)
+            {
+                var trigger = aggregateValidationResult.OverallStatus switch
+                {
+                    ValidationStatus.Success => Trigger.ValidationSuccess,
+                    ValidationStatus.Warning => Trigger.ValidationWarning,
+                    ValidationStatus.Error => Trigger.ValidationError,
+                    _ => Trigger.ValidationError // Default case for unknown statuses
+                };
+
+                Console.WriteLine($"[TriggerValidationCallbackAsync] Triggering '{trigger}'");
+                await _validationTriggerCallback(trigger, context);
+            }
+            else
+            {
+                Console.WriteLine($"[TriggerValidationCallbackAsync] WARNING: _validationTriggerCallback is null.");
+            }
+        }
+
         public async Task OnTriggerUploadAsync(List<(string FileName, byte[] Content)> files)
         {
             await ExecuteSafelyAsync(nameof(OnTriggerUploadAsync), "UploadInventory", async () =>
             {
                 Console.WriteLine($"[OnTriggerUploadAsync] Processing upload: {files.Count} files - [{string.Join(", ", files.Select(f => $"{f.FileName} ({f.Content.Length} bytes)"))}]");
 
-                // Process all files and accumulate results
-                var allValidationMessages = new List<ValidationMessage>();
-                var allParseResults = new List<(string FileName, InventoryImportResult ParseResult)>();
+                // Store files in instance variable to be accessed by subsequent steps
+                _currentFiles = files;
 
+                var fileProcessingResults = new List<FileProcessingResult>();
+                var validators = _validatorsFactory.GetValidatorsFor("Upload inventory");
                 foreach (var file in files)
                 {
-                    Console.WriteLine($"[OnTriggerUploadAsync] Processing file: {file.FileName}");
-
-                    // Store current file context for validation handlers
-                    _currentFileName = file.FileName;
-                    _currentFileContent = file.Content;
-
-                    // 1. Fire-and-forget save to wwwroot + ParseOnlyAsync (validation without database persistence)
-                    var parseResult = await _importService.ParseOnlyAsync(file.FileName, file.Content);
-                    parseResult.FileName = file.FileName; // Ensure filename is set in result
-                    allParseResults.Add((file.FileName, parseResult));
-
-                    Console.WriteLine($"[OnTriggerUploadAsync] Parse successful for {file.FileName}: {parseResult.RowsParsed} rows parsed");
-
-                    // 2. Create WorkflowStep for validation with filename context
-                    var workflowStep = new Models.WorkflowStep
-                    {
-                        StepName = "UploadInventory",
-                        Status = _statusOptions.CurrentStatus,
-                        DataPayload = parseResult.ParsedRowsJson
-                    };
-
-                    // 3. Run validation on parsed data
-                    var validators = _validatorsFactory.GetValidatorsFor("Upload inventory");
-                    var validationResult = await _validationService.RunValidatorsAsync(workflowStep, validators);
-
-                    // Add filename to all validation messages for this file
-                    foreach (var message in validationResult.Messages)
-                    {
-                        if (message.ErrorData == null)
-                        {
-                            message.ErrorData = new { FileName = file.FileName, SavedFilePath = file.FileName };
-                        }
-                    }
-
-                    allValidationMessages.AddRange(validationResult.Messages);
+                    var result = await ProcessAndValidateFileAsync(file, validators);
+                    fileProcessingResults.Add(result);
                 }
 
-                // 4. Aggregate validation results from all files
-                var aggregateValidationResult = new ValidationResult
-                {
-                    OverallStatus = allValidationMessages.Any(m => m.Status == ValidationStatus.Error)
-                        ? ValidationStatus.Error
-                        : allValidationMessages.Any(m => m.Status == ValidationStatus.Warning)
-                            ? ValidationStatus.Warning
-                            : ValidationStatus.Success
-                };
+                // Aggregate validation results from all files
+                var allValidationMessages = fileProcessingResults.SelectMany(r => r.ValidationMessages).ToList();
+                var aggregateValidationResult = new ValidationResult(allValidationMessages);
 
-                // Add all messages to the aggregate result
-                foreach (var message in allValidationMessages)
-                {
-                    aggregateValidationResult.Messages.Add(message);
-                }
+                // Trigger the appropriate response based on the aggregated result
+                await TriggerValidationCallbackAsync(aggregateValidationResult);
 
-                Console.WriteLine($"[OnTriggerUploadAsync] Aggregate validation completed with status: {aggregateValidationResult.OverallStatus}");
-
-                // 5. Trigger appropriate response based on aggregate validation results
-                var context = new ValidationResultContext
-                {
-                    StepName = "UploadInventory",
-                    ValidationResult = aggregateValidationResult
-                };
-
-                if (_validationTriggerCallback != null)
-                {
-                    switch (aggregateValidationResult.OverallStatus)
-                    {
-                        case ValidationStatus.Success:
-                            await _validationTriggerCallback(Trigger.ValidationSuccess, context);
-                            break;
-                        case ValidationStatus.Warning:
-                            await _validationTriggerCallback(Trigger.ValidationWarning, context);
-                            break;
-                        case ValidationStatus.Error:
-                            await _validationTriggerCallback(Trigger.ValidationError, context);
-                            break;
-                        default:
-                            Console.WriteLine($"[OnTriggerUploadAsync] Unknown validation status: {aggregateValidationResult.OverallStatus}");
-                            await _validationTriggerCallback(Trigger.ValidationError, context);
-                            break;
-                    }
-                }
             }, new { fileCount = files.Count, fileNames = string.Join(", ", files.Select(f => f.FileName)) });
         }
 
@@ -597,19 +611,28 @@ namespace RWA.Web.Application.Services.Workflow
                 // Notify UI with updated steps (clean approach)
                 await NotifyWorkflowStepsUpdatedAsync();
 
-                // Create UploadResultContext for database import phase
-                var uploadContext = new UploadResultContext
+                // Trigger UploadPending for each file to start database import
+                if (_currentFiles != null && _uploadTriggerCallback != null)
                 {
-                    FileName = _currentFileName ?? "unknown.xlsx",
-                    Bytes = _currentFileContent ?? Array.Empty<byte>(),
-                    ValidationResult = context.ValidationResult
-                };
-
-                // Trigger UploadPending to start database import
-                if (_uploadTriggerCallback != null)
-                {
-                    await _uploadTriggerCallback(Trigger.UploadPending, uploadContext);
+                    Console.WriteLine($"[OnValidationSuccessAsync] Triggering UploadPending for {_currentFiles.Count} files.");
+                    foreach (var file in _currentFiles)
+                    {
+                        var uploadContext = new UploadResultContext
+                        {
+                            FileName = file.FileName,
+                            Bytes = file.Content,
+                            ValidationResult = context.ValidationResult // The aggregate result is passed here
+                        };
+                        await _uploadTriggerCallback(Trigger.UploadPending, uploadContext);
+                    }
                 }
+                else
+                {
+                    Console.WriteLine($"[OnValidationSuccessAsync] WARNING: _currentFiles is null or _uploadTriggerCallback is null. Cannot proceed with upload.");
+                }
+
+                // Clear the stored files after processing
+                _currentFiles = null;
             }, context);
         }
 
@@ -640,19 +663,28 @@ namespace RWA.Web.Application.Services.Workflow
                 // Notify UI with updated steps (clean approach)
                 await NotifyWorkflowStepsUpdatedAsync();
 
-                // Create UploadResultContext for database import phase
-                var uploadContext = new UploadResultContext
+                // Trigger UploadPending for each file to start database import
+                if (_currentFiles != null && _uploadTriggerCallback != null)
                 {
-                    FileName = _currentFileName ?? "unknown.xlsx",
-                    Bytes = _currentFileContent ?? Array.Empty<byte>(),
-                    ValidationResult = context.ValidationResult
-                };
-
-                // Proceed with import despite warnings
-                if (_uploadTriggerCallback != null)
-                {
-                    await _uploadTriggerCallback(Trigger.UploadPending, uploadContext);
+                    Console.WriteLine($"[OnValidationWarningAsync] Triggering UploadPending for {_currentFiles.Count} files despite warnings.");
+                    foreach (var file in _currentFiles)
+                    {
+                        var uploadContext = new UploadResultContext
+                        {
+                            FileName = file.FileName,
+                            Bytes = file.Content,
+                            ValidationResult = context.ValidationResult // The aggregate result is passed here
+                        };
+                        await _uploadTriggerCallback(Trigger.UploadPending, uploadContext);
+                    }
                 }
+                else
+                {
+                    Console.WriteLine($"[OnValidationWarningAsync] WARNING: _currentFiles is null or _uploadTriggerCallback is null. Cannot proceed with upload.");
+                }
+
+                // Clear the stored files after processing
+                _currentFiles = null;
             }, context);
         }
 
@@ -683,6 +715,9 @@ namespace RWA.Web.Application.Services.Workflow
 
                 // Notify UI with updated steps (clean approach)
                 await NotifyWorkflowStepsUpdatedAsync();
+
+                // Clear the stored files as the process is aborted
+                _currentFiles = null;
 
                 // DO NOT proceed to import when there are validation errors
                 await Task.CompletedTask;

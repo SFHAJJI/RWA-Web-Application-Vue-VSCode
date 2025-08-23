@@ -25,6 +25,18 @@ namespace RWA.Web.Application.Services.Validation
     {
         public ValidationStatus OverallStatus { get; set; } = ValidationStatus.Success;
         public List<ValidationMessage> Messages { get; } = new List<ValidationMessage>();
+
+        public ValidationResult() { }
+
+        public ValidationResult(List<ValidationMessage> messages)
+        {
+            Messages = messages;
+            OverallStatus = messages.Any(m => m.Status == ValidationStatus.Error)
+                ? ValidationStatus.Error
+                : messages.Any(m => m.Status == ValidationStatus.Warning)
+                    ? ValidationStatus.Warning
+                    : ValidationStatus.Success;
+        }
     }
 
 }
