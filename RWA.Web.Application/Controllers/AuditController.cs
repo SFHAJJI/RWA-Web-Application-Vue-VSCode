@@ -40,14 +40,15 @@ namespace RWA.Web.Application.Controllers
             {
                 var columns = new[]
                 {
-                    new { text = "Identifiant", value = "identifiant" },
+                    new { text = "Identifiant Unique", value = "identifiantUniqueRetenu" },
+                    new { text = "RAF", value = "raf" },
+                    new { text = "Ref Cat RWA", value = "refCategorieRwa" },
                     new { text = "Nom", value = "nom" },
                     new { text = "Source", value = "source" },
                     new { text = "Catégorie 1", value = "categorie1" },
                     new { text = "Catégorie 2", value = "categorie2" },
                     new { text = "Devise", value = "deviseDeCotation" },
                     new { text = "Valeur de Marché", value = "valeurDeMarche" },
-                    new { text = "Référence Cat. RWA", value = "refCategorieRwa" },
                     new { text = "Période Clôture", value = "periodeCloture" },
                     new { text = "Date Maturité", value = "dateMaturite" },
                     new { text = "Date Expiration", value = "dateExpiration" }
@@ -60,30 +61,47 @@ namespace RWA.Web.Application.Controllers
             }
         }
 
-        [HttpGet("inventory/data")]
-        public IActionResult GetInventoryData()
+        [HttpPost("inventory/data")]
+        public async Task<IActionResult> GetInventoryData([FromBody] DataTableRequest request)
         {
             try
             {
-                var data = _context.HecateInventaireNormalises
-                    .OrderByDescending(x => x.PeriodeCloture)
-                    .Select(x => new
-                    {
-                        identifiant = x.Identifiant,
-                        nom = x.Nom,
-                        source = x.Source,
-                        categorie1 = x.Categorie1,
-                        categorie2 = x.Categorie2,
-                        deviseDeCotation = x.DeviseDeCotation,
-                        valeurDeMarche = x.ValeurDeMarche,
-                        refCategorieRwa = x.RefCategorieRwa,
-                        periodeCloture = x.PeriodeCloture,
-                        dateMaturite = x.DateMaturite,
-                        dateExpiration = x.DateExpiration
-                    })
-                    .ToList();
+                var query = _context.HecateInventaireNormalises.AsQueryable();
 
-                return Ok(new { rows = data });
+                // Filtering
+                if (request.Filters != null)
+                {
+                    if (request.Filters.TryGetValue("IdetifiantUnique", out var idetifiantUnique) && !string.IsNullOrEmpty(idetifiantUnique))
+                        query = query.Where(x => x.IdentifiantUniqueRetenu.ToLower().Contains(idetifiantUnique.ToLower()));
+                    if (request.Filters.TryGetValue("Raf", out var raf) && !string.IsNullOrEmpty(raf))
+                        query = query.Where(x => x.Raf.ToLower().Contains(raf.ToLower()));
+                    if (request.Filters.TryGetValue("RefCatRWA", out var refCatRWA) && !string.IsNullOrEmpty(refCatRWA))
+                        query = query.Where(x => x.RefCategorieRwa.ToLower().Contains(refCatRWA.ToLower()));
+                }
+
+                var totalItems = await query.CountAsync();
+
+                // Sorting
+                if (!string.IsNullOrEmpty(request.SortBy))
+                {
+                    query = query.OrderBy($"{request.SortBy} {(request.SortDesc ? "descending" : "ascending")}");
+                }
+                else
+                {
+                    query = query.OrderByDescending(x => x.PeriodeCloture);
+                }
+
+                // Pagination
+                var pagedData = await query
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync();
+
+                return Ok(new DataTablesResponse<HecateInventaireNormalise>
+                {
+                    Items = pagedData,
+                    TotalItems = totalItems
+                });
             }
             catch (Exception ex)
             {

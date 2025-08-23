@@ -64,7 +64,7 @@
         <div class="table-content">
           <HistoryDataTable v-if="auditTables[activeCard].name === 'history'" />
           <TethysDataTable v-if="auditTables[activeCard].name === 'tethys'" />
-          <!-- Note: Inventory table is not implemented with server-side processing in this refactor -->
+          <InventaireDataTable v-if="auditTables[activeCard].name === 'inventory'" />
         </div>
       </div>
     </ResizablePanel>
@@ -77,6 +77,7 @@ import axios from 'axios';
 import ResizablePanel from './audit/ResizablePanel.vue';
 import HistoryDataTable from './audit/HistoryDataTable.vue';
 import TethysDataTable from './audit/TethysDataTable.vue';
+import InventaireDataTable from './audit/InventaireDataTable.vue';
 
 interface AuditTable {
   name: string;
