@@ -69,3 +69,5 @@ RWA.Web.Application/wwwroot/*.*
 !RWA.Web.Application/wwwroot/images/
 !RWA.Web.Application/wwwroot/js/
 !RWA.Web.Application/wwwroot/lib/
+RWA.Web.Application/wwwroot/uploads/
+RWA.Web.Application/wwwroot/.vite/

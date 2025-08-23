@@ -131,29 +131,6 @@ namespace RWA.Web.Application.Controllers
             }
         }
 
-        [HttpGet("history/initial-data")]
-        public async Task<IActionResult> GetHistoryInitialData()
-        {
-            try
-            {
-                var totalItems = await _context.HecateInterneHistoriques.CountAsync();
-                var items = await _context.HecateInterneHistoriques
-                    .OrderByDescending(x => x.LastUpdate)
-                    .Take(10) // Default page size
-                    .ToListAsync();
-
-                return Ok(new DataTablesResponse<HecateInterneHistorique>
-                {
-                    Items = items,
-                    TotalItems = totalItems
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-        }
-
         [HttpPost("history/data")]
         public async Task<IActionResult> GetHistoryData([FromBody] DataTableRequest request)
         {
@@ -164,14 +141,14 @@ namespace RWA.Web.Application.Controllers
                 // Filtering
                 if (request.Filters != null)
                 {
-                    if (request.Filters.TryGetValue("identifiantOrigine", out var identifiantOrigine) && !string.IsNullOrEmpty(identifiantOrigine))
-                        query = query.Where(x => x.IdentifiantOrigine.Contains(identifiantOrigine));
-                    if (request.Filters.TryGetValue("refCategorieRwa", out var refCategorieRwa) && !string.IsNullOrEmpty(refCategorieRwa))
-                        query = query.Where(x => x.RefCategorieRwa.Contains(refCategorieRwa));
-                    if (request.Filters.TryGetValue("raf", out var raf) && !string.IsNullOrEmpty(raf))
-                        query = query.Where(x => x.Raf.Contains(raf));
-                    if (request.Filters.TryGetValue("identifiantUniqueRetenu", out var identifiantUniqueRetenu) && !string.IsNullOrEmpty(identifiantUniqueRetenu))
-                        query = query.Where(x => x.IdentifiantUniqueRetenu.Contains(identifiantUniqueRetenu));
+                    if (request.Filters.TryGetValue("IdentifiantOrigine", out var identifiantOrigine) && !string.IsNullOrEmpty(identifiantOrigine))
+                        query = query.Where(x => x.IdentifiantOrigine.ToLower().Contains(identifiantOrigine.ToLower()));
+                    if (request.Filters.TryGetValue("RefCategorieRwa", out var refCategorieRwa) && !string.IsNullOrEmpty(refCategorieRwa))
+                        query = query.Where(x => x.RefCategorieRwa.ToLower().Contains(refCategorieRwa.ToLower()));
+                    if (request.Filters.TryGetValue("Raf", out var raf) && !string.IsNullOrEmpty(raf))
+                        query = query.Where(x => x.Raf.ToLower().Contains(raf.ToLower()));
+                    if (request.Filters.TryGetValue("IdentifiantUniqueRetenu", out var identifiantUniqueRetenu) && !string.IsNullOrEmpty(identifiantUniqueRetenu))
+                        query = query.Where(x => x.IdentifiantUniqueRetenu.ToLower().Contains(identifiantUniqueRetenu.ToLower()));
                 }
 
                 var totalItems = await query.CountAsync();
@@ -253,29 +230,6 @@ namespace RWA.Web.Application.Controllers
             }
         }
 
-        [HttpGet("tethys/initial-data")]
-        public async Task<IActionResult> GetTethysInitialData()
-        {
-            try
-            {
-                var totalItems = await _context.HecateTethys.CountAsync();
-                var items = await _context.HecateTethys
-                    .OrderBy(x => x.IdentifiantRaf) // Default sort
-                    .Take(10) // Default page size
-                    .ToListAsync();
-
-                return Ok(new DataTablesResponse<HecateTethy>
-                {
-                    Items = items,
-                    TotalItems = totalItems
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-        }
-
         [HttpPost("tethys/data")]
         public async Task<IActionResult> GetTethysData([FromBody] DataTableRequest request)
         {
@@ -286,14 +240,14 @@ namespace RWA.Web.Application.Controllers
                 // Filtering
                 if (request.Filters != null)
                 {
-                    if (request.Filters.TryGetValue("identifiantRaf", out var identifiantRaf) && !string.IsNullOrEmpty(identifiantRaf))
-                        query = query.Where(x => x.IdentifiantRaf.Contains(identifiantRaf));
-                    if (request.Filters.TryGetValue("raisonSociale", out var raisonSociale) && !string.IsNullOrEmpty(raisonSociale))
-                        query = query.Where(x => x.RaisonSociale.Contains(raisonSociale));
-                    if (request.Filters.TryGetValue("codeIsin", out var codeIsin) && !string.IsNullOrEmpty(codeIsin))
-                        query = query.Where(x => x.CodeIsin.Contains(codeIsin));
-                    if (request.Filters.TryGetValue("codeCusip", out var codeCusip) && !string.IsNullOrEmpty(codeCusip))
-                        query = query.Where(x => x.CodeCusip.Contains(codeCusip));
+                    if (request.Filters.TryGetValue("IdentifiantRaf", out var identifiantRaf) && !string.IsNullOrEmpty(identifiantRaf))
+                        query = query.Where(x => x.IdentifiantRaf.ToLower().Contains(identifiantRaf.ToLower()));
+                    if (request.Filters.TryGetValue("RaisonSociale", out var raisonSociale) && !string.IsNullOrEmpty(raisonSociale))
+                        query = query.Where(x => x.RaisonSociale.ToLower().Contains(raisonSociale.ToLower()));
+                    if (request.Filters.TryGetValue("CodeIsin", out var codeIsin) && !string.IsNullOrEmpty(codeIsin))
+                        query = query.Where(x => x.CodeIsin.ToLower().Contains(codeIsin.ToLower()));
+                    if (request.Filters.TryGetValue("CodeCusip", out var codeCusip) && !string.IsNullOrEmpty(codeCusip))
+                        query = query.Where(x => x.CodeCusip.ToLower().Contains(codeCusip.ToLower()));
                 }
 
                 var totalItems = await query.CountAsync();

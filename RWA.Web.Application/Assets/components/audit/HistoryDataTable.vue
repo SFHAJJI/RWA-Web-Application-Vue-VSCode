@@ -9,10 +9,10 @@
   >
     <template #filters>
       <div class="filter-controls">
-        <v-text-field v-model="filters.identifiantOrigine" density="compact" placeholder="ID Origine..." hide-details class="filter-item"></v-text-field>
-        <v-text-field v-model="filters.refCategorieRwa" density="compact" placeholder="Réf. Cat. RWA..." hide-details class="filter-item"></v-text-field>
-        <v-text-field v-model="filters.raf" density="compact" placeholder="RAF..." hide-details class="filter-item"></v-text-field>
-        <v-text-field v-model="filters.identifiantUniqueRetenu" density="compact" placeholder="ID Unique..." hide-details class="filter-item"></v-text-field>
+        <v-text-field v-model="filters.IdentifiantOrigine" density="compact" placeholder="ID Origine..." hide-details class="filter-item"></v-text-field>
+        <v-text-field v-model="filters.RefCategorieRwa" density="compact" placeholder="Réf. Cat. RWA..." hide-details class="filter-item"></v-text-field>
+        <v-text-field v-model="filters.Raf" density="compact" placeholder="RAF..." hide-details class="filter-item"></v-text-field>
+        <v-text-field v-model="filters.IdentifiantUniqueRetenu" density="compact" placeholder="ID Unique..." hide-details class="filter-item"></v-text-field>
       </div>
     </template>
   </EnhancedDataTable>
@@ -20,7 +20,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue';
-import axios from 'axios';
+import { post } from '../../api';
 import { useAuditStore } from '../../stores/auditStore';
 import EnhancedDataTable from './EnhancedDataTable.vue';
 
@@ -31,10 +31,10 @@ const loading = ref(true);
 const totalItems = ref(0);
 const searchTrigger = ref('');
 const filters = reactive({
-  identifiantOrigine: '',
-  refCategorieRwa: '',
-  raf: '',
-  identifiantUniqueRetenu: ''
+  IdentifiantOrigine: '',
+  RefCategorieRwa: '',
+  Raf: '',
+  IdentifiantUniqueRetenu: ''
 });
 
 watch(filters, () => {
@@ -45,14 +45,19 @@ const loadServerItems = async (options: any) => {
   loading.value = true;
   try {
     const { page, itemsPerPage, sortBy } = options;
+    const activeFilters = Object.fromEntries(
+      Object.entries(filters).filter(([, value]) => value)
+    );
+
     const requestBody = {
       page,
       pageSize: itemsPerPage,
-      sortBy: sortBy.length > 0 ? sortBy[0].key : null,
+      sortBy: sortBy.length > 0 ? sortBy[0].key : '',
       sortDesc: sortBy.length > 0 ? sortBy[0].order === 'desc' : false,
-      filters: filters,
+      filters: activeFilters,
     };
-    const response = await axios.post('/api/audit/history/data', requestBody);
+
+    const response = await post('/api/audit/history/data', requestBody);
     serverItems.value = response.data.items;
     totalItems.value = response.data.totalItems;
   } catch (error) {
@@ -64,17 +69,6 @@ const loadServerItems = async (options: any) => {
 
 onMounted(async () => {
   await auditStore.fetchHistoryColumns();
-  // Initial load
-  loading.value = true;
-  try {
-    const response = await axios.get('/api/audit/history/initial-data');
-    serverItems.value = response.data.items;
-    totalItems.value = response.data.totalItems;
-  } catch (error) {
-    console.error("Error on initial load for history:", error);
-  } finally {
-    loading.value = false;
-  }
 });
 </script>
 
