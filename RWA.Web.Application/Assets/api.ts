@@ -8,11 +8,15 @@ const apiClient = axios.create({
   },
 });
 
-export const post = (url: string, data: any) => {
+import { AxiosRequestConfig } from 'axios';
+
+export const post = (url: string, data: any, config?: AxiosRequestConfig) => {
   return apiClient.post(url, data, {
+    ...config,
     headers: {
       'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...config?.headers,
     }
   });
 };

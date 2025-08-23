@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using RWA.Web.Application.Models;
 using RWA.Web.Application.Models.Dtos;
-using System.Linq.Dynamic.Core;
+using RWA.Web.Application.Services;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace RWA.Web.Application.Controllers
 {
@@ -13,18 +17,20 @@ namespace RWA.Web.Application.Controllers
     public class AuditController : ControllerBase
     {
         private readonly RwaContext _context;
+        private readonly IMemoryCache _cache;
 
-        public AuditController(RwaContext context)
+        public AuditController(RwaContext context, IMemoryCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         [HttpGet("inventory/count")]
-        public IActionResult GetInventoryCount()
+        public async Task<IActionResult> GetInventoryCount(CancellationToken cancellationToken)
         {
             try
             {
-                var count = _context.HecateInventaireNormalises.Count();
+                var count = await _context.HecateInventaireNormalises.AsNoTracking().CountAsync(cancellationToken);
                 return Ok(new { count });
             }
             catch (Exception ex)
@@ -38,21 +44,25 @@ namespace RWA.Web.Application.Controllers
         {
             try
             {
-                var columns = new[]
+                if (!_cache.TryGetValue("InventoryColumns", out var columns))
                 {
-                    new { text = "Identifiant Unique", value = "identifiantUniqueRetenu" },
-                    new { text = "RAF", value = "raf" },
-                    new { text = "Ref Cat RWA", value = "refCategorieRwa" },
-                    new { text = "Nom", value = "nom" },
-                    new { text = "Source", value = "source" },
-                    new { text = "Catégorie 1", value = "categorie1" },
-                    new { text = "Catégorie 2", value = "categorie2" },
-                    new { text = "Devise", value = "deviseDeCotation" },
-                    new { text = "Valeur de Marché", value = "valeurDeMarche" },
-                    new { text = "Période Clôture", value = "periodeCloture" },
-                    new { text = "Date Maturité", value = "dateMaturite" },
-                    new { text = "Date Expiration", value = "dateExpiration" }
-                };
+                    columns = new[]
+                    {
+                        new { text = "Identifiant Unique", value = "identifiantUniqueRetenu" },
+                        new { text = "RAF", value = "raf" },
+                        new { text = "Ref Cat RWA", value = "refCategorieRwa" },
+                        new { text = "Nom", value = "nom" },
+                        new { text = "Source", value = "source" },
+                        new { text = "Catégorie 1", value = "categorie1" },
+                        new { text = "Catégorie 2", value = "categorie2" },
+                        new { text = "Devise", value = "deviseDeCotation" },
+                        new { text = "Valeur de Marché", value = "valeurDeMarche" },
+                        new { text = "Période Clôture", value = "periodeCloture" },
+                        new { text = "Date Maturité", value = "dateMaturite" },
+                        new { text = "Date Expiration", value = "dateExpiration" }
+                    };
+                    _cache.Set("InventoryColumns", columns, TimeSpan.FromMinutes(10));
+                }
                 return Ok(columns);
             }
             catch (Exception ex)
@@ -62,46 +72,13 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpPost("inventory/data")]
-        public async Task<IActionResult> GetInventoryData([FromBody] DataTableRequest request)
+        public async Task<IActionResult> GetInventoryData([FromBody] DataTableRequest request, CancellationToken cancellationToken)
         {
             try
             {
-                var query = _context.HecateInventaireNormalises.AsQueryable();
-
-                // Filtering
-                if (request.Filters != null)
-                {
-                    if (request.Filters.TryGetValue("IdetifiantUnique", out var idetifiantUnique) && !string.IsNullOrEmpty(idetifiantUnique))
-                        query = query.Where(x => x.IdentifiantUniqueRetenu.ToLower().Contains(idetifiantUnique.ToLower()));
-                    if (request.Filters.TryGetValue("Raf", out var raf) && !string.IsNullOrEmpty(raf))
-                        query = query.Where(x => x.Raf.ToLower().Contains(raf.ToLower()));
-                    if (request.Filters.TryGetValue("RefCatRWA", out var refCatRWA) && !string.IsNullOrEmpty(refCatRWA))
-                        query = query.Where(x => x.RefCategorieRwa.ToLower().Contains(refCatRWA.ToLower()));
-                }
-
-                var totalItems = await query.CountAsync();
-
-                // Sorting
-                if (!string.IsNullOrEmpty(request.SortBy))
-                {
-                    query = query.OrderBy($"{request.SortBy} {(request.SortDesc ? "descending" : "ascending")}");
-                }
-                else
-                {
-                    query = query.OrderByDescending(x => x.PeriodeCloture);
-                }
-
-                // Pagination
-                var pagedData = await query
-                    .Skip((request.Page - 1) * request.PageSize)
-                    .Take(request.PageSize)
-                    .ToListAsync();
-
-                return Ok(new DataTablesResponse<HecateInventaireNormalise>
-                {
-                    Items = pagedData,
-                    TotalItems = totalItems
-                });
+                var query = _context.HecateInventaireNormalises.AsNoTracking();
+                var response = await query.ToDataTablesResponse(request, cancellationToken);
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -110,11 +87,15 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpGet("history/count")]
-        public IActionResult GetHistoryCount()
+        public async Task<IActionResult> GetHistoryCount(CancellationToken cancellationToken)
         {
             try
             {
-                var count = _context.HecateInterneHistoriques.Count();
+                if (!_cache.TryGetValue("HistoryCount", out int count))
+                {
+                    count = await _context.HecateInterneHistoriques.AsNoTracking().CountAsync(cancellationToken);
+                    _cache.Set("HistoryCount", count, TimeSpan.FromMinutes(10));
+                }
                 return Ok(new { count });
             }
             catch (Exception ex)
@@ -128,19 +109,23 @@ namespace RWA.Web.Application.Controllers
         {
             try
             {
-                var columns = new[]
+                if (!_cache.TryGetValue("HistoryColumns", out var columns))
                 {
-                    new { text = "Source", value = "source" },
-                    new { text = "Identifiant Origine", value = "identifiantOrigine" },
-                    new { text = "Réf Cat. RWA", value = "refCategorieRwa" },
-                    new { text = "Identifiant Unique", value = "identifiantUniqueRetenu" },
-                    new { text = "RAF", value = "raf" },
-                    new { text = "Libellé Origine", value = "libelleOrigine" },
-                    new { text = "Date Échéance", value = "dateEcheance" },
-                    new { text = "BBG Ticker", value = "bbgticker" },
-                    new { text = "Type Dette", value = "libelleTypeDette" },
-                    new { text = "Dernière MAJ", value = "lastUpdate" }
-                };
+                    columns = new[]
+                    {
+                        new { text = "Source", value = "source" },
+                        new { text = "Identifiant Origine", value = "identifiantOrigine" },
+                        new { text = "Réf Cat. RWA", value = "refCategorieRwa" },
+                        new { text = "Identifiant Unique", value = "identifiantUniqueRetenu" },
+                        new { text = "RAF", value = "raf" },
+                        new { text = "Libellé Origine", value = "libelleOrigine" },
+                        new { text = "Date Échéance", value = "dateEcheance" },
+                        new { text = "BBG Ticker", value = "bbgticker" },
+                        new { text = "Type Dette", value = "libelleTypeDette" },
+                        new { text = "Dernière MAJ", value = "lastUpdate" }
+                    };
+                    _cache.Set("HistoryColumns", columns, TimeSpan.FromMinutes(10));
+                }
                 return Ok(columns);
             }
             catch (Exception ex)
@@ -150,48 +135,13 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpPost("history/data")]
-        public async Task<IActionResult> GetHistoryData([FromBody] DataTableRequest request)
+        public async Task<IActionResult> GetHistoryData([FromBody] DataTableRequest request, CancellationToken cancellationToken)
         {
             try
             {
-                var query = _context.HecateInterneHistoriques.AsQueryable();
-
-                // Filtering
-                if (request.Filters != null)
-                {
-                    if (request.Filters.TryGetValue("IdentifiantOrigine", out var identifiantOrigine) && !string.IsNullOrEmpty(identifiantOrigine))
-                        query = query.Where(x => x.IdentifiantOrigine.ToLower().Contains(identifiantOrigine.ToLower()));
-                    if (request.Filters.TryGetValue("RefCategorieRwa", out var refCategorieRwa) && !string.IsNullOrEmpty(refCategorieRwa))
-                        query = query.Where(x => x.RefCategorieRwa.ToLower().Contains(refCategorieRwa.ToLower()));
-                    if (request.Filters.TryGetValue("Raf", out var raf) && !string.IsNullOrEmpty(raf))
-                        query = query.Where(x => x.Raf.ToLower().Contains(raf.ToLower()));
-                    if (request.Filters.TryGetValue("IdentifiantUniqueRetenu", out var identifiantUniqueRetenu) && !string.IsNullOrEmpty(identifiantUniqueRetenu))
-                        query = query.Where(x => x.IdentifiantUniqueRetenu.ToLower().Contains(identifiantUniqueRetenu.ToLower()));
-                }
-
-                var totalItems = await query.CountAsync();
-
-                // Sorting
-                if (!string.IsNullOrEmpty(request.SortBy))
-                {
-                    query = query.OrderBy($"{request.SortBy} {(request.SortDesc ? "descending" : "ascending")}");
-                }
-                else
-                {
-                    query = query.OrderByDescending(x => x.LastUpdate);
-                }
-
-                // Pagination
-                var pagedData = await query
-                    .Skip((request.Page - 1) * request.PageSize)
-                    .Take(request.PageSize)
-                    .ToListAsync();
-
-                return Ok(new DataTablesResponse<HecateInterneHistorique>
-                {
-                    Items = pagedData,
-                    TotalItems = totalItems
-                });
+                var query = _context.HecateInterneHistoriques.AsNoTracking();
+                var response = await query.ToDataTablesResponse(request, cancellationToken);
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -200,11 +150,15 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpGet("tethys/count")]
-        public IActionResult GetTethysCount()
+        public async Task<IActionResult> GetTethysCount(CancellationToken cancellationToken)
         {
             try
             {
-                var count = _context.HecateTethys.Count();
+                if (!_cache.TryGetValue("TethysCount", out int count))
+                {
+                    count = await _context.HecateTethys.AsNoTracking().CountAsync(cancellationToken);
+                    _cache.Set("TethysCount", count, TimeSpan.FromMinutes(10));
+                }
                 return Ok(new { count });
             }
             catch (Exception ex)
@@ -218,28 +172,32 @@ namespace RWA.Web.Application.Controllers
         {
             try
             {
-                var columns = new[]
+                if (!_cache.TryGetValue("TethysColumns", out var columns))
                 {
-                    new { text = "Identifiant RAF", value = "identifiantRaf" },
-                    new { text = "Libelle Court", value = "libelleCourt" },
-                    new { text = "Raison Sociale", value = "raisonSociale" },
-                    new { text = "Pays de Residence", value = "paysDeResidence" },
-                    new { text = "Pays de Nationalite", value = "paysDeNationalite" },
-                    new { text = "Numero et Nom de Rue", value = "numeroEtNomDeRue" },
-                    new { text = "Ville", value = "ville" },
-                    new { text = "Categorie Tethys", value = "categorieTethys" },
-                    new { text = "NAF NACE", value = "nafNace" },
-                    new { text = "Code ISIN", value = "codeIsin" },
-                    new { text = "Segment de Risque", value = "segmentDeRisque" },
-                    new { text = "Segmentation BPCE", value = "segmentationBpce" },
-                    new { text = "Code CUSIP", value = "codeCusip" },
-                    new { text = "RAF Tete Groupe Reglementaire", value = "rafTeteGroupeReglementaire" },
-                    new { text = "Nom Tete Groupe Reglementaire", value = "nomTeteGroupeReglementaire" },
-                    new { text = "Date Notation Interne", value = "dateNotationInterne" },
-                    new { text = "Code Notation", value = "codeNotation" },
-                    new { text = "Code Conso", value = "codeConso" },
-                    new { text = "Code Apparentement", value = "codeApparentement" }
-                };
+                    columns = new[]
+                    {
+                        new { text = "Identifiant RAF", value = "identifiantRaf" },
+                        new { text = "Libelle Court", value = "libelleCourt" },
+                        new { text = "Raison Sociale", value = "raisonSociale" },
+                        new { text = "Pays de Residence", value = "paysDeResidence" },
+                        new { text = "Pays de Nationalite", value = "paysDeNationalite" },
+                        new { text = "Numero et Nom de Rue", value = "numeroEtNomDeRue" },
+                        new { text = "Ville", value = "ville" },
+                        new { text = "Categorie Tethys", value = "categorieTethys" },
+                        new { text = "NAF NACE", value = "nafNace" },
+                        new { text = "Code ISIN", value = "codeIsin" },
+                        new { text = "Segment de Risque", value = "segmentDeRisque" },
+                        new { text = "Segmentation BPCE", value = "segmentationBpce" },
+                        new { text = "Code CUSIP", value = "codeCusip" },
+                        new { text = "RAF Tete Groupe Reglementaire", value = "rafTeteGroupeReglementaire" },
+                        new { text = "Nom Tete Groupe Reglementaire", value = "nomTeteGroupeReglementaire" },
+                        new { text = "Date Notation Interne", value = "dateNotationInterne" },
+                        new { text = "Code Notation", value = "codeNotation" },
+                        new { text = "Code Conso", value = "codeConso" },
+                        new { text = "Code Apparentement", value = "codeApparentement" }
+                    };
+                    _cache.Set("TethysColumns", columns, TimeSpan.FromMinutes(10));
+                }
                 return Ok(columns);
             }
             catch (Exception ex)
@@ -249,44 +207,13 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpPost("tethys/data")]
-        public async Task<IActionResult> GetTethysData([FromBody] DataTableRequest request)
+        public async Task<IActionResult> GetTethysData([FromBody] DataTableRequest request, CancellationToken cancellationToken)
         {
             try
             {
-                var query = _context.HecateTethys.AsQueryable();
-
-                // Filtering
-                if (request.Filters != null)
-                {
-                    if (request.Filters.TryGetValue("IdentifiantRaf", out var identifiantRaf) && !string.IsNullOrEmpty(identifiantRaf))
-                        query = query.Where(x => x.IdentifiantRaf.ToLower().Contains(identifiantRaf.ToLower()));
-                    if (request.Filters.TryGetValue("RaisonSociale", out var raisonSociale) && !string.IsNullOrEmpty(raisonSociale))
-                        query = query.Where(x => x.RaisonSociale.ToLower().Contains(raisonSociale.ToLower()));
-                    if (request.Filters.TryGetValue("CodeIsin", out var codeIsin) && !string.IsNullOrEmpty(codeIsin))
-                        query = query.Where(x => x.CodeIsin.ToLower().Contains(codeIsin.ToLower()));
-                    if (request.Filters.TryGetValue("CodeCusip", out var codeCusip) && !string.IsNullOrEmpty(codeCusip))
-                        query = query.Where(x => x.CodeCusip.ToLower().Contains(codeCusip.ToLower()));
-                }
-
-                var totalItems = await query.CountAsync();
-
-                // Sorting
-                if (!string.IsNullOrEmpty(request.SortBy))
-                {
-                    query = query.OrderBy($"{request.SortBy} {(request.SortDesc ? "descending" : "ascending")}");
-                }
-
-                // Pagination
-                var pagedData = await query
-                    .Skip((request.Page - 1) * request.PageSize)
-                    .Take(request.PageSize)
-                    .ToListAsync();
-
-                return Ok(new DataTablesResponse<HecateTethy>
-                {
-                    Items = pagedData,
-                    TotalItems = totalItems
-                });
+                var query = _context.HecateTethys.AsNoTracking();
+                var response = await query.ToDataTablesResponse(request, cancellationToken);
+                return Ok(response);
             }
             catch (Exception ex)
             {

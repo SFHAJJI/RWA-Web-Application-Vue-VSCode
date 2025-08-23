@@ -19,53 +19,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue';
-import { post } from '../../api';
+import { onMounted } from 'vue';
 import { useAuditStore } from '../../stores/auditStore';
+import { useDataTable } from '../../composables/useDataTable';
 import EnhancedDataTable from './EnhancedDataTable.vue';
 
 const auditStore = useAuditStore();
 
-const serverItems = ref<any[]>([]);
-const loading = ref(true);
-const totalItems = ref(0);
-const searchTrigger = ref('');
-const filters = reactive({
+const {
+  serverItems,
+  loading,
+  totalItems,
+  searchTrigger,
+  filters,
+  loadServerItems,
+} = useDataTable('/api/audit/tethys/data', {
   IdentifiantRaf: '',
   RaisonSociale: '',
   CodeIsin: '',
-  CodeCusip: ''
+  CodeCusip: '',
 });
-
-watch(filters, () => {
-  searchTrigger.value = String(Date.now());
-}, { deep: true });
-
-const loadServerItems = async (options: any) => {
-  loading.value = true;
-  try {
-    const { page, itemsPerPage, sortBy } = options;
-    const activeFilters = Object.fromEntries(
-      Object.entries(filters).filter(([, value]) => value)
-    );
-
-    const requestBody = {
-      page,
-      pageSize: itemsPerPage,
-      sortBy: sortBy.length > 0 ? sortBy[0].key : '',
-      sortDesc: sortBy.length > 0 ? sortBy[0].order === 'desc' : false,
-      filters: activeFilters,
-    };
-
-    const response = await post('/api/audit/tethys/data', requestBody);
-    serverItems.value = response.data.items;
-    totalItems.value = response.data.totalItems;
-  } catch (error) {
-    console.error("Error loading tethys data:", error);
-  } finally {
-    loading.value = false;
-  }
-};
 
 onMounted(async () => {
   await auditStore.fetchTethysColumns();
