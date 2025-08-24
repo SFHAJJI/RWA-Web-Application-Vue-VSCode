@@ -47,18 +47,17 @@ namespace RWA.Web.Application.Services.Workflow
 
             try
             {
-                // Create a fresh scope so we use a DbContext instance with a lifetime tied to this operation
-                using var scope = _scopeFactory.CreateScope();
-                var scopedDb = scope.ServiceProvider.GetRequiredService<RwaContext>();
+                return await WithDbAsync(async scopedDb =>
+                {
+                    var scopedId = scopedDb.GetHashCode();
+                    _logger.LogInformation("💾 PersistInventoryRowsAsync START - Using scoped DbContext {DbContextId}, Rows: {RowCount}", scopedId, rows is System.Collections.ICollection c ? c.Count : -1);
 
-                var scopedId = scopedDb.GetHashCode();
-                _logger.LogInformation("💾 PersistInventoryRowsAsync START - Using scoped DbContext {DbContextId}, Rows: {RowCount}", scopedId, rows is System.Collections.ICollection c ? c.Count : -1);
+                    scopedDb.HecateInventaireNormalises.AddRange(rows);
+                    var saved = await scopedDb.SaveChangesAsync();
 
-                scopedDb.HecateInventaireNormalises.AddRange(rows);
-                var saved = await scopedDb.SaveChangesAsync();
-
-                _logger.LogInformation("✅ PersistInventoryRowsAsync SUCCESS - Scoped DbContext {DbContextId}, Saved {SavedCount}", scopedId, saved);
-                return saved;
+                    _logger.LogInformation("✅ PersistInventoryRowsAsync SUCCESS - Scoped DbContext {DbContextId}, Saved {SavedCount}", scopedId, saved);
+                    return saved;
+                });
             }
             catch (ObjectDisposedException)
             {
@@ -300,28 +299,34 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
-        private async Task<long> GetOrCreateCatDepositaire1Async(RwaContext db, string libelle)
+        private async Task<long> GetOrCreateCatDepositaire1Async(string libelle)
         {
-            var cat = await db.HecateCatDepositaire1s.FirstOrDefaultAsync(c => c.LibelleDepositaire1 == libelle);
-            if (cat == null)
+            return await WithDbAsync(async db =>
             {
-                cat = new HecateCatDepositaire1 { LibelleDepositaire1 = libelle };
-                db.HecateCatDepositaire1s.Add(cat);
-                await db.SaveChangesAsync();
-            }
-            return cat.IdDepositaire1;
+                var cat = await db.HecateCatDepositaire1s.FirstOrDefaultAsync(c => c.LibelleDepositaire1 == libelle);
+                if (cat == null)
+                {
+                    cat = new HecateCatDepositaire1 { LibelleDepositaire1 = libelle };
+                    db.HecateCatDepositaire1s.Add(cat);
+                    await db.SaveChangesAsync();
+                }
+                return cat.IdDepositaire1;
+            });
         }
 
-        private async Task<long> GetOrCreateCatDepositaire2Async(RwaContext db, string libelle)
+        private async Task<long> GetOrCreateCatDepositaire2Async(string libelle)
         {
-            var cat = await db.HecateCatDepositaire2s.FirstOrDefaultAsync(c => c.LibelleDepositaire2 == libelle);
-            if (cat == null)
+            return await WithDbAsync(async db =>
             {
-                cat = new HecateCatDepositaire2 { LibelleDepositaire2 = libelle };
-                db.HecateCatDepositaire2s.Add(cat);
-                await db.SaveChangesAsync();
-            }
-            return cat.IdDepositaire2;
+                var cat = await db.HecateCatDepositaire2s.FirstOrDefaultAsync(c => c.LibelleDepositaire2 == libelle);
+                if (cat == null)
+                {
+                    cat = new HecateCatDepositaire2 { LibelleDepositaire2 = libelle };
+                    db.HecateCatDepositaire2s.Add(cat);
+                    await db.SaveChangesAsync();
+                }
+                return cat.IdDepositaire2;
+            });
         }
 
         public async Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
@@ -331,25 +336,25 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 Parallel.ForEach(mappings, async mapping =>
                 {
-                    using var scope = _scopeFactory.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<RwaContext>();
-
                     try
                     {
-                        var cat1Id = await GetOrCreateCatDepositaire1Async(db, mapping.Cat1);
-                        var cat2Id = await GetOrCreateCatDepositaire2Async(db, mapping.Cat2 ?? string.Empty);
+                        var cat1Id = await GetOrCreateCatDepositaire1Async(mapping.Cat1);
+                        var cat2Id = await GetOrCreateCatDepositaire2Async(mapping.Cat2 ?? string.Empty);
 
-                        var equivalence = new HecateEquivalenceCatRwa
+                        await WithDbAsync(async db =>
                         {
-                            Source = mapping.Source,
-                            RefCatDepositaire1 = cat1Id,
-                            RefCatDepositaire2 = cat2Id,
-                            RefCategorieRwa = mapping.CategorieRwaId,
-                            RefTypeBloomberg = mapping.TypeBloombergId
-                        };
+                            var equivalence = new HecateEquivalenceCatRwa
+                            {
+                                Source = mapping.Source,
+                                RefCatDepositaire1 = cat1Id,
+                                RefCatDepositaire2 = cat2Id,
+                                RefCategorieRwa = mapping.CategorieRwaId,
+                                RefTypeBloomberg = mapping.TypeBloombergId
+                            };
 
-                        db.HecateEquivalenceCatRwas.Add(equivalence);
-                        await db.SaveChangesAsync();
+                            db.HecateEquivalenceCatRwas.Add(equivalence);
+                            await db.SaveChangesAsync();
+                        });
                     }
                     catch (Exception ex)
                     {
