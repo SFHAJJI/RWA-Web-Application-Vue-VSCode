@@ -457,14 +457,61 @@ namespace RWA.Web.Application.Services.Workflow
         {
             return await WithDbAsync(async db =>
             {
-                var successCount = 0;
-
                 // 1. Get all uploaded inventory rows that don't have RefCategorieRwa set
                 var inventoryRows = await db.HecateInventaireNormalises
                     .Where(h => string.IsNullOrEmpty(h.RefCategorieRwa))
                     .ToListAsync();
 
-                var failedMappings = inventoryRows
+                // 2. Get all equivalence mappings with their navigation properties
+                var equivalenceMappings = await db.HecateEquivalenceCatRwas
+                    .Include(e => e.RefCatDepositaire1Navigation)
+                    .Include(e => e.RefCatDepositaire2Navigation)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                // Create a lookup for faster mapping using the Libelle properties
+                var mappingLookup = equivalenceMappings
+                    .ToLookup(em => (
+                        em.Source,
+                        em.RefCatDepositaire1Navigation?.LibelleDepositaire1 ?? string.Empty,
+                        em.RefCatDepositaire2Navigation?.LibelleDepositaire2 ?? string.Empty
+                    ));
+
+                var successfulMappings = new List<HecateInventaireNormalise>();
+                var failedMappings = new List<HecateInventaireNormalise>();
+
+                // 3. Process mappings in parallel
+                Parallel.ForEach(inventoryRows, inventoryRow =>
+                {
+                    var key = (inventoryRow.Source, inventoryRow.Categorie1, inventoryRow.Categorie2);
+                    var mapping = mappingLookup[key].FirstOrDefault();
+
+                    if (mapping != null)
+                    {
+                        inventoryRow.RefCategorieRwa = mapping.RefCategorieRwa;
+                        lock (successfulMappings)
+                        {
+                            successfulMappings.Add(inventoryRow);
+                        }
+                    }
+                    else
+                    {
+                        lock (failedMappings)
+                        {
+                            failedMappings.Add(inventoryRow);
+                        }
+                    }
+                });
+
+                // 4. Update the database with successful mappings
+                if (successfulMappings.Any())
+                {
+                    db.HecateInventaireNormalises.UpdateRange(successfulMappings);
+                    await db.SaveChangesAsync();
+                }
+
+                // 5. Group failed mappings for UI display
+                var missingMappingRows = failedMappings
                     .GroupBy(row => new { row.Source, row.Categorie1, row.Categorie2 })
                     .Select(g => new RWA.Web.Application.Models.Dtos.RwaMappingRowDto
                     {
@@ -477,44 +524,24 @@ namespace RWA.Web.Application.Services.Workflow
 
                 // Get dropdown options for UI
                 var categorieRwaOptions = await db.HecateCategorieRwas
-                    .Select(c => new RWA.Web.Application.Models.Dtos.CategorieRwaOptionDto 
-                    { 
-                        IdCatRwa = c.IdCatRwa, 
-                        Libelle = c.Libelle 
+                    .Select(c => new RWA.Web.Application.Models.Dtos.CategorieRwaOptionDto
+                    {
+                        IdCatRwa = c.IdCatRwa,
+                        Libelle = c.Libelle
                     })
                     .ToListAsync();
 
                 var typeBloombergOptions = await db.HecateTypeBloombergs
-                    .Select(t => new RWA.Web.Application.Models.Dtos.TypeBloombergOptionDto 
-                    { 
-                        IdTypeBloomberg = t.IdTypeBloomberg, 
-                        Libelle = t.Libelle 
+                    .Select(t => new RWA.Web.Application.Models.Dtos.TypeBloombergOptionDto
+                    {
+                        IdTypeBloomberg = t.IdTypeBloomberg,
+                        Libelle = t.Libelle
                     })
                     .ToListAsync();
 
-                // Log the dropdown options before sending to SignalR
-                _logger.LogInformation("📊 ProcessRwaCategoryMappingAsync - CategorieRwaOptions count: {Count}", categorieRwaOptions.Count);
-                _logger.LogInformation("📊 ProcessRwaCategoryMappingAsync - TypeBloombergOptions count: {Count}", typeBloombergOptions.Count);
-                
-                if (categorieRwaOptions.Any())
-                {
-                    _logger.LogInformation("📊 First CategorieRwa option: IdCatRwa={Id}, Libelle={Libelle}", 
-                        categorieRwaOptions.First().IdCatRwa, categorieRwaOptions.First().Libelle);
-                }
-                
-                if (typeBloombergOptions.Any())
-                {
-                    _logger.LogInformation("📊 First TypeBloomberg option: IdTypeBloomberg={Id}, Libelle={Libelle}", 
-                        typeBloombergOptions.First().IdTypeBloomberg, typeBloombergOptions.First().Libelle);
-                }
-                else
-                {
-                    _logger.LogWarning("⚠️  No TypeBloomberg options found in database");
-                }
-
                 return new RWA.Web.Application.Models.Dtos.RwaCategoryManagerPayloadDto
                 {
-                    MissingMappingRows = failedMappings,
+                    MissingMappingRows = missingMappingRows,
                     CategorieRwaOptions = categorieRwaOptions,
                     TypeBloombergOptions = typeBloombergOptions
                 };

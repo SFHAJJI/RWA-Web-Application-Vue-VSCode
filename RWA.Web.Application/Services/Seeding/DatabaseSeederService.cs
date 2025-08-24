@@ -321,29 +321,29 @@ namespace RWA.Web.Application.Services.Seeding
                 var catDepo2Lookup = await _context.HecateCatDepositaire2s.ToDictionaryAsync(c => c.LibelleDepositaire2, c => c);
                 var typeBloombergLookup = await _context.HecateTypeBloombergs.ToDictionaryAsync(c => c.IdTypeBloomberg, c => c);
 
+                // Handle empty CatDepositaire2 from Excel
+                if (!catDepo2Lookup.ContainsKey(""))
+                {
+                    var emptyCatDepo2 = new HecateCatDepositaire2
+                    {
+                        IdDepositaire2 = (catDepo2Lookup.Values.Max(c => (int?)c.IdDepositaire2) ?? 0) + 1,
+                        LibelleDepositaire2 = ""
+                    };
+                    _context.HecateCatDepositaire2s.Add(emptyCatDepo2);
+                    await _context.SaveChangesAsync();
+                    catDepo2Lookup[""] = emptyCatDepo2;
+                }
+
                 var sheetNames = new List<string>();
                 DataTableCollection tables = ExcelDataContext.ReadFromExcel(filePath, ref sheetNames);
                 var eqDt = tables["EquivalenceCatRWA"]; // Worksheet: EquivalenceCatRWA
-                
+
                 if (eqDt?.Rows.Count > 0)
                 {
                     var columnMap = CreateColumnMap(eqDt, _columnMappings.EquivalenceCatRWA.EquivalenceCatRWA);
                     var entities = eqDt.AsEnumerable()
                         .AsParallel()
-                        .Where(row =>
-                        {
-                            var source = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.Source)]) ?? string.Empty;
-                            var catRwa = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CategorieRWA)]) ?? string.Empty;
-                            var codeCat1 = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire1)]) ?? string.Empty;
-                            var codeCat2 = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire2)]) ?? string.Empty;
-                            var typeBloomberg = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.TypeBloomberg)]) ?? string.Empty;
 
-                            return !string.IsNullOrEmpty(source) && !string.IsNullOrEmpty(catRwa) &&
-                                   catRwaLookup.ContainsKey(catRwa) &&
-                                   catDepo1Lookup.ContainsKey(codeCat1) &&
-                                   catDepo2Lookup.ContainsKey(codeCat2) &&
-                                   typeBloombergLookup.ContainsKey(typeBloomberg);
-                        })
                         .Select(row =>
                         {
                             var source = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.Source)]) ?? string.Empty;
@@ -363,17 +363,18 @@ namespace RWA.Web.Application.Services.Seeding
                                 RefCategorieRwaNavigation = catRwaLookup[catRwa],
                                 RefCatDepositaire1Navigation = catDepo1Lookup[codeCat1],
                                 RefCatDepositaire2Navigation = catDepo2Lookup[codeCat2],
-                                RefTypeBloombergNavigation = typeBloombergLookup[typeBloomberg]
+                                RefTypeBloombergNavigation = !string.IsNullOrEmpty(typeBloomberg) ? typeBloombergLookup[typeBloomberg] : null
                             };
                         })
                         .ToList();
 
                     await _context.HecateEquivalenceCatRwas.AddRangeAsync(entities);
                     await _context.SaveChangesAsync();
-                    
+
                     sw.Stop();
                     Console.WriteLine($"⚡ HecateEquivalenceCatRwa: {entities.Count} records in {sw.ElapsedMilliseconds}ms");
                 }
+                var test = _context.HecateEquivalenceCatRwas.ToList();
             }
             catch (Exception ex)
             {
