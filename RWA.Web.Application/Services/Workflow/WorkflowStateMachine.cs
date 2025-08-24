@@ -38,7 +38,7 @@ namespace RWA.Web.Application.Services.Workflow
         public event Func<AggregateUploadResultContext, Task>? UploadPending;
         public event Func<AggregateUploadResultContext, Task>? UploadSuccess;
         public event Func<AggregateUploadResultContext, Task>? UploadFailed;
-        public event Func<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>, Task>? ApplyRwaMappings;
+        public event Func<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>, Task>? ApplyRwaMappings;
         public event Func<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>, Task>? ApplyEquivalenceMappings;
         public event Func<ValidationResultContext, Task>? ValidationSuccess;
         public event Func<ValidationResultContext, Task>? ValidationWarning;
@@ -51,7 +51,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         private readonly StateMachine<State, Trigger> _machine;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<(string FileName, byte[] Content)>>? _setUploadTrigger;
-        private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>>? _applyRwaMappingsTrigger;
+        private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>? _applyRwaMappingsTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? _applyEquivalencesTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadPendingTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadSuccessTrigger;
@@ -74,7 +74,7 @@ namespace RWA.Web.Application.Services.Workflow
         {
             // Configure parameterized triggers
             _setUploadTrigger = _machine.SetTriggerParameters<List<(string FileName, byte[] Content)>>(Trigger.UploadInventoryFiles);
-            _applyRwaMappingsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>>(Trigger.ApplyRwaMappings);
+            _applyRwaMappingsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>(Trigger.ApplyRwaMappings);
             _applyEquivalencesTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>(Trigger.ApplyEquivalenceMappings);
             _uploadPendingTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadPending);
             _uploadSuccessTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadSuccess);
@@ -116,7 +116,7 @@ namespace RWA.Web.Application.Services.Workflow
                 .OnEntryAsync(async () => await InvokeEventAsync(RWACategoryManagerEntry))
                 .OnExitAsync(async () => await InvokeEventAsync(RWACategoryManagerExit, "RWA Category Manager"))
                 .PermitReentry(Trigger.ReValidate)
-                .InternalTransition<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>>(_applyRwaMappingsTrigger!, async (mappings, transition) =>
+                .InternalTransition<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>(_applyRwaMappingsTrigger!, async (mappings, transition) =>
                     await InvokeEventAsync(ApplyRwaMappings, mappings))
                 .InternalTransition<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>(_applyEquivalencesTrigger!, async (mappings, transition) =>
                     await InvokeEventAsync(ApplyEquivalenceMappings, mappings))
@@ -245,7 +245,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         // Public properties for accessing triggers
         public StateMachine<State, Trigger>.TriggerWithParameters<List<(string FileName, byte[] Content)>>? SetUploadTrigger => _setUploadTrigger;
-        public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingDto>>? ApplyRwaMappingsTrigger => _applyRwaMappingsTrigger;
+        public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>? ApplyRwaMappingsTrigger => _applyRwaMappingsTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? ApplyEquivalencesTrigger => _applyEquivalencesTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadPendingTrigger => _uploadPendingTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadSuccessTrigger => _uploadSuccessTrigger;

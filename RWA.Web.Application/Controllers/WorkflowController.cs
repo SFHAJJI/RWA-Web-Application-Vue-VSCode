@@ -87,22 +87,15 @@ namespace RWA.Web.Application.Controllers
             if (request?.Mappings == null || request.Mappings.Count == 0) 
                 return BadRequest("No mappings provided.");
 
-            // Convert to the expected DTO format
-            var rwaMappings = request.Mappings.Select(m => new Models.Dtos.RwaMappingDto
-            {
-                IdentifiantOrigine = m.Identifiant,
-                RefCategorieRwa = m.CategorieRwaId
-            }).ToList();
-
-            await _orchestrator.TriggerApplyRwaMappingsAsync(rwaMappings);
+            await _orchestrator.TriggerApplyRwaMappingsAsync(request.Mappings);
             // Orchestrator publishes authoritative snapshot via SignalR; return NoContent
             return NoContent();
         }
         [HttpGet("get-missing-rows")]
-        public ActionResult<IEnumerable<Models.Dtos.MissingRowDto>> GetRowsMissingCategory()
+        public ActionResult<IEnumerable<Models.Dtos.RwaMappingRowDto>> GetRowsMissingCategory()
         {
             var rows = (_orchestrator as WorkflowOrchestrator)?.GetMissingRowsWithSuggestions();
-            if (rows == null) return Ok(new Models.Dtos.MissingRowDto[0]);
+            if (rows == null) return Ok(new Models.Dtos.RwaMappingRowDto[0]);
             return Ok(rows);
         }
 
@@ -204,6 +197,13 @@ namespace RWA.Web.Application.Controllers
             return NoContent();
         }
 
+        [HttpPost("get-inventaire-normalise-by-numlignes")]
+        public async Task<ActionResult<IEnumerable<HecateInventaireNormalise>>> GetInventaireNormaliseByNumLignes([FromBody] List<int> numLignes)
+        {
+            var rows = await (_orchestrator as WorkflowOrchestrator).GetInventaireNormaliseByNumLignes(numLignes);
+            return Ok(rows);
+        }
+
         [HttpPost("post-apply-mappings")]
         /// <summary>
         /// Apply RWA mappings posted from the mapping UI and revalidate affected rows.
@@ -212,7 +212,7 @@ namespace RWA.Web.Application.Controllers
         /// Called from: POST /api/workflow/post-apply-mappings.
         /// Origin: user-initiated mapping application within the RWA Category Manager step. Calls <see cref="IWorkflowOrchestrator.ApplyRwaMappingsAsync"/> to persist mappings and return validation results.
         /// </remarks>
-        public async Task<IActionResult> PostApplyRwaMappings([FromBody] List<RwaMappingDto> mappings)
+        public async Task<IActionResult> PostApplyRwaMappings([FromBody] List<RwaMappingRowDto> mappings)
         {
             if (mappings == null || mappings.Count == 0) return BadRequest("No mappings provided.");
 

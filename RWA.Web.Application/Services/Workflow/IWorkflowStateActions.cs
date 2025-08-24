@@ -48,7 +48,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task OnUploadPendingAsync(AggregateUploadResultContext context);
         Task OnUploadSuccessAsync(AggregateUploadResultContext context);
         Task OnUploadFailedAsync(AggregateUploadResultContext context);
-        Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingDto> mappings);
+        Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings);
         Task OnApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings);
         Task OnValidationSuccessAsync(ValidationResultContext context);
         Task OnValidationWarningAsync(ValidationResultContext context);
@@ -66,6 +66,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task<System.Collections.Generic.IEnumerable<RWA.Web.Application.Models.Dtos.WorkflowStepDto>> GetWorkflowStepsSnapshotAsync();
         Task<System.Collections.Generic.IEnumerable<object>> GetCategoriesForDropdownAsync();
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>> GetEquivalenceCandidatesForMissingRowsAsync();
-        Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.MissingRowDto>> GetMissingRowsWithSuggestionsAsync();
+        Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync();
+        Task<List<Models.HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
     }
 }

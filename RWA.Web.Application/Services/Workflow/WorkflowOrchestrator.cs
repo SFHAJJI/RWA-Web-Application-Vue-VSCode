@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RWA.Web.Application.Models;
 
 namespace RWA.Web.Application.Services.Workflow
 {
@@ -170,7 +171,7 @@ namespace RWA.Web.Application.Services.Workflow
             _stateMachine.UploadPending += _actions.OnUploadPendingAsync;
             _stateMachine.UploadSuccess += _actions.OnUploadSuccessAsync;
             _stateMachine.UploadFailed += _actions.OnUploadFailedAsync;
-            _stateMachine.ApplyRwaMappings += _actions.OnApplyRwaMappingsAsync;
+            _stateMachine.ApplyRwaMappings += (mappings) => _actions.OnApplyRwaMappingsAsync(mappings);
             _stateMachine.ApplyEquivalenceMappings += _actions.OnApplyEquivalenceMappingsAsync;
             _stateMachine.ValidationSuccess += _actions.OnValidationSuccessAsync;
             _stateMachine.ValidationWarning += _actions.OnValidationWarningAsync;
@@ -231,11 +232,11 @@ namespace RWA.Web.Application.Services.Workflow
                 orchestratorCallId, (DateTime.Now - timestamp).TotalMilliseconds);
         }
 
-        public async Task TriggerApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingDto> mappings)
+        public async Task TriggerApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
             await EnsureInitializedAsync();
             if (_stateMachine.ApplyRwaMappingsTrigger != null)
-                await _stateMachine.FireAsync(_stateMachine.ApplyRwaMappingsTrigger, mappings);
+                await _stateMachine.FireAsync<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>(_stateMachine.ApplyRwaMappingsTrigger, mappings);
         }
 
         public async Task TriggerApplyEquivalenceMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings)
@@ -272,7 +273,7 @@ namespace RWA.Web.Application.Services.Workflow
             await _stateMachine.FireAsync(Trigger.Reset);
         }
 
-        public async Task<(ValidationResult validation, int updatedCount)> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingDto> mappings)
+        public async Task<(ValidationResult validation, int updatedCount)> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
             await TriggerApplyRwaMappingsAsync(mappings);
             // Return success result - the actual work is done in the state machine action
@@ -302,7 +303,7 @@ namespace RWA.Web.Application.Services.Workflow
             return await _actions.GetEquivalenceCandidatesForMissingRowsAsync();
         }
 
-        public async System.Threading.Tasks.Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.MissingRowDto>> GetMissingRowsWithSuggestionsAsync()
+        public async System.Threading.Tasks.Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync()
         {
             return await _actions.GetMissingRowsWithSuggestionsAsync();
         }
@@ -323,9 +324,14 @@ namespace RWA.Web.Application.Services.Workflow
             return GetEquivalenceCandidatesForMissingRowsAsync().GetAwaiter().GetResult();
         }
 
-        public System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.MissingRowDto> GetMissingRowsWithSuggestions()
+        public System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> GetMissingRowsWithSuggestions()
         {
             return GetMissingRowsWithSuggestionsAsync().GetAwaiter().GetResult();
+        }
+
+        public Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes)
+        {
+            return _actions.GetInventaireNormaliseByNumLignes(numLignes);
         }
 
         /// <summary>
@@ -348,7 +354,7 @@ namespace RWA.Web.Application.Services.Workflow
                 _stateMachine.UploadPending -= _actions.OnUploadPendingAsync;
                 _stateMachine.UploadSuccess -= _actions.OnUploadSuccessAsync;
                 _stateMachine.UploadFailed -= _actions.OnUploadFailedAsync;
-                _stateMachine.ApplyRwaMappings -= _actions.OnApplyRwaMappingsAsync;
+                _stateMachine.ApplyRwaMappings -= (mappings) => _actions.OnApplyRwaMappingsAsync(mappings);
                 _stateMachine.ApplyEquivalenceMappings -= _actions.OnApplyEquivalenceMappingsAsync;
                 _stateMachine.ValidationSuccess -= _actions.OnValidationSuccessAsync;
                 _stateMachine.ValidationWarning -= _actions.OnValidationWarningAsync;

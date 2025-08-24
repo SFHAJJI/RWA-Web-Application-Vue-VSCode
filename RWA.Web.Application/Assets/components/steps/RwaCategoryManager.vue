@@ -33,28 +33,30 @@
                             <v-row class="mb-4">
                                 <v-col cols="12" md="6">
                                     <v-text-field
+                                        id="rwa-category-search"
                                         v-model="search"
                                         prepend-inner-icon="mdi-magnify"
-                                        label="Search by Identifiant..."
+                                        label="Search by Source, Cat1, or Cat2..."
                                         outlined
                                         dense
                                         clearable
                                         hide-details
-                                        placeholder="Filter rows by identifiant"
+                                        placeholder="Filter rows"
                                     ></v-text-field>
                                 </v-col>
                                 <v-spacer></v-spacer>
                                 <v-col cols="auto" class="d-flex align-center">
                                     <span class="text-caption text--secondary">
-                                        {{ filteredRows.length }} / {{ rows.length }} rows
+                                        {{ filteredRows.length }} / {{ rows.length }} groups
                                     </span>
                                 </v-col>
                             </v-row>
                             
-                            <v-data-table 
+                            <v-data-table
+                                id="rwa-category-table"
                                 :items="filteredRows" 
                                 :headers="headers" 
-                                :item-key="getItemKey" 
+                                item-value="id" 
                                 class="elevation-1 rwa-data-table" 
                                 role="table" 
                                 :items-per-page="10"
@@ -62,10 +64,23 @@
                                 :item-class="getRowClass"
                                 :loading="loading"
                                 loading-text="Loading category mappings..."
+                                @update:expanded="expandRow"
+                                show-expand
                             >
-                                                <!-- Display Identifiant -->
-                                                <template #item.Identifiant="{ item }">
-                                                    <span class="font-weight-medium">{{ item.Identifiant }}</span>
+                                                <template #header.Source="{ column }">
+                                                    <th style="width: 15%;">{{ column.title }}</th>
+                                                </template>
+                                                <template #header.Cat1="{ column }">
+                                                    <th style="width: 15%;">{{ column.title }}</th>
+                                                </template>
+                                                <template #header.Cat2="{ column }">
+                                                    <th style="width: 15%;">{{ column.title }}</th>
+                                                </template>
+                                                <template #header.categorieRwa="{ column }">
+                                                    <th style="width: 25%;">{{ column.title }}</th>
+                                                </template>
+                                                <template #header.typeBloomberg="{ column }">
+                                                    <th style="width: 30%;">{{ column.title }}</th>
                                                 </template>
 
                                                 <!-- Display Source column -->
@@ -130,12 +145,22 @@
                                                         </v-select>
                                                     </div>
                                                 </template>
+                                <template #expanded-row="{ columns, item }">
+                                    <tr>
+                                        <td :colspan="columns.length" class="pa-0">
+                                            <div class="expanded-content-container">
+                                                <ExpandedRowContent :num-lignes="item.NumLignes" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
                             </v-data-table>
 
                             <v-row class="mt-6">
                                         <v-col cols="12" class="d-flex justify-space-between align-center">
                                             <div class="d-flex gap-3">
-                                                <v-btn 
+                                                <v-btn
+                                                    id="rwa-category-submit-btn"
                                                     :disabled="!formValid || hasValidationErrors || loading" 
                                                     color="primary" 
                                                     elevation="2"
@@ -147,7 +172,8 @@
                                                     <v-progress-circular v-if="loading" indeterminate size="18" width="2" color="white" class="mr-2" />
                                                     {{ loading ? 'Submitting...' : 'Submit Mappings' }}
                                                 </v-btn>
-                                                <v-btn 
+                                                <v-btn
+                                                    id="rwa-category-reload-btn"
                                                     outlined 
                                                     color="secondary"
                                                     large
@@ -179,6 +205,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useWorkflowStore } from '../../stores/workflow'
+import ExpandedRowContent from './ExpandedRowContent.vue'
+import GroupingDetails from './GroupingDetails.vue'
 
 const workflowStore = useWorkflowStore()
 const rows = ref<any[]>([])
@@ -188,6 +216,8 @@ const selectedCategorieRwa = ref<Record<string, string | null>>({})
 const selectedTypeBloomberg = ref<Record<string, string | null>>({})
 const isTouched = ref<Record<string, boolean>>({})
 const search = ref<string>('')
+const expandedData = ref<Record<string, any[]>>({})
+const expandedLoading = ref<Record<string, boolean>>({})
 
 // Dropdown options extracted from payload
 const categorieRwaOptions = ref<any[]>([])
@@ -201,8 +231,10 @@ const filteredRows = computed(() => {
     
     const searchTerm = search.value.toLowerCase().trim()
     return rows.value.filter(row => {
-        const identifiant = getItemKey(row).toLowerCase()
-        return identifiant.includes(searchTerm)
+        const source = row.Source.toLowerCase()
+        const cat1 = row.Cat1.toLowerCase()
+        const cat2 = row.Cat2?.toLowerCase() || ''
+        return source.includes(searchTerm) || cat1.includes(searchTerm) || cat2.includes(searchTerm)
     })
 })
 
@@ -225,26 +257,22 @@ function markTouched(id: string) {
 
 // Helper function to get the correct identifiant field name
 function getItemKey(item: any): string {
-    return item.Identifiant || ''
+    return item.Source + item.Cat1 + item.Cat2
 }
 
 // Function to get row classes based on completion status
 function getRowClass(item: any): string {
     const itemKey = getItemKey(item)
     const hasRwaMapping = selectedCategorieRwa.value[itemKey]
-    const hasBloombergMapping = selectedTypeBloomberg.value[itemKey]
     
-    if (hasRwaMapping && hasBloombergMapping) {
+    if (hasRwaMapping) {
         return 'row-complete'
-    } else if (hasRwaMapping) {
-        return 'row-partial'
     } else {
         return 'row-incomplete'
     }
 }
 
 const headers = [
-    { title: 'Identifiant', value: 'Identifiant' },
     { title: 'Source', value: 'Source' },
     { title: 'Cat1', value: 'Cat1' },
     { title: 'Cat2', value: 'Cat2' },
@@ -264,7 +292,8 @@ function loadDataFromStore() {
         console.log('Payload keys:', Object.keys(payload))
         
         // Set rows and dropdown options from payload - use correct property names
-        rows.value = payload.MissingMappingRows || payload.missingMappingRows || []
+        let idCounter = 0
+        rows.value = (payload.MissingMappingRows || payload.missingMappingRows || []).map((r: any) => ({ ...r, id: idCounter++ }))
         console.log('Loaded rows:', rows.value)
         
         // Check for dropdown options with more detailed logging
@@ -293,9 +322,10 @@ function loadDataFromStore() {
         
         // Initialize selection objects
         rows.value.forEach(r => { 
-            selectedCategorieRwa.value[r.Identifiant] = r.ChosenCategorieRwa || null
-            selectedTypeBloomberg.value[r.Identifiant] = r.ChosenTypeBloomberg || null
-            isTouched.value[r.Identifiant] = false 
+            const key = getItemKey(r)
+            selectedCategorieRwa.value[key] = r.CategorieRwaId || null
+            selectedTypeBloomberg.value[key] = r.TypeBloombergId || null
+            isTouched.value[key] = false 
         })
     }
 }
@@ -332,10 +362,10 @@ async function submit() {
         const mappings = rows.value
             .filter(r => selectedCategorieRwa.value[getItemKey(r)]) // Only submit rows with selections
             .map((r: any) => ({
-                identifiant: getItemKey(r),
-                source: r.Source || r.source,
-                cat1: r.Cat1 || r.cat1,
-                cat2: r.Cat2 || r.cat2,
+                numLignes: r.NumLignes,
+                source: r.Source,
+                cat1: r.Cat1,
+                cat2: r.Cat2,
                 categorieRwaId: selectedCategorieRwa.value[getItemKey(r)],
                 typeBloombergId: selectedTypeBloomberg.value[getItemKey(r)] || null
             }))
@@ -361,6 +391,36 @@ async function submit() {
     }
 }
 
+async function expandRow(expandedItems: any[]) {
+    const item = expandedItems[0]
+    if (!item) {
+        return
+    }
+    const key = getItemKey(item)
+    if (expandedData.value[key]) {
+        return
+    }
+
+    expandedLoading.value[key] = true
+    try {
+        const response = await fetch('/api/workflow/get-inventaire-normalise-by-numlignes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(item.NumLignes)
+        })
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch expanded data')
+        }
+
+        expandedData.value[key] = await response.json()
+    } finally {
+        expandedLoading.value[key] = false
+    }
+}
+
 async function reload() { 
     // Reload from current workflow step payload using the same logic
     loadDataFromStore()
@@ -368,6 +428,7 @@ async function reload() {
 </script>
 
 <style scoped>
+
 .rwa-data-table {
     border-radius: 12px !important;
     overflow: hidden;
@@ -419,11 +480,6 @@ async function reload() {
     border-left: 4px solid #4caf50 !important;
 }
 
-.rwa-data-table :deep(tbody tr.row-partial) {
-    background: rgba(255, 152, 0, 0.08) !important;
-    border-left: 4px solid #ff9800 !important;
-}
-
 .rwa-data-table :deep(tbody tr.row-incomplete) {
     background: rgba(244, 67, 54, 0.06) !important;
     border-left: 4px solid #f44336 !important;
@@ -431,10 +487,6 @@ async function reload() {
 
 .rwa-data-table :deep(tbody tr.row-complete:hover) {
     background: rgba(76, 175, 80, 0.15) !important;
-}
-
-.rwa-data-table :deep(tbody tr.row-partial:hover) {
-    background: rgba(255, 152, 0, 0.15) !important;
 }
 
 .rwa-data-table :deep(tbody tr.row-incomplete:hover) {
@@ -497,5 +549,10 @@ async function reload() {
 .v-alert.success {
     border-left: 4px solid #4caf50;
     background: linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%);
+}
+
+.expanded-content-container {
+  max-height: 400px; /* Or your desired max height */
+  overflow-y: auto;
 }
 </style>

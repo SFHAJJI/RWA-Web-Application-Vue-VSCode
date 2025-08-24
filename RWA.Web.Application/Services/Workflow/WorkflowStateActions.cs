@@ -534,7 +534,7 @@ namespace RWA.Web.Application.Services.Workflow
             }, context);
         }
 
-        public async Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingDto> mappings)
+        public async Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
             await ExecuteSafelyAsync(nameof(OnApplyRwaMappingsAsync), "RWACategoryManager", async () =>
             {
@@ -823,9 +823,14 @@ namespace RWA.Web.Application.Services.Workflow
             return Task.FromResult(new List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>());
         }
 
-        public Task<List<RWA.Web.Application.Models.Dtos.MissingRowDto>> GetMissingRowsWithSuggestionsAsync()
+        public Task<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync()
         {
-            return Task.FromResult(new List<RWA.Web.Application.Models.Dtos.MissingRowDto>());
+            return Task.FromResult(new List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>());
+        }
+
+        public async Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes)
+        {
+            return await _dbProvider.GetInventaireNormaliseByNumLignes(numLignes);
         }
 
         public async Task<bool> IsResetCompleteAsync()

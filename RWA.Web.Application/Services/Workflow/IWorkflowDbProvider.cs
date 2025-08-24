@@ -17,9 +17,9 @@ namespace RWA.Web.Application.Services.Workflow
         // Additional helper operations moved from the orchestrator so DB
         // responsibilities are centralized in the provider implementation.
         Task<int> AutoMapExactMatchesAsync();
-        Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingDto> mappings);
+        Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings);
         Task<int> PersistInventoryRowsAsync(System.Collections.Generic.IEnumerable<RWA.Web.Application.Models.HecateInventaireNormalise> rows);
-        Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.MissingRowDto>> GetMissingRowsWithSuggestionsAsync();
+        Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync();
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>> GetEquivalenceCandidatesForMissingRowsAsync();
         Task<RWA.Web.Application.Models.Dtos.EquivalenceApplyResultDto> ApplyEquivalenceMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings);
         Task<System.Collections.Generic.List<WorkflowStep>> ForceNextFallbackAndGetStepsAsync();
@@ -34,5 +34,6 @@ namespace RWA.Web.Application.Services.Workflow
         Task<RWA.Web.Application.Models.Dtos.RwaCategoryManagerPayloadDto> ProcessRwaCategoryMappingAsync();
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.CategorieRwaOptionDto>> GetCategorieRwaOptionsAsync();
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.TypeBloombergOptionDto>> GetTypeBloombergOptionsAsync();
+        Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
     }
 }

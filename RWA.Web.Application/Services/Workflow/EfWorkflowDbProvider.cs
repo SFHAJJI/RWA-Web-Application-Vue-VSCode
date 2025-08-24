@@ -300,7 +300,7 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
-        public async Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingDto> mappings)
+        public async Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
             return await WithDbAsync(async db =>
             {
@@ -308,14 +308,15 @@ namespace RWA.Web.Application.Services.Workflow
 
                 foreach (var mapping in mappings)
                 {
-                    // Find the inventory row by IdentifiantOrigine
-                    var inventoryRow = await db.HecateInventaireNormalises
-                        .FirstOrDefaultAsync(h => h.Identifiant == mapping.IdentifiantOrigine);
+                    // Find the inventory rows by NumLignes
+                    var inventoryRows = await db.HecateInventaireNormalises
+                        .Where(h => mapping.NumLignes.Contains(h.NumLigne))
+                        .ToListAsync();
 
-                    if (inventoryRow != null)
+                    foreach (var inventoryRow in inventoryRows)
                     {
                         // Update the RefCategorieRwa field
-                        inventoryRow.RefCategorieRwa = mapping.RefCategorieRwa;
+                        inventoryRow.RefCategorieRwa = mapping.CategorieRwaId;
                         updatedCount++;
                     }
                 }
@@ -330,7 +331,7 @@ namespace RWA.Web.Application.Services.Workflow
             });
         }
 
-        public async Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.MissingRowDto>> GetMissingRowsWithSuggestionsAsync()
+        public async Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync()
         {
             try
             {
@@ -341,18 +342,21 @@ namespace RWA.Web.Application.Services.Workflow
                         .Take(50)
                         .ToListAsync();
 
-                    return missing.Select(m => new RWA.Web.Application.Models.Dtos.MissingRowDto
-                    {
-                        IdentifiantOrigine = m.IdentifiantOrigine ?? "",
-                        Nom = m.Nom ?? "",
-                        Categorie1 = m.Categorie1,
-                        Categorie2 = m.Categorie2
-                    }).ToList();
+                    return missing
+                        .GroupBy(row => new { row.Source, row.Categorie1, row.Categorie2 })
+                        .Select(g => new RWA.Web.Application.Models.Dtos.RwaMappingRowDto
+                        {
+                            Source = g.Key.Source,
+                            Cat1 = g.Key.Categorie1,
+                            Cat2 = g.Key.Categorie2,
+                            NumLignes = g.Select(row => row.NumLigne).ToList()
+                        })
+                        .ToList();
                 });
             }
             catch (ObjectDisposedException)
             {
-                return new List<RWA.Web.Application.Models.Dtos.MissingRowDto>();
+                return new List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>();
             }
         }
 
@@ -454,48 +458,22 @@ namespace RWA.Web.Application.Services.Workflow
             return await WithDbAsync(async db =>
             {
                 var successCount = 0;
-                var failedMappings = new List<RWA.Web.Application.Models.Dtos.MissingMappingRowDto>();
 
                 // 1. Get all uploaded inventory rows that don't have RefCategorieRwa set
                 var inventoryRows = await db.HecateInventaireNormalises
                     .Where(h => string.IsNullOrEmpty(h.RefCategorieRwa))
                     .ToListAsync();
 
-                foreach (var row in inventoryRows)
-                {
-                    // 2. Try to find mapping in HecateEquivalenceCatRwa using Source, Cat1, Cat2
-                    var equivalence = await db.HecateEquivalenceCatRwas
-                        .Include(e => e.RefCatDepositaire1Navigation)
-                        .Include(e => e.RefCatDepositaire2Navigation)
-                        .FirstOrDefaultAsync(e => 
-                            e.Source == row.Source &&
-                            e.RefCatDepositaire1Navigation.LibelleDepositaire1 == row.Categorie1 &&
-                            (row.Categorie2 == null || e.RefCatDepositaire2Navigation.LibelleDepositaire2 == row.Categorie2));
-
-                    if (equivalence != null)
+                var failedMappings = inventoryRows
+                    .GroupBy(row => new { row.Source, row.Categorie1, row.Categorie2 })
+                    .Select(g => new RWA.Web.Application.Models.Dtos.RwaMappingRowDto
                     {
-                        // 3. Successful mapping - save RefCategorieRwa
-                        row.RefCategorieRwa = equivalence.RefCategorieRwa;
-                        successCount++;
-                    }
-                    else
-                    {
-                        // 4. Failed mapping - add to UI list
-                        failedMappings.Add(new RWA.Web.Application.Models.Dtos.MissingMappingRowDto
-                        {
-                            Identifiant = row.Identifiant,
-                            Source = row.Source,
-                            Cat1 = row.Categorie1,
-                            Cat2 = row.Categorie2
-                        });
-                    }
-                }
-
-                // Save successful mappings to database
-                if (successCount > 0)
-                {
-                    await db.SaveChangesAsync();
-                }
+                        Source = g.Key.Source,
+                        Cat1 = g.Key.Categorie1,
+                        Cat2 = g.Key.Categorie2,
+                        NumLignes = g.Select(row => row.NumLigne).ToList()
+                    })
+                    .ToList();
 
                 // Get dropdown options for UI
                 var categorieRwaOptions = await db.HecateCategorieRwas
@@ -608,6 +586,16 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 return await db.WorkflowSteps
                     .OrderBy(s => s.Id)
+                    .ToListAsync();
+            });
+        }
+
+        public async Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes)
+        {
+            return await WithDbAsync(async db =>
+            {
+                return await db.HecateInventaireNormalises
+                    .Where(h => numLignes.Contains(h.NumLigne))
                     .ToListAsync();
             });
         }
