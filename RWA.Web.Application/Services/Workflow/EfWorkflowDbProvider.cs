@@ -300,35 +300,66 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
+        private async Task<long> GetOrCreateCatDepositaire1Async(RwaContext db, string libelle)
+        {
+            var cat = await db.HecateCatDepositaire1s.FirstOrDefaultAsync(c => c.LibelleDepositaire1 == libelle);
+            if (cat == null)
+            {
+                cat = new HecateCatDepositaire1 { LibelleDepositaire1 = libelle };
+                db.HecateCatDepositaire1s.Add(cat);
+                await db.SaveChangesAsync();
+            }
+            return cat.IdDepositaire1;
+        }
+
+        private async Task<long> GetOrCreateCatDepositaire2Async(RwaContext db, string libelle)
+        {
+            var cat = await db.HecateCatDepositaire2s.FirstOrDefaultAsync(c => c.LibelleDepositaire2 == libelle);
+            if (cat == null)
+            {
+                cat = new HecateCatDepositaire2 { LibelleDepositaire2 = libelle };
+                db.HecateCatDepositaire2s.Add(cat);
+                await db.SaveChangesAsync();
+            }
+            return cat.IdDepositaire2;
+        }
+
         public async Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
-            return await WithDbAsync(async db =>
+            // Fire-and-forget the creation of HecateEquivalenceCatRwa entities
+            _ = Task.Run(() =>
             {
-                var updatedCount = 0;
-
-                foreach (var mapping in mappings)
+                Parallel.ForEach(mappings, async mapping =>
                 {
-                    // Find the inventory rows by NumLignes
-                    var inventoryRows = await db.HecateInventaireNormalises
-                        .Where(h => mapping.NumLignes.Contains(h.NumLigne))
-                        .ToListAsync();
+                    using var scope = _scopeFactory.CreateScope();
+                    var db = scope.ServiceProvider.GetRequiredService<RwaContext>();
 
-                    foreach (var inventoryRow in inventoryRows)
+                    try
                     {
-                        // Update the RefCategorieRwa field
-                        inventoryRow.RefCategorieRwa = mapping.CategorieRwaId;
-                        updatedCount++;
+                        var cat1Id = await GetOrCreateCatDepositaire1Async(db, mapping.Cat1);
+                        var cat2Id = await GetOrCreateCatDepositaire2Async(db, mapping.Cat2 ?? string.Empty);
+
+                        var equivalence = new HecateEquivalenceCatRwa
+                        {
+                            Source = mapping.Source,
+                            RefCatDepositaire1 = cat1Id,
+                            RefCatDepositaire2 = cat2Id,
+                            RefCategorieRwa = mapping.CategorieRwaId,
+                            RefTypeBloomberg = mapping.TypeBloombergId
+                        };
+
+                        db.HecateEquivalenceCatRwas.Add(equivalence);
+                        await db.SaveChangesAsync();
                     }
-                }
-
-                // Save all changes
-                if (updatedCount > 0)
-                {
-                    await db.SaveChangesAsync();
-                }
-
-                return updatedCount;
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing RWA mapping for source {Source}", mapping.Source);
+                    }
+                });
             });
+
+            // Return the number of mappings queued for processing
+            return await Task.FromResult(mappings.Count);
         }
 
         public async Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync()

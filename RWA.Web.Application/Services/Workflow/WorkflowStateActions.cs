@@ -285,32 +285,7 @@ namespace RWA.Web.Application.Services.Workflow
                 // Use the DbProvider method to process mappings and get results
                 var result = await _dbProvider.ProcessRwaCategoryMappingAsync();
 
-                // 5. Decide next action based on results
-                if (result.MissingMappingRows.Count == 0)
-                {
-                    // All mappings successful - mark step as successfully finished and transition to next step
-                    Console.WriteLine($"[ProcessCategoryMappingAsync] All mappings successful, setting step to SuccessStatus and transitioning to next step");
-                    await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.SuccessStatus, string.Empty);
-                    
-                    // Notify UI of the successful completion
-                    await NotifyWorkflowStepsUpdatedAsync();
-                    
-                    // Transition to next step
-                    await _nextStepTriggerCallback!(Trigger.GoToBDDManager);
-                }
-                else
-                {
-                    // Some mappings failed - prepare UI payload and stay in current step
-                    Console.WriteLine($"[ProcessCategoryMappingAsync] {result.MissingMappingRows.Count} mappings failed, preparing UI payload");
-                    
-                    // Update step status with payload for UI - use ErrorStatus as these need user intervention
-                    var payloadJson = JsonSerializer.Serialize(result);
-                    
-                    await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.ErrorStatus, payloadJson);
-                    
-                    // Notify UI via SignalR
-                    await NotifyWorkflowStepsUpdatedAsync();
-                }
+                await HandleCategoryMappingResultAsync(result);
             }
             catch (Exception ex)
             {
@@ -319,6 +294,38 @@ namespace RWA.Web.Application.Services.Workflow
                 { 
                     ErrorMessage = $"Failed to process category mapping: {ex.Message}"
                 });
+            }
+        }
+
+        private async Task HandleCategoryMappingResultAsync(RWA.Web.Application.Models.Dtos.RwaCategoryManagerPayloadDto result)
+        {
+            if (result.MissingMappingRows.Count == 0)
+            {
+                // All mappings complete - mark step as successfully finished and transition to next step
+                Console.WriteLine($"[HandleCategoryMappingResultAsync] All mappings complete, setting step to SuccessStatus and transitioning to next step");
+                await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.SuccessStatus, string.Empty);
+                
+                // Notify UI of the successful completion
+                await SendToastNotificationAsync("success", "All RWA category mappings applied successfully.");
+
+                // Transition to next step
+                if (_nextStepTriggerCallback != null)
+                {
+                    await _nextStepTriggerCallback(Trigger.GoToBDDManager);
+                }
+            }
+            else
+            {
+                // Still have missing mappings - update UI with remaining rows
+                Console.WriteLine($"[HandleCategoryMappingResultAsync] {result.MissingMappingRows.Count} mappings still missing, updating UI");
+                
+                var payloadJson = JsonSerializer.Serialize(result);
+                
+                await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.ErrorStatus, payloadJson);
+                
+                // Notify UI via SignalR
+                await SendToastNotificationAsync("error", $"{result.MissingMappingRows.Count} RWA category mappings still require attention.");
+                await NotifyWorkflowStepsUpdatedAsync();
             }
         }
 
@@ -544,35 +551,12 @@ namespace RWA.Web.Application.Services.Workflow
                 {
                     // Use DbProvider to apply the mappings
                     var appliedCount = await _dbProvider.ApplyRwaMappingsAsync(mappings);
-                    Console.WriteLine($"[OnApplyRwaMappingsAsync] Applied {appliedCount} mappings successfully");
+                    Console.WriteLine($"[OnApplyRwaMappingsAsync] Queued {appliedCount} mappings for background processing.");
 
                     // After applying mappings, re-process to check if any mappings are still missing
                     var result = await _dbProvider.ProcessRwaCategoryMappingAsync();
                     
-                    if (result.MissingMappingRows.Count == 0)
-                    {
-                        // All mappings complete - mark step as successfully finished and transition to next step
-                        Console.WriteLine($"[OnApplyRwaMappingsAsync] All mappings complete, setting step to SuccessStatus and transitioning to next step");
-                        await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.SuccessStatus, string.Empty);
-                        
-                        // Notify UI of the successful completion
-                        await NotifyWorkflowStepsUpdatedAsync();
-                        
-                        // Transition to next step
-                        await _nextStepTriggerCallback!(Trigger.GoToBDDManager);
-                    }
-                    else
-                    {
-                        // Still have missing mappings - update UI with remaining rows
-                        Console.WriteLine($"[OnApplyRwaMappingsAsync] {result.MissingMappingRows.Count} mappings still missing, updating UI");
-                        
-                        var payloadJson = JsonSerializer.Serialize(result);
-                        
-                        await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.ErrorStatus, payloadJson);
-                        
-                        // Notify UI via SignalR
-                        await NotifyWorkflowStepsUpdatedAsync();
-                    }
+                    await HandleCategoryMappingResultAsync(result);
                 }
                 catch (Exception ex)
                 {
