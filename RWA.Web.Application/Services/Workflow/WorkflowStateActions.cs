@@ -304,7 +304,7 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 // All mappings complete - mark step as successfully finished and transition to next step
                 Console.WriteLine($"[HandleCategoryMappingResultAsync] All mappings complete, setting step to SuccessStatus and transitioning to next step");
-                await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.SuccessStatus, string.Empty);
+                await UpdateStepStatusAsync("RWA Category Manager", _statusOptions.SuccessStatus);
                 
                 // Notify UI of the successful completion
                 await SendToastNotificationAsync("success", "All RWA category mappings applied successfully.");
@@ -332,35 +332,48 @@ namespace RWA.Web.Application.Services.Workflow
 
         private async Task ProcessBddMatchingAsync()
         {
+            // 1. Fetch Data
+            var (enrichedItems, allItemsDict) = await FetchBddMatchingDataAsync();
+
+            // 2. Perform Matching
+            var (successfulMatches, failedMatches) = await PerformBddMatchingAsync(enrichedItems, allItemsDict);
+
+            // 3. Save Successful Matches
+            await _dbProvider.SaveChangesAsync();
+
+            // 4. Process Failed Matches and Prepare Payload
+            var payload = PrepareBddPayload(successfulMatches, failedMatches);
+
+            // 5. Update Workflow Step
+            var payloadJson = JsonSerializer.Serialize(payload);
+            await _dbProvider.UpdateStepStatusAndDataAsync("BDD Manager", _statusOptions.CurrentStatus, payloadJson);
+            await NotifyWorkflowStepsUpdatedAsync();
+        }
+
+        private async Task<(List<EnrichedInventaireDto> EnrichedItems, Dictionary<int, HecateInventaireNormalise> AllItemsDict)> FetchBddMatchingDataAsync()
+        {
             var previousStep = await _dbProvider.GetStepByNameAsync("RWA Category Manager");
             var enrichedItems = JsonSerializer.Deserialize<List<EnrichedInventaireDto>>(previousStep.DataPayload);
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
             var allItemsDict = allItems.ToDictionary(i => i.NumLigne, i => i);
+            return (enrichedItems, allItemsDict);
+        }
 
+        private async Task<(List<HecateInventaireNormalise> SuccessfulMatches, List<HecateInventaireNormalise> FailedMatches)> PerformBddMatchingAsync(
+            List<EnrichedInventaireDto> enrichedItems,
+            Dictionary<int, HecateInventaireNormalise> allItemsDict)
+        {
             var successfulMatches = new List<HecateInventaireNormalise>();
             var failedMatches = new List<HecateInventaireNormalise>();
 
             foreach (var enrichedItem in enrichedItems)
             {
                 var item = allItemsDict[enrichedItem.NumLigne];
-                if (enrichedItem.IsValeurMobiliere)
-                {
-                    item.IdentifiantUniqueRetenu = item.Identifiant;
-                }
-                else
-                {
-                    item.IdentifiantUniqueRetenu = $"{item.Source}{item.RefCategorieRwa}{item.PeriodeCloture.Substring(0, 2)}{item.PeriodeCloture.Substring(4, 2)}";
-                }
+                item.IdentifiantUniqueRetenu = enrichedItem.IsValeurMobiliere
+                    ? item.Identifiant
+                    : $"{item.Source}{item.RefCategorieRwa}{item.PeriodeCloture.Substring(0, 2)}{item.PeriodeCloture.Substring(4, 2)}";
 
-                var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine == item.Identifiant);
-                if (match == null)
-                {
-                    match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu == item.IdentifiantUniqueRetenu || (item.IdentifiantUniqueRetenu != null && h.IdentifiantUniqueRetenu.Substring(2) == item.IdentifiantUniqueRetenu));
-                }
-                if (match == null)
-                {
-                    match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.LibelleOrigine == item.Nom);
-                }
+                var match = await FindBestMatchAsync(item);
 
                 if (match != null)
                 {
@@ -374,15 +387,36 @@ namespace RWA.Web.Application.Services.Workflow
                 }
             }
 
-            var payload = new
+            return (successfulMatches, failedMatches);
+        }
+
+        private async Task<HecateInterneHistorique?> FindBestMatchAsync(HecateInventaireNormalise item)
+        {
+            var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine == item.Identifiant);
+            if (match == null)
+            {
+                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu == item.IdentifiantUniqueRetenu || (item.IdentifiantUniqueRetenu != null && h.IdentifiantUniqueRetenu.Substring(2) == item.IdentifiantUniqueRetenu));
+            }
+            if (match == null)
+            {
+                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.LibelleOrigine == item.Nom);
+            }
+            return match;
+        }
+
+        private BddManagerPayloadDto PrepareBddPayload(List<HecateInventaireNormalise> successfulMatches, List<HecateInventaireNormalise> failedMatches)
+        {
+            var failedMatchesWithRaf = failedMatches.Where(i => !string.IsNullOrEmpty(i.Rafenrichi)).ToList();
+            var failedMatchesWithoutRaf = failedMatches.Where(i => string.IsNullOrEmpty(i.Rafenrichi)).ToList();
+
+            var toBeAddedToBdd = failedMatchesWithRaf.Select(i => new HecateInterneHistorique(i)).ToList();
+
+            return new BddManagerPayloadDto
             {
                 SuccessfulMatches = successfulMatches,
-                FailedMatches = failedMatches
+                FailedMatches = failedMatchesWithoutRaf,
+                ToBeAddedToBDD = toBeAddedToBdd
             };
-
-            var payloadJson = JsonSerializer.Serialize(payload);
-            await _dbProvider.UpdateStepStatusAndDataAsync("BDD Manager", _statusOptions.CurrentStatus, payloadJson);
-            await NotifyWorkflowStepsUpdatedAsync();
         }
 
         public async Task OnBDDManagerEntryAsync()

@@ -159,6 +159,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             // State entry actions
             _stateMachine.RWACategoryManagerEntry += _actions.OnRWACategoryManagerEntryAsync;
+            _stateMachine.BDDManagerEntry += _actions.OnBDDManagerEntryAsync;
 
             // State exit actions
             _stateMachine.RWACategoryManagerExit += _actions.OnRWACategoryManagerExitAsync;

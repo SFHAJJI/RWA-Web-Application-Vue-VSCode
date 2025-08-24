@@ -165,6 +165,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
             await postJson('/api/workflow/reset', {});
             // allow SignalR to provide updated steps; keep reset counter to force UI refresh when needed
             resetCounter.value++;
+            stepLoading.value = {}; // Clear step loading state on reset
             // currentValidationMessages is computed from workflowSteps, so no need to clear manually
         } catch (e: unknown) {
             if (e instanceof Error) {

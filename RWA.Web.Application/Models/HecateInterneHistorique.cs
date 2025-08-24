@@ -5,6 +5,20 @@ namespace RWA.Web.Application.Models;
 
 public partial class HecateInterneHistorique
 {
+    public HecateInterneHistorique() { }
+
+    public HecateInterneHistorique(HecateInventaireNormalise item)
+    {
+        Source = item.Source;
+        IdentifiantOrigine = item.IdentifiantOrigine;
+        RefCategorieRwa = item.RefCategorieRwa ?? string.Empty;
+        IdentifiantUniqueRetenu = item.IdentifiantUniqueRetenu ?? string.Empty;
+        Raf = item.Raf ?? string.Empty;
+        LibelleOrigine = item.LibelleOrigine ?? string.Empty;
+        DateEcheance = item.DateFinContrat;
+        LastUpdate = DateTime.UtcNow.ToString("o");
+    }
+
     public string Source { get; set; } = null!;
 
     public string IdentifiantOrigine { get; set; } = null!;

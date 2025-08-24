@@ -92,8 +92,11 @@ const validationError = computed(() => {
             This step is successfully finished.
         </v-alert>
         
-        <!-- Show upload component only when step is not successfully finished -->
-        <div v-else>
+        <!-- Show skeleton loader while uploading -->
+        <v-skeleton-loader v-if="store.loading" type="card"></v-skeleton-loader>
+
+        <!-- Show upload component only when step is not successfully finished and not uploading -->
+        <div v-else-if="!isUploadSuccessful">
             <v-row>
                 <v-col>
                     <h3>Upload Inventory Files</h3>

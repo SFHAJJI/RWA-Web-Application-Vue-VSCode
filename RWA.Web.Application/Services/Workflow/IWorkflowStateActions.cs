@@ -36,6 +36,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         // State entry actions
         Task OnRWACategoryManagerEntryAsync();
+        Task OnBDDManagerEntryAsync();
 
         // State exit actions
         Task OnRWACategoryManagerExitAsync(string stepName);
