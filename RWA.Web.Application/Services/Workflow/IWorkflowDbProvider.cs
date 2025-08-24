@@ -35,5 +35,9 @@ namespace RWA.Web.Application.Services.Workflow
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.CategorieRwaOptionDto>> GetCategorieRwaOptionsAsync();
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.TypeBloombergOptionDto>> GetTypeBloombergOptionsAsync();
         Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
+
+        // BDD Manager specific methods
+        Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsync();
+        Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate);
     }
 }

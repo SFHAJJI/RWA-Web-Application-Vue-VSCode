@@ -16,6 +16,7 @@ namespace RWA.Web.Application.Models.Dtos
     {
         public string IdCatRwa { get; set; } = null!;
         public string Libelle { get; set; } = null!;
+        public string ValeurMobiliere { get; set; } = null!;
     }
 
     public class TypeBloombergOptionDto
@@ -34,5 +35,12 @@ namespace RWA.Web.Application.Models.Dtos
     public class SubmitRwaMappingsDto
     {
         public List<RwaMappingRowDto> Mappings { get; set; } = new List<RwaMappingRowDto>();
+    }
+
+    public class EnrichedInventaireDto
+    {
+        public int NumLigne { get; set; }
+        public bool IsValeurMobiliere { get; set; }
+        public string Libelle { get; set; } = null!;
     }
 }

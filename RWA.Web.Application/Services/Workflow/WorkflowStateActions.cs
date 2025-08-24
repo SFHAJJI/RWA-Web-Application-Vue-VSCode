@@ -1,3 +1,4 @@
+using RWA.Web.Application.Models.Dtos;
 using RWA.Web.Application.Services.Workflow.Dtos;
 using RWA.Web.Application.Services.Validation;
 using RWA.Web.Application.Services.Workflow;
@@ -329,12 +330,92 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
+        private async Task ProcessBddMatchingAsync()
+        {
+            var previousStep = await _dbProvider.GetStepByNameAsync("RWA Category Manager");
+            var enrichedItems = JsonSerializer.Deserialize<List<EnrichedInventaireDto>>(previousStep.DataPayload);
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var allItemsDict = allItems.ToDictionary(i => i.NumLigne, i => i);
+
+            var successfulMatches = new List<HecateInventaireNormalise>();
+            var failedMatches = new List<HecateInventaireNormalise>();
+
+            foreach (var enrichedItem in enrichedItems)
+            {
+                var item = allItemsDict[enrichedItem.NumLigne];
+                if (enrichedItem.IsValeurMobiliere)
+                {
+                    item.IdentifiantUniqueRetenu = item.Identifiant;
+                }
+                else
+                {
+                    item.IdentifiantUniqueRetenu = $"{item.Source}{item.RefCategorieRwa}{item.PeriodeCloture.Substring(0, 2)}{item.PeriodeCloture.Substring(4, 2)}";
+                }
+
+                var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine == item.Identifiant);
+                if (match == null)
+                {
+                    match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu == item.IdentifiantUniqueRetenu || (item.IdentifiantUniqueRetenu != null && h.IdentifiantUniqueRetenu.Substring(2) == item.IdentifiantUniqueRetenu));
+                }
+                if (match == null)
+                {
+                    match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.LibelleOrigine == item.Nom);
+                }
+
+                if (match != null)
+                {
+                    item.Rafenrichi = match.Raf;
+                    item.DateFinContrat = match.DateEcheance;
+                    successfulMatches.Add(item);
+                }
+                else
+                {
+                    failedMatches.Add(item);
+                }
+            }
+
+            var payload = new
+            {
+                SuccessfulMatches = successfulMatches,
+                FailedMatches = failedMatches
+            };
+
+            var payloadJson = JsonSerializer.Serialize(payload);
+            await _dbProvider.UpdateStepStatusAndDataAsync("BDD Manager", _statusOptions.CurrentStatus, payloadJson);
+            await NotifyWorkflowStepsUpdatedAsync();
+        }
+
+        public async Task OnBDDManagerEntryAsync()
+        {
+            await ExecuteSafelyAsync(nameof(OnBDDManagerEntryAsync), "BDDManager", async () =>
+            {
+                Console.WriteLine($"[OnBDDManagerEntryAsync] Entering BDD Manager step");
+
+                // Process BDD matching for all inventory rows
+                await ProcessBddMatchingAsync();
+            });
+        }
         // State exit actions
 
 
         public async Task OnRWACategoryManagerExitAsync(string stepName)
         {
-            await Task.CompletedTask;
+            await ExecuteSafelyAsync(nameof(OnRWACategoryManagerExitAsync), stepName, async () =>
+            {
+                var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+                var categories = await _dbProvider.GetCategorieRwaOptionsAsync();
+                var categoriesDict = categories.ToDictionary(c => c.IdCatRwa, c => c);
+
+                var enrichedItems = allItems.Select(item => new EnrichedInventaireDto
+                {
+                    NumLigne = item.NumLigne,
+                    IsValeurMobiliere = categoriesDict.ContainsKey(item.RefCategorieRwa) && (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere?.ToUpper() == "Y" || categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere?.ToUpper() == "O"),
+                    Libelle = categoriesDict.ContainsKey(item.RefCategorieRwa) ? categoriesDict[item.RefCategorieRwa].Libelle : string.Empty
+                }).ToList();
+
+                var payloadJson = JsonSerializer.Serialize(enrichedItems);
+                await _dbProvider.UpdateStepStatusAndDataAsync(stepName, _statusOptions.SuccessStatus, payloadJson);
+            });
         }
 
         public async Task OnBDDManagerExitAsync(string stepName)

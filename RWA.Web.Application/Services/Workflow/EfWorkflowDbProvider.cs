@@ -331,40 +331,48 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
-            // Fire-and-forget the creation of HecateEquivalenceCatRwa entities
-            _ = Task.Run(() =>
+            var processingTasks = mappings.Select(async mapping =>
             {
-                Parallel.ForEach(mappings, async mapping =>
+                try
                 {
-                    try
+                    await WithDbAsync(async db =>
                     {
                         var cat1Id = await GetOrCreateCatDepositaire1Async(mapping.Cat1);
                         var cat2Id = await GetOrCreateCatDepositaire2Async(mapping.Cat2 ?? string.Empty);
 
-                        await WithDbAsync(async db =>
+                        var equivalence = new HecateEquivalenceCatRwa
                         {
-                            var equivalence = new HecateEquivalenceCatRwa
-                            {
-                                Source = mapping.Source,
-                                RefCatDepositaire1 = cat1Id,
-                                RefCatDepositaire2 = cat2Id,
-                                RefCategorieRwa = mapping.CategorieRwaId,
-                                RefTypeBloomberg = mapping.TypeBloombergId
-                            };
+                            Source = mapping.Source,
+                            RefCatDepositaire1 = cat1Id,
+                            RefCatDepositaire2 = cat2Id,
+                            RefCategorieRwa = mapping.CategorieRwaId,
+                            RefTypeBloomberg = mapping.TypeBloombergId
+                        };
 
-                            db.HecateEquivalenceCatRwas.Add(equivalence);
-                            await db.SaveChangesAsync();
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error processing RWA mapping for source {Source}", mapping.Source);
-                    }
-                });
+                        db.HecateEquivalenceCatRwas.Add(equivalence);
+
+                        var inventoryItems = await db.HecateInventaireNormalises
+                            .Where(i => mapping.NumLignes.Contains(i.NumLigne))
+                            .ToListAsync();
+
+                        foreach (var item in inventoryItems)
+                        {
+                            item.RefCategorieRwa = mapping.CategorieRwaId;
+                        }
+
+                        await db.SaveChangesAsync();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing RWA mapping for source {Source}", mapping.Source);
+                }
             });
 
+            await Task.WhenAll(processingTasks);
+
             // Return the number of mappings queued for processing
-            return await Task.FromResult(mappings.Count);
+            return mappings.Count;
         }
 
         public async Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync()
@@ -589,10 +597,11 @@ namespace RWA.Web.Application.Services.Workflow
             return await WithDbAsync(async db =>
             {
                 return await db.HecateCategorieRwas
-                    .Select(c => new RWA.Web.Application.Models.Dtos.CategorieRwaOptionDto 
-                    { 
-                        IdCatRwa = c.IdCatRwa, 
-                        Libelle = c.Libelle 
+                    .Select(c => new RWA.Web.Application.Models.Dtos.CategorieRwaOptionDto
+                    {
+                        IdCatRwa = c.IdCatRwa,
+                        Libelle = c.Libelle,
+                        ValeurMobiliere = c.ValeurMobiliere
                     })
                     .ToListAsync();
             });
@@ -660,6 +669,24 @@ namespace RWA.Web.Application.Services.Workflow
                 return await db.HecateInventaireNormalises
                     .Where(h => numLignes.Contains(h.NumLigne))
                     .ToListAsync();
+            });
+        }
+
+        public async Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsync()
+        {
+            return await WithDbAsync(async db =>
+            {
+                return await db.HecateInventaireNormalises.ToListAsync();
+            });
+        }
+
+        
+
+        public async Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate)
+        {
+            return await WithDbAsync(async db =>
+            {
+                return await db.HecateInterneHistoriques.FirstOrDefaultAsync(predicate);
             });
         }
     }

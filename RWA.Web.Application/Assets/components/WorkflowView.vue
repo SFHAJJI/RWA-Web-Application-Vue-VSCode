@@ -307,12 +307,12 @@ function doReset() {
                             <v-btn v-if="hasWarnings" color="secondary" @click="store.forceNext()">Force Next</v-btn>
                         </div>
                     </div>
-                    <div>
-                        <UploadInventory v-if="step.stepName === 'Upload inventory'" />
-                        <RwaCategoryManager v-else-if="step.stepName === 'RWA Category Manager'" />
-                        <BddManager v-else-if="step.stepName === 'BDD Manager'" />
-                        <RafManager v-else-if="step.stepName === 'RAF Manager'" />
-                        <FichierEnrichiGeneration v-else-if="step.stepName === 'Fichier Enrichie Generation'" />
+                    <div :key="step.id">
+                        <UploadInventory v-if="step.stepName === 'Upload inventory'" :step="step" />
+                        <RwaCategoryManager v-else-if="step.stepName === 'RWA Category Manager'" :step="step" />
+                        <BddManager v-else-if="step.stepName === 'BDD Manager'" :step="step" />
+                        <RafManager v-else-if="step.stepName === 'RAF Manager'" :step="step" />
+                        <FichierEnrichiGeneration v-else-if="step.stepName === 'Fichier Enrichie Generation'" :step="step" />
                         <div v-else>
                             <p>Step component not found: {{ step.stepName }}</p>
                         </div>
