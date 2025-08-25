@@ -48,5 +48,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task<List<HecateContrepartiesTransparence>> GetHecateContrepartiesTransparenceAsync();
         Task UpdateInventaireNormaliseRangeAsync(List<HecateInventaireNormalise> items);
         Task<List<HecateTethy>> GetTethysDataByRafAsync(List<string> rafs);
+        Task UpdateRafAsync(List<HecateTethysDto> items);
+        Task<bool> AreAllRafsCompletedAsync();
     }
 }

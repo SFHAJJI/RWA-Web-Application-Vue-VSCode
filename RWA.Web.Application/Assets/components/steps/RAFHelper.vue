@@ -92,6 +92,15 @@
           </v-data-table>
         </div>
       </transition>
+
+      <v-row class="mt-6">
+        <v-col cols="12" class="d-flex justify-end">
+          <v-btn color="primary" elevation="2" large @click="submit">
+            <v-icon left>mdi-check-circle</v-icon>
+            Submit
+          </v-btn>
+        </v-col>
+      </v-row>
     </div>
   </div>
 </template>
@@ -150,6 +159,37 @@ function handleGroupedSelection(groupKey, selectedValue) {
 
 function isGroupComplete(group) {
   return group.every(item => item.Raf && item.Raf.trim() !== '');
+}
+
+async function submit() {
+  try {
+    const itemsToSubmit = items.value.map(item => {
+      const newItem = {};
+      for (const key in item) {
+        newItem[key] = item[key] === null ? '' : item[key];
+      }
+      return newItem;
+    });
+
+    console.log('Submitting items:', JSON.parse(JSON.stringify(itemsToSubmit)));
+
+    const response = await fetch('/api/workflow/update-raf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(itemsToSubmit),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update RAF values');
+    }
+
+    // Optionally, you can handle the success case here, e.g., show a notification.
+    console.log('RAF values updated successfully');
+  } catch (error) {
+    console.error('Error updating RAF values:', error);
+  }
 }
 </script>
 

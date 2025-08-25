@@ -326,7 +326,7 @@ function doReset() {
             <!-- Reset is always available; placed between previous and next for ergonomics -->
             <v-btn color="error" class="mx-2" @click="resetWithConfirm">Reset</v-btn>
 
-            <v-btn @click="store.navigateNextVisual()" :disabled="!store.canNavigateNext()">Next</v-btn>
+            <v-btn @click="store.navigateNextVisual()" :disabled="store.workflowSteps[store.uiActiveIndex]?.stepName === 'RAF Manager' ? false : !store.canNavigateNext()">Next</v-btn>
         </div>
         <v-dialog v-model="resetDialog" width="480">
             <v-card>

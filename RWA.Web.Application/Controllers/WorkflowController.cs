@@ -238,6 +238,15 @@ namespace RWA.Web.Application.Controllers
             return NoContent();
         }
 
+        [HttpPost("update-raf")]
+        public async Task<IActionResult> PostUpdateRaf([FromBody] List<HecateTethysDto> items)
+        {
+            if (items == null || items.Count == 0) return BadRequest("No items provided.");
+
+            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateRafAsync(items);
+            return NoContent();
+        }
+
         [HttpGet("config")]
         public ActionResult<object> GetWorkflowConfig()
         {

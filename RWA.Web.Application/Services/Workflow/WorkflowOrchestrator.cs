@@ -181,6 +181,7 @@ namespace RWA.Web.Application.Services.Workflow
             _stateMachine.UnexpectedError += _actions.OnUnexpectedErrorAsync;
             _stateMachine.ForceNextFallback += _actions.OnForceNextFallbackAsync;
             _stateMachine.UpdateObligations += _actions.OnUpdateObligationsAsync;
+            _stateMachine.UpdateRaf += _actions.OnUpdateRafAsync;
             _stateMachine.AddBddHistorique += _actions.OnAddBddHistoriqueAsync;
 
             // Wire the reset completion check
@@ -262,6 +263,12 @@ namespace RWA.Web.Application.Services.Workflow
             await EnsureInitializedAsync();
             if (_stateMachine.UpdateObligationsTrigger != null)
                 await _stateMachine.FireAsync(_stateMachine.UpdateObligationsTrigger, items);
+        }
+        public async Task TriggerUpdateRafAsync(List<RWA.Web.Application.Models.Dtos.HecateTethysDto> items)
+        {
+            await EnsureInitializedAsync();
+            if (_stateMachine.UpdateRafTrigger != null)
+                await _stateMachine.FireAsync(_stateMachine.UpdateRafTrigger, items);
         }
 
         public async Task TriggerAsync(string triggerName)

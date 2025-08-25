@@ -53,6 +53,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings);
         Task OnAddBddHistoriqueAsync(List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto> items);
         Task OnUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items);
+        Task OnUpdateRafAsync(List<RWA.Web.Application.Models.Dtos.HecateTethysDto> items);
         Task OnApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings);
         Task OnValidationSuccessAsync(ValidationResultContext context);
         Task OnValidationWarningAsync(ValidationResultContext context);

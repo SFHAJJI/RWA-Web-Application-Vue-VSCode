@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using RWA.Web.Application.Models;
 using RWA.Web.Application.Services;
 using RWA.Web.Application.Services.Helpers;
+using RWA.Web.Application.Models.Dtos;
 
 namespace RWA.Web.Application.Services.Workflow
 {
@@ -765,6 +766,65 @@ namespace RWA.Web.Application.Services.Workflow
                 }
 
                 return await query.Where(predicate).Select(item => item.TrimProperties()).ToListAsync();
+            });
+        }
+
+        public async Task UpdateRafAsync(List<HecateTethysDto> items)
+        {
+            await WithDbAsync(async db =>
+            {
+                var categories = await db.HecateCategorieRwas.AsNoTracking().ToListAsync();
+                var categoriesDict = categories.ToDictionary(c => c.IdCatRwa, c => c);
+
+                var numLignes = items.Select(i => i.NumLigne).ToList();
+                var entities = await db.HecateInventaireNormalises
+                    .Where(h => numLignes.Contains(h.NumLigne))
+                    .ToListAsync();
+
+                var transparenceItemsToAdd = new List<HecateContrepartiesTransparence>();
+
+                foreach (var entity in entities)
+                {
+                    var item = items.First(i => i.NumLigne == entity.NumLigne);
+
+                    if (entity.Raf != item.Raf)
+                    {
+                        entity.Raf = item.Raf;
+                    }
+                    if (entity.LibelleOrigine != item.CptTethys)
+                    {
+                        entity.LibelleOrigine = item.CptTethys;
+                    }
+
+                    var isValeurMobiliere = categoriesDict.ContainsKey(entity.RefCategorieRwa) &&
+                                            ((categoriesDict[entity.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("Y", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                             (categoriesDict[entity.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false));
+
+                    if (!isValeurMobiliere && !string.IsNullOrEmpty(item.Raf))
+                    {
+                        transparenceItemsToAdd.Add(new HecateContrepartiesTransparence
+                        {
+                            LibelleContrepartieOrigine = item.Cpt,
+                            RafEntite = item.Raf,
+                            LibelleCourtTethys = item.CptTethys
+                        });
+                    }
+                }
+
+                if (transparenceItemsToAdd.Any())
+                {
+                    db.HecateContrepartiesTransparences.AddRange(transparenceItemsToAdd);
+                }
+
+                await db.SaveChangesAsync();
+            });
+        }
+
+        public async Task<bool> AreAllRafsCompletedAsync()
+        {
+            return await WithDbAsync(async db =>
+            {
+                return await db.HecateInventaireNormalises.AllAsync(h => !string.IsNullOrEmpty(h.Raf));
             });
         }
     }

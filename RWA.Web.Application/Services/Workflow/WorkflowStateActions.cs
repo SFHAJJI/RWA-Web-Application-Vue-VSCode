@@ -872,6 +872,21 @@ namespace RWA.Web.Application.Services.Workflow
                 }
             });
         }
+        public async Task OnUpdateRafAsync(List<HecateTethysDto> items)
+        {
+            await ExecuteSafelyAsync(nameof(OnUpdateRafAsync), "RafManager", async () =>
+            {
+                try
+                {
+                    await _dbProvider.UpdateRafAsync(items);
+                    await HandleUpdateRafResultAsync();
+                }
+                catch (Exception ex)
+                {
+                    await HandleUpdateRafResultAsync(false, ex.Message);
+                }
+            });
+        }
 
         private async Task HandleAddBddHistoriqueResultAsync(bool success, string errorMessage = "")
         {
@@ -897,7 +912,40 @@ namespace RWA.Web.Application.Services.Workflow
                 }
             }
         }
-
+        private async Task HandleUpdateRafResultAsync(bool success = true, string errorMessage = "")
+        {
+            if (success)
+            {
+                var allRafsCompleted = await _dbProvider.AreAllRafsCompletedAsync();
+                if (allRafsCompleted)
+                {
+                    await _dbProvider.UpdateStepStatusAsync("RAF Manager", _statusOptions.SuccessStatus);
+                    await SendToastNotificationAsync("success", "All Rafs updated successfully.");
+                    if (_nextStepTriggerCallback != null)
+                    {
+                        await _nextStepTriggerCallback(Trigger.NextRafManagerToEnrichiExport);
+                    }
+                }
+                else
+                {
+                    await _dbProvider.UpdateStepStatusAsync("RAF Manager", _statusOptions.CurrentWarningStatus);
+                    await SendToastNotificationAsync("warning", "Some Rafs are still missing.");
+                    await NotifyWorkflowStepsUpdatedAsync();
+                }
+            }
+            else
+            {
+                if (_errorTriggerCallback != null)
+                {
+                    var errorContext = new UnexpectedErrorContext
+                    {
+                        ErrorMessage = $"Failed to update Rafs: {errorMessage}",
+                        StepName = "RAF Manager"
+                    };
+                    await _errorTriggerCallback(Trigger.UnexpectedError, errorContext);
+                }
+            }
+        }
 
         private async Task HandleUpdateObligationsResultAsync(bool success, string errorMessage = "")
         {

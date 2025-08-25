@@ -31,7 +31,8 @@ namespace RWA.Web.Application.Services.Workflow.Dtos
             ForceNext,
             GoToRafManager,
             AddBddHistorique,
-            UpdateObligations
+            UpdateObligations,
+            UpdateRaf
         }
 
         public enum State
