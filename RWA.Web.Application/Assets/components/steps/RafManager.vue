@@ -5,7 +5,7 @@
     </template>
 
     <template v-slot:item.2>
-      <RAFHelper />
+      <RAFHelper :payload="payload" />
     </template>
   </v-stepper>
 </template>
