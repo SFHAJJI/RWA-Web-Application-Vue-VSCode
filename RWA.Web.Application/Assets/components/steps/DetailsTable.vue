@@ -76,7 +76,7 @@ watch(serverItems, (newItems) => {
   console.log('Server items in DetailsTable:', newItems);
 });
 
-let debounceTimer: number;
+let debounceTimer: any;
 watch(filters, () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {

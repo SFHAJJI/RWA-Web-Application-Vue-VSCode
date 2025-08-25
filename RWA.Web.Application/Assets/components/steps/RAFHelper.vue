@@ -22,7 +22,13 @@
             <v-list lines="two" class="grouped-list">
               <v-list-group v-for="(group, groupKey) in groupedItems" :key="groupKey" :value="groupKey">
                 <template v-slot:activator="{ props }">
-                  <v-list-item v-bind="props" :title="groupKey"></v-list-item>
+                  <v-list-item v-bind="props">
+                    <v-list-item-title>{{ groupKey }}</v-list-item-title>
+                    <template v-slot:append>
+                      <v-icon v-if="isGroupComplete(group)" color="success">mdi-check-circle</v-icon>
+                      <v-icon v-else color="error">mdi-close-circle</v-icon>
+                    </template>
+                  </v-list-item>
                 </template>
 
                 <v-table class="inner-table">
@@ -84,7 +90,6 @@
               </tr>
             </template>
           </v-data-table>
->>>>>>> Stashed changes
         </div>
       </transition>
     </div>
@@ -141,6 +146,10 @@ function handleGroupedSelection(groupKey, selectedValue) {
       d.Raf = selectedValue;
     }
   });
+}
+
+function isGroupComplete(group) {
+  return group.every(item => item.Raf && item.Raf.trim() !== '');
 }
 </script>
 
