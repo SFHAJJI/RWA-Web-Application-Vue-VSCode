@@ -1,14 +1,17 @@
 <template>
   <v-card flat class="ma-2 pa-3">
-    <v-radio-group v-model="selectedId" @update:modelValue="onSelectionChange">
+    <v-radio-group v-model="selectedValue" @update:modelValue="onSelectionChange">
       <v-data-table
         :items="details"
         :headers="headers"
         item-value="id"
         hide-default-footer
       >
-        <template v-slot:item.selector="{ item }">
-          <v-radio :value="item.id"></v-radio>
+        <template v-slot:item.details1="{ item }">
+          <v-radio :value="item.details1" :label="item.details1"></v-radio>
+        </template>
+        <template v-slot:item.details2="{ item }">
+          <v-radio :value="item.details2" :label="item.details2"></v-radio>
         </template>
       </v-data-table>
     </v-radio-group>
@@ -27,19 +30,16 @@ const props = defineProps({
 
 const emit = defineEmits(['selection-changed']);
 
-const selectedId = ref(null);
+const selectedValue = ref(null);
 
 const headers = [
-  { title: '', key: 'selector', sortable: false, width: '50px' },
-  { title: 'ID', key: 'id' },
-  { title: 'Detail', key: 'detail' },
-  { title: 'Value', key: 'value' },
+  { title: 'Details 1', key: 'details1', sortable: false },
+  { title: 'Details 2', key: 'details2', sortable: false },
 ];
 
-function onSelectionChange(newId) {
-  const selectedItem = props.details.find(d => d.id === newId);
-  if (selectedItem) {
-    emit('selection-changed', selectedItem);
+function onSelectionChange(newValue) {
+  if (newValue) {
+    emit('selection-changed', newValue);
   }
 }
 </script>
