@@ -160,6 +160,7 @@ namespace RWA.Web.Application.Services.Workflow
             // State entry actions
             _stateMachine.RWACategoryManagerEntry += _actions.OnRWACategoryManagerEntryAsync;
             _stateMachine.BDDManagerEntry += _actions.OnBDDManagerEntryAsync;
+            _stateMachine.RafManagerEntry += _actions.OnRafManagerEntryAsync;
 
             // State exit actions
             _stateMachine.RWACategoryManagerExit += _actions.OnRWACategoryManagerExitAsync;
@@ -179,7 +180,9 @@ namespace RWA.Web.Application.Services.Workflow
             _stateMachine.ValidationError += _actions.OnValidationErrorAsync;
             _stateMachine.UnexpectedError += _actions.OnUnexpectedErrorAsync;
             _stateMachine.ForceNextFallback += _actions.OnForceNextFallbackAsync;
-            
+            _stateMachine.UpdateObligations += _actions.OnUpdateObligationsAsync;
+            _stateMachine.AddBddHistorique += _actions.OnAddBddHistoriqueAsync;
+
             // Wire the reset completion check
             _stateMachine.IsResetComplete += _actions.IsResetCompleteAsync;
 
@@ -245,6 +248,20 @@ namespace RWA.Web.Application.Services.Workflow
             await EnsureInitializedAsync();
             if (_stateMachine.ApplyEquivalencesTrigger != null)
                 await _stateMachine.FireAsync(_stateMachine.ApplyEquivalencesTrigger, mappings);
+        }
+
+        public async Task TriggerAddBddHistoriqueAsync(List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto> items)
+        {
+            await EnsureInitializedAsync();
+            if (_stateMachine.AddBddHistoriqueTrigger != null)
+                await _stateMachine.FireAsync(_stateMachine.AddBddHistoriqueTrigger, items);
+        }
+
+        public async Task TriggerUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items)
+        {
+            await EnsureInitializedAsync();
+            if (_stateMachine.UpdateObligationsTrigger != null)
+                await _stateMachine.FireAsync(_stateMachine.UpdateObligationsTrigger, items);
         }
 
         public async Task TriggerAsync(string triggerName)

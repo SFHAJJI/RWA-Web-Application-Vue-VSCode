@@ -38,33 +38,23 @@ namespace RWA.Web.Application.Services.Seeding
                     return;
                 }
 
-                // PHASE 1: Independent tasks that can run fully in parallel
-                var independentTasks = new Task[]
-                {
-                    SeedBddHistoriqueAsync(),
-                    SeedTethysAsync()
-                };
-                Console.WriteLine("⚡ PHASE 1: Launching fully independent tasks (BDD Historique, Tethys)...");
-                var independentTasksCompletion = Task.WhenAll(independentTasks);
+             
 
-                // PHASE 2: Tasks related to EquivalenceCatRWA file that must complete before the dependent table is seeded
-                var equivalenceFilePrereqTasks = new Task[]
-                {
-                    SeedHecateCategorieRwaFromEquivalenceFileAsync(),
-                    SeedHecateTypeBloombergFromEquivalenceFileAsync(),
-                    SeedHecateCatDepositaire1FromEquivalenceFileAsync(),
-                    SeedHecateCatDepositaire2FromEquivalenceFileAsync()
-                };
-                Console.WriteLine("⚡ PHASE 2: Launching EquivalenceCatRWA prerequisite tasks...");
-                await Task.WhenAll(equivalenceFilePrereqTasks);
+                // PHASE 2: Tasks related to EquivalenceCatRWA file. Run sequentially.
+                Console.WriteLine("⚡ PHASE 2: Processing EquivalenceCatRWA prerequisite tasks...");
+                await SeedHecateCategorieRwaFromEquivalenceFileAsync();
+                await SeedHecateTypeBloombergFromEquivalenceFileAsync();
+                await SeedHecateCatDepositaire1FromEquivalenceFileAsync();
+                await SeedHecateCatDepositaire2FromEquivalenceFileAsync();
 
                 // PHASE 3: Dependent table (awaits Phase 2 completion)
                 Console.WriteLine("⚡ PHASE 3: Processing dependent table (HecateEquivalenceCatRwa)...");
                 await SeedHecateEquivalenceCatRwaAsync();
-
-                // Wait for all tasks to complete before seeding users
-                await independentTasksCompletion;
-
+                
+                // PHASE 1: Independent tasks. Run sequentially to avoid DbContext concurrency issues.
+                Console.WriteLine("⚡ PHASE 1: Processing independent tasks (BDD Historique, Tethys)...");
+                await SeedBddHistoriqueAsync();
+                await SeedTethysAsync();
                 // PHASE 4: 👥 USER DATA
                 await SeedUsersAsync();
 

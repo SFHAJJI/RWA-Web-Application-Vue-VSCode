@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RWA.Web.Application.Models;
+using RWA.Web.Application.Models.Dtos;
 
 namespace RWA.Web.Application.Services.Workflow
 {
@@ -14,6 +15,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task AddRangeWorkflowStepsAsync(IEnumerable<WorkflowStep> steps);
         Task SaveChangesAsync();
         Task UpdateStepStatusAndDataAsync(string stepName, string status, string dataPayload);
+        Task UpdateStepStatusAsync(string stepName, string status);
         // Additional helper operations moved from the orchestrator so DB
         // responsibilities are centralized in the provider implementation.
         Task<int> AutoMapExactMatchesAsync();
@@ -39,5 +41,7 @@ namespace RWA.Web.Application.Services.Workflow
         // BDD Manager specific methods
         Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsync();
         Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate);
+        Task AddBddHistoriqueAsync(List<HecateInterneHistoriqueDto> items);
+        Task UpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items);
     }
 }

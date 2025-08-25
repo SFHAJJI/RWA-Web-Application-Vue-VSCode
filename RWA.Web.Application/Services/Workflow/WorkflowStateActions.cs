@@ -99,31 +99,6 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
-        /// <summary>
-        /// Updates workflow step status and saves changes to database
-        /// </summary>
-        private async Task UpdateStepStatusAsync(string stepName, string status)
-        {
-            try
-            {
-                var step = await _dbProvider.GetStepByNameAsync(stepName);
-                if (step != null)
-                {
-                    step.Status = status;
-                    step.UpdatedAt = DateTime.UtcNow;
-                    await _dbProvider.SaveChangesAsync();
-                    Console.WriteLine($"[WorkflowStateActions] Updated step '{stepName}' to status '{status}'");
-                }
-                else
-                {
-                    Console.WriteLine($"[WorkflowStateActions] WARNING: Step '{stepName}' not found for status update");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WorkflowStateActions] ERROR updating step status: {ex.Message}");
-            }
-        }
 
         /// <summary>
         /// Sends toast notification to UI
@@ -304,7 +279,7 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 // All mappings complete - mark step as successfully finished and transition to next step
                 Console.WriteLine($"[HandleCategoryMappingResultAsync] All mappings complete, setting step to SuccessStatus and transitioning to next step");
-                await UpdateStepStatusAsync("RWA Category Manager", _statusOptions.SuccessStatus);
+                await _dbProvider.UpdateStepStatusAsync("RWA Category Manager", _statusOptions.SuccessStatus);
                 
                 // Notify UI of the successful completion
                 await SendToastNotificationAsync("success", "All RWA category mappings applied successfully.");
@@ -336,18 +311,29 @@ namespace RWA.Web.Application.Services.Workflow
             var (enrichedItems, allItemsDict) = await FetchBddMatchingDataAsync();
 
             // 2. Perform Matching
-            var (successfulMatches, failedMatches) = await PerformBddMatchingAsync(enrichedItems, allItemsDict);
+            var matchingResult = await PerformBddMatchingAsync(enrichedItems, allItemsDict);
 
-            // 3. Save Successful Matches
+            // 3. Save changes from matching
             await _dbProvider.SaveChangesAsync();
 
-            // 4. Process Failed Matches and Prepare Payload
-            var payload = PrepareBddPayload(successfulMatches, failedMatches);
+            // 4. Prepare Payload
+            var payload = PrepareBddPayload(matchingResult);
 
-            // 5. Update Workflow Step
-            var payloadJson = JsonSerializer.Serialize(payload);
-            await _dbProvider.UpdateStepStatusAndDataAsync("BDD Manager", _statusOptions.CurrentStatus, payloadJson);
-            await NotifyWorkflowStepsUpdatedAsync();
+            if (payload.BDDManagerPayload.OBLValidatorPayload.Count == 0 && payload.BDDManagerPayload.AddToBDDPayload.Count == 0)
+            {
+                await _dbProvider.UpdateStepStatusAsync("BDD Manager", _statusOptions.SuccessStatus);
+                if (_nextStepTriggerCallback != null)
+                {
+                    await _nextStepTriggerCallback(Trigger.GoToRafManager);
+                }
+            }
+            else
+            {
+                // 5. Update Workflow Step
+                var payloadJson = JsonSerializer.Serialize(payload);
+                await _dbProvider.UpdateStepStatusAndDataAsync("BDD Manager", _statusOptions.ErrorStatus, payloadJson);
+                await NotifyWorkflowStepsUpdatedAsync();
+            }
         }
 
         private async Task<(List<EnrichedInventaireDto> EnrichedItems, Dictionary<int, HecateInventaireNormalise> AllItemsDict)> FetchBddMatchingDataAsync()
@@ -359,64 +345,101 @@ namespace RWA.Web.Application.Services.Workflow
             return (enrichedItems, allItemsDict);
         }
 
-        private async Task<(List<HecateInventaireNormalise> SuccessfulMatches, List<HecateInventaireNormalise> FailedMatches)> PerformBddMatchingAsync(
+        private async Task<MatchingResult> PerformBddMatchingAsync(
             List<EnrichedInventaireDto> enrichedItems,
             Dictionary<int, HecateInventaireNormalise> allItemsDict)
         {
-            var successfulMatches = new List<HecateInventaireNormalise>();
-            var failedMatches = new List<HecateInventaireNormalise>();
+            var result = new MatchingResult();
 
             foreach (var enrichedItem in enrichedItems)
             {
                 var item = allItemsDict[enrichedItem.NumLigne];
-                item.IdentifiantUniqueRetenu = enrichedItem.IsValeurMobiliere
-                    ? item.Identifiant
-                    : $"{item.Source}{item.RefCategorieRwa}{item.PeriodeCloture.Substring(0, 2)}{item.PeriodeCloture.Substring(4, 2)}";
 
-                var match = await FindBestMatchAsync(item);
+                if (!enrichedItem.IsValeurMobiliere)
+                {
+                    result.NotValeurMobiliere.Add(item);
+                    continue;
+                }
 
+                var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine == item.Identifiant);
                 if (match != null)
                 {
                     item.Rafenrichi = match.Raf;
+                    item.IdentifiantUniqueRetenu = match.IdentifiantUniqueRetenu;
                     item.DateFinContrat = match.DateEcheance;
-                    successfulMatches.Add(item);
+                    result.MatchedByIdentifiantOrigineBDD.Add(item);
+                    continue;
                 }
-                else
+
+                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu == item.Identifiant || (item.Identifiant != null && h.IdentifiantUniqueRetenu.Contains(item.Identifiant)));
+                if (match != null)
                 {
-                    failedMatches.Add(item);
+                    item.Rafenrichi = match.Raf;
+                    item.IdentifiantUniqueRetenu = match.IdentifiantUniqueRetenu;
+                    item.DateFinContrat = match.DateEcheance;
+                    result.MatchedByIdentifiantUniqueRetenuBDD.Add(item);
+                    continue;
+                }
+                item.IdentifiantUniqueRetenu = item.Identifiant; // Default to original if no match
+                result.NotMatchedByBDD.Add(item);
+            }
+
+            return result;
+        }
+
+        private BddManagerPayloadDto PrepareBddPayload(MatchingResult matchingResult)
+        {
+            var auditPayload = new List<AuditInventoryDto>();
+            auditPayload.AddRange(matchingResult.MatchedByIdentifiantOrigineBDD.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.Ok, BDDMatch = BddMatchType.IdentifiantOrigineBDD }));
+            auditPayload.AddRange(matchingResult.MatchedByIdentifiantUniqueRetenuBDD.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.Ok, BDDMatch = BddMatchType.UniqueRetenuBDD }));
+            auditPayload.AddRange(matchingResult.NotMatchedByBDD.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.Ko, BDDMatch = BddMatchType.NotMatched }));
+            auditPayload.AddRange(matchingResult.NotValeurMobiliere.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.NotApplicable, BDDMatch = BddMatchType.NotApplicable }));
+
+            var oblValidator = new ObligationValidator();
+            var oblValidatorPayload = new List<HecateInventaireNormalise>();
+            var addToBddPayload = new List<HecateInterneHistorique>();
+
+            var allMatchedAndNotMatched = matchingResult.MatchedByIdentifiantOrigineBDD
+                .Concat(matchingResult.MatchedByIdentifiantUniqueRetenuBDD)
+                .Concat(matchingResult.NotMatchedByBDD);
+
+            foreach (var item in allMatchedAndNotMatched)
+            {
+                if (item.RefCategorieRwa == "OBL")
+                {
+                    var validationResult = oblValidator.Validate(item);
+                    if (!validationResult.IsValid)
+                    {
+                        oblValidatorPayload.Add(item);
+                    }
                 }
             }
 
-            return (successfulMatches, failedMatches);
-        }
-
-        private async Task<HecateInterneHistorique?> FindBestMatchAsync(HecateInventaireNormalise item)
-        {
-            var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine == item.Identifiant);
-            if (match == null)
+            if (oblValidatorPayload.Count == 0)
             {
-                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu == item.IdentifiantUniqueRetenu || (item.IdentifiantUniqueRetenu != null && h.IdentifiantUniqueRetenu.Substring(2) == item.IdentifiantUniqueRetenu));
+                addToBddPayload = matchingResult.NotMatchedByBDD
+                    .Where(s => !string.IsNullOrEmpty(s.Raf))
+                    .Select(item => new HecateInterneHistorique(item))
+                    .ToList();
             }
-            if (match == null)
-            {
-                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.LibelleOrigine == item.Nom);
-            }
-            return match;
-        }
-
-        private BddManagerPayloadDto PrepareBddPayload(List<HecateInventaireNormalise> successfulMatches, List<HecateInventaireNormalise> failedMatches)
-        {
-            var failedMatchesWithRaf = failedMatches.Where(i => !string.IsNullOrEmpty(i.Rafenrichi)).ToList();
-            var failedMatchesWithoutRaf = failedMatches.Where(i => string.IsNullOrEmpty(i.Rafenrichi)).ToList();
-
-            var toBeAddedToBdd = failedMatchesWithRaf.Select(i => new HecateInterneHistorique(i)).ToList();
 
             return new BddManagerPayloadDto
             {
-                SuccessfulMatches = successfulMatches,
-                FailedMatches = failedMatchesWithoutRaf,
-                ToBeAddedToBDD = toBeAddedToBdd
+                AuditInventoryPayload = auditPayload,
+                BDDManagerPayload = new BddManagerPayload
+                {
+                    OBLValidatorPayload = oblValidatorPayload,
+                    AddToBDDPayload = addToBddPayload
+                }
             };
+        }
+
+        private class MatchingResult
+        {
+            public List<HecateInventaireNormalise> MatchedByIdentifiantOrigineBDD { get; set; } = new List<HecateInventaireNormalise>();
+            public List<HecateInventaireNormalise> MatchedByIdentifiantUniqueRetenuBDD { get; set; } = new List<HecateInventaireNormalise>();
+            public List<HecateInventaireNormalise> NotMatchedByBDD { get; set; } = new List<HecateInventaireNormalise>();
+            public List<HecateInventaireNormalise> NotValeurMobiliere { get; set; } = new List<HecateInventaireNormalise>();
         }
 
         public async Task OnBDDManagerEntryAsync()
@@ -427,6 +450,16 @@ namespace RWA.Web.Application.Services.Workflow
 
                 // Process BDD matching for all inventory rows
                 await ProcessBddMatchingAsync();
+            });
+        }
+        public async Task OnRafManagerEntryAsync()
+        {
+            await ExecuteSafelyAsync(nameof(OnRafManagerEntryAsync), "RafManager", async () =>
+            {
+                Console.WriteLine($"[OnRafManagerEntryAsync] Entering Raf Manager step");
+
+                // Process BDD matching for all inventory rows
+                await Task.CompletedTask;
             });
         }
         // State exit actions
@@ -643,7 +676,7 @@ namespace RWA.Web.Application.Services.Workflow
             await ExecuteSafelyAsync(nameof(OnUploadFailedAsync), "UploadInventory", async () =>
             {
                 // Update step status to ErrorStatus
-                await UpdateStepStatusAsync("Upload inventory", _statusOptions.ErrorStatus);
+                await _dbProvider.UpdateStepStatusAsync("Upload inventory", _statusOptions.ErrorStatus);
 
                 // Error notification for each failed file
                 foreach (var result in context.Results.Where(r => !r.IsSuccess))
@@ -687,6 +720,87 @@ namespace RWA.Web.Application.Services.Workflow
         public async Task OnApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings)
         {
             await Task.CompletedTask;
+        }
+
+        public async Task OnAddBddHistoriqueAsync(List<HecateInterneHistoriqueDto> items)
+        {
+            await ExecuteSafelyAsync(nameof(OnAddBddHistoriqueAsync), "BDDManager", async () =>
+            {
+                try
+                {
+                    
+                    await _dbProvider.AddBddHistoriqueAsync(items);
+                    await HandleAddBddHistoriqueResultAsync(true);
+                }
+                catch (Exception ex)
+                {
+                    await HandleAddBddHistoriqueResultAsync(false, ex.Message);
+                }
+            });
+        }
+
+        public async Task OnUpdateObligationsAsync(List<ObligationUpdateDto> items)
+        {
+            await ExecuteSafelyAsync(nameof(OnUpdateObligationsAsync), "BDDManager", async () =>
+            {
+                try
+                {
+                    await _dbProvider.UpdateObligationsAsync(items);
+                    await HandleUpdateObligationsResultAsync(true);
+                }
+                catch (Exception ex)
+                {
+                    await HandleUpdateObligationsResultAsync(false, ex.Message);
+                }
+            });
+        }
+
+        private async Task HandleAddBddHistoriqueResultAsync(bool success, string errorMessage = "")
+        {
+            if (success)
+            {
+                await _dbProvider.UpdateStepStatusAsync("BDD Manager", _statusOptions.SuccessStatus);
+                await SendToastNotificationAsync("success", "Items successfully added to BDD.");
+                if (_nextStepTriggerCallback != null)
+                {
+                    await _nextStepTriggerCallback(Trigger.GoToRafManager);
+                }
+            }
+            else
+            {
+                if (_errorTriggerCallback != null)
+                {
+                    var errorContext = new UnexpectedErrorContext
+                    {
+                        ErrorMessage = $"Failed to add items to BDD: {errorMessage}",
+                        StepName = "BDDManager"
+                    };
+                    await _errorTriggerCallback(Trigger.UnexpectedError, errorContext);
+                }
+            }
+        }
+
+
+        private async Task HandleUpdateObligationsResultAsync(bool success, string errorMessage = "")
+        {
+            if (success)
+            {
+                await SendToastNotificationAsync("success", "Obligations updated successfully.");
+                // Reprocess to see if we can now add to BDD
+                await ProcessBddMatchingAsync();
+            }
+            else
+            {
+                if (_errorTriggerCallback != null)
+                {
+                    var errorContext = new UnexpectedErrorContext
+                    {
+                        ErrorMessage = $"Failed to update obligations: {errorMessage}",
+                        StepName = "BDDManager"
+                    };
+                    await _errorTriggerCallback(Trigger.UnexpectedError, errorContext);
+                }
+            }
         }
 
         public async Task OnValidationSuccessAsync(ValidationResultContext context)
@@ -809,7 +923,7 @@ namespace RWA.Web.Application.Services.Workflow
                 Console.WriteLine($"[OnUnexpectedErrorAsync] System error occurred: {context.ErrorMessage}");
 
                 // Update step status to ErrorStatus 
-                await UpdateStepStatusAsync(context.StepName, _statusOptions.ErrorStatus);
+                await _dbProvider.UpdateStepStatusAsync(context.StepName, _statusOptions.ErrorStatus);
 
                 // Log system error details
                 Console.WriteLine($"[OnUnexpectedErrorAsync] Exception: {context.Exception?.GetType().Name}: {context.Exception?.Message}");

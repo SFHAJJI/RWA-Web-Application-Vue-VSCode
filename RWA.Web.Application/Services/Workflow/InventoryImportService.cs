@@ -74,10 +74,18 @@ namespace RWA.Web.Application.Services.Workflow
                     else if (decimal.TryParse(tauxStr, out var taux)) ent.TauxObligation = taux;
 
                     var matStr = r[colMat]?.ToString();
-                    if (DateOnly.TryParse(matStr, out var dm) && dm.Year != 1900) ent.DateMaturite = dm;
+                    var parsedMat = DateParsingHelper.ParseFlexibleDate(matStr);
+                    if (parsedMat.HasValue && parsedMat.Value.Year != 1900)
+                    {
+                        ent.DateMaturite = parsedMat.Value;
+                    }
 
                     var expStr = r[colExp]?.ToString();
-                    if (DateOnly.TryParse(expStr, out var de) && de.Year != 1900) ent.DateExpiration = de;
+                    var parsedExp = DateParsingHelper.ParseFlexibleDate(expStr);
+                    if (parsedExp.HasValue && parsedExp.Value.Year != 1900)
+                    {
+                        ent.DateExpiration = parsedExp.Value;
+                    }
 
                     ent.Tiers = colTiers != null && !(r[colTiers] is DBNull) ? r[colTiers].ToString()?.Trim() : null;
 

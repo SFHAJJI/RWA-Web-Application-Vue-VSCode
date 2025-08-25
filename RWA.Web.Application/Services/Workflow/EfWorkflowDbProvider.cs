@@ -241,7 +241,19 @@ namespace RWA.Web.Application.Services.Workflow
                 throw;
             }
         }
-
+        public async Task UpdateStepStatusAsync(string stepName, string status)
+        {
+            await WithDbAsync(async db =>
+            {
+                var step = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.StepName == stepName);
+                if (step != null)
+                {
+                    step.Status = status;
+                    step.UpdatedAt = DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                }
+            });
+        }
         public async Task AddRangeWorkflowStepsAsync(IEnumerable<WorkflowStep> steps)
         {
             try
@@ -687,6 +699,36 @@ namespace RWA.Web.Application.Services.Workflow
             return await WithDbAsync(async db =>
             {
                 return await db.HecateInterneHistoriques.FirstOrDefaultAsync(predicate);
+            });
+        }
+
+        public async Task AddBddHistoriqueAsync(List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto> items)
+        {
+            await WithDbAsync(async db =>
+            {
+                var entities = items.Select(i => i.ToHecateInterneHistorique()).ToList();
+                db.HecateInterneHistoriques.AddRange(entities);
+                await db.SaveChangesAsync();
+            });
+        }
+
+        public async Task UpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items)
+        {
+            await WithDbAsync(async db =>
+            {
+                var numLignes = items.Select(i => i.NumLigne).ToList();
+                var entities = await db.HecateInventaireNormalises
+                    .Where(h => numLignes.Contains(h.NumLigne))
+                    .ToListAsync();
+
+                foreach (var entity in entities)
+                {
+                    var item = items.First(i => i.NumLigne == entity.NumLigne);
+                    entity.DateMaturite = item.DateMaturite;
+                    entity.TauxObligation = item.TauxObligation;
+                }
+
+                await db.SaveChangesAsync();
             });
         }
     }

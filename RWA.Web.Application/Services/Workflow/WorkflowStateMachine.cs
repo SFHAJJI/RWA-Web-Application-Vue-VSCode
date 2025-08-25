@@ -1,4 +1,5 @@
 using Stateless;
+using RWA.Web.Application.Models;
 using RWA.Web.Application.Services.Workflow.Dtos;
 using System;
 using System.Collections.Generic;
@@ -40,6 +41,8 @@ namespace RWA.Web.Application.Services.Workflow
         public event Func<AggregateUploadResultContext, Task>? UploadFailed;
         public event Func<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>, Task>? ApplyRwaMappings;
         public event Func<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>, Task>? ApplyEquivalenceMappings;
+        public event Func<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>, Task>? AddBddHistorique;
+        public event Func<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>, Task>? UpdateObligations;
         public event Func<ValidationResultContext, Task>? ValidationSuccess;
         public event Func<ValidationResultContext, Task>? ValidationWarning;
         public event Func<ValidationResultContext, Task>? ValidationError;
@@ -53,6 +56,8 @@ namespace RWA.Web.Application.Services.Workflow
         private StateMachine<State, Trigger>.TriggerWithParameters<List<(string FileName, byte[] Content)>>? _setUploadTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>? _applyRwaMappingsTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? _applyEquivalencesTrigger;
+        private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>? _addBddHistoriqueTrigger;
+        private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>? _updateObligationsTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadPendingTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadSuccessTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadFailedTrigger;
@@ -76,6 +81,8 @@ namespace RWA.Web.Application.Services.Workflow
             _setUploadTrigger = _machine.SetTriggerParameters<List<(string FileName, byte[] Content)>>(Trigger.UploadInventoryFiles);
             _applyRwaMappingsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>(Trigger.ApplyRwaMappings);
             _applyEquivalencesTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>(Trigger.ApplyEquivalenceMappings);
+            _addBddHistoriqueTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>(Trigger.AddBddHistorique);
+            _updateObligationsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>(Trigger.UpdateObligations);
             _uploadPendingTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadPending);
             _uploadSuccessTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadSuccess);
             _uploadFailedTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadFailed);
@@ -120,27 +127,19 @@ namespace RWA.Web.Application.Services.Workflow
                     await InvokeEventAsync(ApplyRwaMappings, mappings))
                 .InternalTransition<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>(_applyEquivalencesTrigger!, async (mappings, transition) =>
                     await InvokeEventAsync(ApplyEquivalenceMappings, mappings))
-                .InternalTransition<ValidationResultContext>(_validationSuccessTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationSuccess, context))
-                .InternalTransition<ValidationResultContext>(_validationWarningTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationWarning, context))
-                .InternalTransition<ValidationResultContext>(_validationErrorTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationError, context))
-                .Permit(Trigger.GoToBDDManager, State.BDDManager)
-                .Permit(Trigger.GoToUploadInventoryFiles, State.UploadInventoryFiles)
-                .PermitIfAsync(Trigger.Reset, State.UploadInventoryFiles, async () => await InvokeResetCompleteAsync());
+               .Permit(Trigger.GoToBDDManager, State.BDDManager)
+               .PermitIfAsync(Trigger.Reset, State.UploadInventoryFiles, async () => await InvokeResetCompleteAsync());
 
             _machine.Configure(State.BDDManager)
                 .OnEntryAsync(async () => await InvokeEventAsync(BDDManagerEntry))
                 .OnExitAsync(async () => await InvokeEventAsync(BDDManagerExit, "BDD Manager"))
-                .PermitReentry(Trigger.ReValidate)
-                .InternalTransition<ValidationResultContext>(_validationSuccessTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationSuccess, context))
-                .InternalTransition<ValidationResultContext>(_validationWarningTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationWarning, context))
-                .InternalTransition<ValidationResultContext>(_validationErrorTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationError, context))
-                .Permit(Trigger.Next, State.RafManager)
+                .InternalTransition<UnexpectedErrorContext>(_unexpectedErrorTrigger!, async (context, transition) =>
+                    await InvokeEventAsync(UnexpectedError, context))
+                .InternalTransition<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>(_addBddHistoriqueTrigger!, async (items, transition) =>
+                    await InvokeEventAsync(AddBddHistorique, items))
+                .InternalTransition<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>(_updateObligationsTrigger!, async (items, transition) =>
+                    await InvokeEventAsync(UpdateObligations, items))
+                .Permit(Trigger.GoToRafManager, State.RafManager)
                 .Permit(Trigger.Previous, State.RWACategoryManager)
                 .PermitIfAsync(Trigger.Reset, State.UploadInventoryFiles, async () => await InvokeResetCompleteAsync());
 
@@ -247,6 +246,8 @@ namespace RWA.Web.Application.Services.Workflow
         public StateMachine<State, Trigger>.TriggerWithParameters<List<(string FileName, byte[] Content)>>? SetUploadTrigger => _setUploadTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>? ApplyRwaMappingsTrigger => _applyRwaMappingsTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? ApplyEquivalencesTrigger => _applyEquivalencesTrigger;
+        public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>? AddBddHistoriqueTrigger => _addBddHistoriqueTrigger;
+        public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>? UpdateObligationsTrigger => _updateObligationsTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadPendingTrigger => _uploadPendingTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadSuccessTrigger => _uploadSuccessTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadFailedTrigger => _uploadFailedTrigger;

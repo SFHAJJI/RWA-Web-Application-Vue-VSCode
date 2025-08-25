@@ -28,7 +28,10 @@ namespace RWA.Web.Application.Services.Workflow.Dtos
             Reset,
             ApplyRwaMappings,
             ApplyEquivalenceMappings,
-            ForceNext
+            ForceNext,
+            GoToRafManager,
+            AddBddHistorique,
+            UpdateObligations
         }
 
         public enum State

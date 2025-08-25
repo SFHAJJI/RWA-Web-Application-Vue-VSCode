@@ -19,6 +19,8 @@ namespace RWA.Web.Application.Services.Workflow
         // Trigger-based methods (all POST endpoints should fire triggers)
         Task TriggerUploadAsync(List<(string FileName, byte[] Content)> files);
         Task TriggerApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings);
+        Task TriggerAddBddHistoriqueAsync(List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto> items);
+        Task TriggerUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items);
         Task TriggerApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings);
         Task TriggerAsync(string triggerName);
         Task RevalidateCurrentAsync();

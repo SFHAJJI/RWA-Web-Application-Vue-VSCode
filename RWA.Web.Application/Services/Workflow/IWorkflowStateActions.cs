@@ -37,6 +37,7 @@ namespace RWA.Web.Application.Services.Workflow
         // State entry actions
         Task OnRWACategoryManagerEntryAsync();
         Task OnBDDManagerEntryAsync();
+        Task OnRafManagerEntryAsync();
 
         // State exit actions
         Task OnRWACategoryManagerExitAsync(string stepName);
@@ -50,6 +51,8 @@ namespace RWA.Web.Application.Services.Workflow
         Task OnUploadSuccessAsync(AggregateUploadResultContext context);
         Task OnUploadFailedAsync(AggregateUploadResultContext context);
         Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings);
+        Task OnAddBddHistoriqueAsync(List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto> items);
+        Task OnUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items);
         Task OnApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings);
         Task OnValidationSuccessAsync(ValidationResultContext context);
         Task OnValidationWarningAsync(ValidationResultContext context);

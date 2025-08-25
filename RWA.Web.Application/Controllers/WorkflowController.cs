@@ -220,6 +220,24 @@ namespace RWA.Web.Application.Controllers
             return NoContent();
         }
 
+        [HttpPost("update-bdd")]
+        public async Task<IActionResult> PostUpdateBdd([FromBody] List<HecateInterneHistoriqueDto> items)
+        {
+            if (items == null || items.Count == 0) return BadRequest("No items provided.");
+
+            await (_orchestrator as WorkflowOrchestrator).TriggerAddBddHistoriqueAsync(items);
+            return NoContent();
+        }
+
+        [HttpPost("update-obligations")]
+        public async Task<IActionResult> PostUpdateObligations([FromBody] List<ObligationUpdateDto> items)
+        {
+            if (items == null || items.Count == 0) return BadRequest("No items provided.");
+
+            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateObligationsAsync(items);
+            return NoContent();
+        }
+
         [HttpGet("config")]
         public ActionResult<object> GetWorkflowConfig()
         {

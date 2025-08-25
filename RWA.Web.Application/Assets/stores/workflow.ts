@@ -141,11 +141,45 @@ export const useWorkflowStore = defineStore('workflow', () => {
         }
     }
 
-    async function triggerTransition(trigger: string) {
+    async function triggerTransition(trigger: string, payload: any = {}) {
         loading.value = true;
         error.value = null;
         try {
-            await postJson(`/api/workflow/trigger/${trigger}`, {});
+            await postJson(`/api/workflow/trigger/${trigger}`, payload);
+            // rely on SignalR update
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                error.value = { errorMessage: e.message };
+            } else {
+                error.value = { errorMessage: 'An unknown error occurred' };
+            }
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function updateBdd(items: any[]) {
+        loading.value = true;
+        error.value = null;
+        try {
+            await postJson('/api/workflow/update-bdd', items);
+            // rely on SignalR update
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                error.value = { errorMessage: e.message };
+            } else {
+                error.value = { errorMessage: 'An unknown error occurred' };
+            }
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function updateObligations(items: any[]) {
+        loading.value = true;
+        error.value = null;
+        try {
+            await postJson('/api/workflow/update-obligations', items);
             // rely on SignalR update
         } catch (e: unknown) {
             if (e instanceof Error) {
@@ -262,6 +296,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
             .build();
 
             connection.value.on("ReceiveWorkflowUpdate", (steps) => {
+                console.log('Received workflow update from SignalR:', JSON.stringify(steps, null, 2));
                 console.log('[workflow.ts] Received workflow update:', steps);
                 console.log('[workflow.ts] Before update - Current step:', workflowSteps.value.find(s => s.status?.startsWith('Current')));
                 applyServerSteps(Array.isArray(steps) ? steps : []);
@@ -354,6 +389,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
         initSignalR,
     revalidateCurrent,
     forceNext,
+    updateBdd,
+    updateObligations,
     // UI navigation helpers (visual only) - do not mutate server state
     uiActiveIndex,
     navigateTo,
