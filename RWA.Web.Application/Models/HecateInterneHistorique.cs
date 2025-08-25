@@ -14,7 +14,7 @@ public partial class HecateInterneHistorique
         RefCategorieRwa = item.RefCategorieRwa ?? string.Empty;
         IdentifiantUniqueRetenu = item.IdentifiantUniqueRetenu ?? string.Empty;
         Raf = item.Raf ?? string.Empty;
-        LibelleOrigine = item.LibelleOrigine ?? string.Empty;
+        LibelleOrigine = item.Nom ?? string.Empty;
         DateEcheance = item.DateFinContrat;
         LastUpdate = DateTime.UtcNow.ToString("o");
     }

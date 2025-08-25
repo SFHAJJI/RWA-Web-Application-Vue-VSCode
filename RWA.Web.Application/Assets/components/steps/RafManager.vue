@@ -1,26 +1,27 @@
 <template>
-    <div>
-        <h3>RAF Manager</h3>
-        <SkeletonLoader v-if="workflowStore.loading" />
-        <div v-else>
-            <p>Content for this step goes here.</p>
-            <ProgressiveLoader :loading="workflowStore.stepLoading['raf-manager']">
-                <v-btn @click="triggerRaf" color="primary">Process RAF</v-btn>
-            </ProgressiveLoader>
-        </div>
-    </div>
+  <v-stepper v-model="currentStep" :items="items" show-actions>
+    <template v-slot:item.1>
+      <TethysStatus :step="step" />
+    </template>
+
+    <template v-slot:item.2>
+      <RAFHelper />
+    </template>
+  </v-stepper>
 </template>
 
-<script setup lang="ts">
-import { useWorkflowStore } from '../../stores/workflow';
-import SkeletonLoader from '../loaders/SkeletonLoader.vue';
-import ProgressiveLoader from '../loaders/ProgressiveLoader.vue';
+<script setup>
+import { ref, defineProps } from 'vue';
+import TethysStatus from './TethysStatus.vue';
+import RAFHelper from './RAFHelper.vue';
 
-const workflowStore = useWorkflowStore();
+const props = defineProps({
+  step: {
+    type: Object,
+    required: true,
+  },
+});
 
-const triggerRaf = async () => {
-    workflowStore.setStepLoading('raf-manager', true);
-    await workflowStore.triggerTransition('ProcessRaf');
-    workflowStore.setStepLoading('raf-manager', false);
-};
+const currentStep = ref(1);
+const items = ['Tethys Status', 'RAF Helper'];
 </script>
