@@ -43,4 +43,28 @@ public partial class HecateTethy
     public string? CodeConso { get; set; }
 
     public string? CodeApparentement { get; set; }
+
+    public HecateTethy TrimProperties()
+    {
+        IdentifiantRaf = IdentifiantRaf?.Trim();
+        LibelleCourt = LibelleCourt?.Trim();
+        RaisonSociale = RaisonSociale?.Trim();
+        PaysDeResidence = PaysDeResidence?.Trim();
+        PaysDeNationalite = PaysDeNationalite?.Trim();
+        NumeroEtNomDeRue = NumeroEtNomDeRue?.Trim();
+        Ville = Ville?.Trim();
+        CategorieTethys = CategorieTethys?.Trim();
+        NafNace = NafNace?.Trim();
+        CodeIsin = CodeIsin?.Trim();
+        SegmentDeRisque = SegmentDeRisque?.Trim();
+        SegmentationBpce = SegmentationBpce?.Trim();
+        CodeCusip = CodeCusip?.Trim();
+        RafTeteGroupeReglementaire = RafTeteGroupeReglementaire?.Trim();
+        NomTeteGroupeReglementaire = NomTeteGroupeReglementaire?.Trim();
+        DateNotationInterne = DateNotationInterne?.Trim();
+        CodeNotation = CodeNotation?.Trim();
+        CodeConso = CodeConso?.Trim();
+        CodeApparentement = CodeApparentement?.Trim();
+        return this;
+    }
 }

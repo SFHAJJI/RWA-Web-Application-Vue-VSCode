@@ -2,6 +2,7 @@ using RWA.Web.Application.Models.Dtos;
 using RWA.Web.Application.Services.Workflow.Dtos;
 using RWA.Web.Application.Services.Validation;
 using RWA.Web.Application.Services.Workflow;
+using RWA.Web.Application.Services.Helpers;
 using RWA.Web.Application.Hubs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.SignalR;
@@ -96,6 +97,41 @@ namespace RWA.Web.Application.Services.Workflow
                 {
                     Console.WriteLine($"[WorkflowStateActions] WARNING: No trigger callback available for UnexpectedError in {actionName}");
                 }
+            }
+        }
+
+        private async Task<T> ExecuteSafelyAsync<T>(string actionName, string stepName, Func<Task<T>> businessLogic, T defaultValue, object? context = null)
+        {
+            try
+            {
+                Console.WriteLine($"[WorkflowStateActions] Executing {actionName} for step '{stepName}'");
+                var result = await businessLogic();
+                Console.WriteLine($"[WorkflowStateActions] Successfully completed {actionName} for step '{stepName}'");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WorkflowStateActions] UNEXPECTED ERROR in {actionName} for step '{stepName}': {ex.Message}");
+                Console.WriteLine($"[WorkflowStateActions] Stack trace: {ex.StackTrace}");
+
+                // Trigger UnexpectedError to handle system failures
+                if (_errorTriggerCallback != null)
+                {
+                    var errorContext = new UnexpectedErrorContext
+                    {
+                        ErrorMessage = $"System error in {actionName}: {ex.Message}",
+                        Exception = ex,
+                        StepName = stepName,
+                        Details = context?.ToString()
+                    };
+
+                    await _errorTriggerCallback(Trigger.UnexpectedError, errorContext);
+                }
+                else
+                {
+                    Console.WriteLine($"[WorkflowStateActions] WARNING: No trigger callback available for UnexpectedError in {actionName}");
+                }
+                return defaultValue;
             }
         }
 
@@ -361,7 +397,7 @@ namespace RWA.Web.Application.Services.Workflow
                     continue;
                 }
 
-                var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine == item.Identifiant);
+                var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine.TrimmedEquals(item.Identifiant, StringComparison.OrdinalIgnoreCase));
                 if (match != null)
                 {
                     item.Rafenrichi = match.Raf;
@@ -371,7 +407,7 @@ namespace RWA.Web.Application.Services.Workflow
                     continue;
                 }
 
-                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu == item.Identifiant || (item.Identifiant != null && h.IdentifiantUniqueRetenu.Contains(item.Identifiant)));
+                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu.TrimmedEquals(item.Identifiant, StringComparison.OrdinalIgnoreCase) || (item.Identifiant != null && h.IdentifiantUniqueRetenu.Contains(item.Identifiant)));
                 if (match != null)
                 {
                     item.Rafenrichi = match.Raf;
@@ -405,7 +441,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             foreach (var item in allMatchedAndNotMatched)
             {
-                if (item.RefCategorieRwa == "OBL")
+                if (item.RefCategorieRwa.TrimmedEquals("OBL"))
                 {
                     var validationResult = oblValidator.Validate(item);
                     if (!validationResult.IsValid)
@@ -458,9 +494,91 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 Console.WriteLine($"[OnRafManagerEntryAsync] Entering Raf Manager step");
 
-                // Process BDD matching for all inventory rows
-                await Task.CompletedTask;
+                await ApplyCptTransparence();
+                await SetTethysStatus();
             });
+        }
+
+        private async Task ApplyCptTransparence()
+        {
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var categories = await _dbProvider.GetCategorieRwaOptionsAsync();
+            var categoriesDict = categories.ToDictionary(c => c.IdCatRwa, c => c);
+            var transparenceData = await _dbProvider.GetHecateContrepartiesTransparenceAsync();
+
+            var itemsToUpdate = new List<HecateInventaireNormalise>();
+
+            foreach (var item in allItems)
+            {
+                var isValeurMobiliere = categoriesDict.ContainsKey(item.RefCategorieRwa) && ((categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("Y", StringComparison.OrdinalIgnoreCase) ?? false) || (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false));
+
+                if (!isValeurMobiliere && string.IsNullOrEmpty(item.Raf))
+                {
+                    var match = transparenceData.FirstOrDefault(t => t.LibelleContrepartieOrigine.TrimmedEquals(item.Nom));
+                    if (match != null)
+                    {
+                        item.Raf = match.RafEntite;
+                        itemsToUpdate.Add(item);
+                    }
+                }
+            }
+
+            if (itemsToUpdate.Any())
+            {
+                await _dbProvider.UpdateInventaireNormaliseRangeAsync(itemsToUpdate);
+            }
+        }
+
+        private async Task SetTethysStatus()
+        {
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var rafs = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).Select(i => i.Raf).Distinct().ToList();
+            var tethysData = await _dbProvider.GetTethysDataByRafAsync(rafs);
+            var tethysDataDictByIdentifiantRaf = tethysData
+                .Where(t => !string.IsNullOrEmpty(t.IdentifiantRaf))
+                .GroupBy(t => t.IdentifiantRaf ?? string.Empty)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var tethysDataDictByRafTeteGroupeReglementaire = tethysData
+                .Where(t => !string.IsNullOrEmpty(t.RafTeteGroupeReglementaire))
+                .GroupBy(t => t.RafTeteGroupeReglementaire ?? string.Empty)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var payload = new HecateTethysPayload();
+
+            foreach (var item in allItems)
+            {
+                var dto = new HecateTethysDto
+                {
+                    NumLigne = item.NumLigne,
+                    Source = item.Source,
+                    Cpt = item.Nom,
+                    Raf = item.Raf,
+                    IsMappingTethysSuccessful = false
+                };
+
+                if (!string.IsNullOrEmpty(item.Raf))
+                {
+                    if (tethysDataDictByIdentifiantRaf.TryGetValue(item.Raf, out var tethy))
+                    {
+                        dto.CptTethys = tethy.LibelleCourt;
+                        dto.IsGeneric = false;
+                        dto.IsMappingTethysSuccessful = true;
+                    }
+                    else if (tethysDataDictByRafTeteGroupeReglementaire.TryGetValue(item.Raf, out tethy))
+                    {
+                        dto.CptTethys = tethy.NomTeteGroupeReglementaire;
+                        dto.IsGeneric = true;
+                        dto.IsMappingTethysSuccessful = true;
+                    }
+                }
+
+                payload.Dtos.Add(dto);
+            }
+
+            var payloadJson = JsonSerializer.Serialize(payload);
+            await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
+            await NotifyWorkflowStepsUpdatedAsync();
         }
         // State exit actions
 
@@ -476,7 +594,7 @@ namespace RWA.Web.Application.Services.Workflow
                 var enrichedItems = allItems.Select(item => new EnrichedInventaireDto
                 {
                     NumLigne = item.NumLigne,
-                    IsValeurMobiliere = categoriesDict.ContainsKey(item.RefCategorieRwa) && (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere?.ToUpper() == "Y" || categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere?.ToUpper() == "O"),
+                    IsValeurMobiliere = categoriesDict.ContainsKey(item.RefCategorieRwa) && ((categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("Y", StringComparison.OrdinalIgnoreCase) ?? false) || (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false)),
                     Libelle = categoriesDict.ContainsKey(item.RefCategorieRwa) ? categoriesDict[item.RefCategorieRwa].Libelle : string.Empty
                 }).ToList();
 
@@ -487,17 +605,17 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnBDDManagerExitAsync(string stepName)
         {
-            await Task.CompletedTask;
+            await ExecuteSafelyAsync(nameof(OnBDDManagerExitAsync), stepName, () => Task.CompletedTask);
         }
 
         public async Task OnRafManagerExitAsync(string stepName)
         {
-            await Task.CompletedTask;
+            await ExecuteSafelyAsync(nameof(OnRafManagerExitAsync), stepName, () => Task.CompletedTask);
         }
 
         public async Task OnEnrichiExportExitAsync(string stepName)
         {
-            await Task.CompletedTask;
+            await ExecuteSafelyAsync(nameof(OnEnrichiExportExitAsync), stepName, () => Task.CompletedTask);
         }
 
         // Internal transition actions with parameters
@@ -719,7 +837,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings)
         {
-            await Task.CompletedTask;
+            await ExecuteSafelyAsync(nameof(OnApplyEquivalenceMappingsAsync), "RWACategoryManager", () => Task.CompletedTask, mappings);
         }
 
         public async Task OnAddBddHistoriqueAsync(List<HecateInterneHistoriqueDto> items)
@@ -941,12 +1059,12 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnForceNextFallbackAsync(ForceNextContext context)
         {
-            await Task.CompletedTask;
+           await Task.CompletedTask;
         }
 
         public async Task OnTransitionedAsync(TransitionDto transitionDto)
         {
-            if (!(transitionDto.Trigger == "LetsGo"))
+            if (!(transitionDto.Trigger.TrimmedEquals("LetsGo")))
             {
                 await ExecuteSafelyAsync(nameof(OnTransitionedAsync), transitionDto.Destination, async () =>
                 {
@@ -1010,68 +1128,57 @@ namespace RWA.Web.Application.Services.Workflow
         // Helper methods for orchestrator delegation
         public async Task<IEnumerable<RWA.Web.Application.Models.Dtos.WorkflowStepDto>> GetWorkflowStepsSnapshotAsync()
         {
-            // Ensure database is seeded with default workflow steps
-            await _dbProvider.SeedDefaultWorkflowIfEmptyAsync();
-
-            // Get workflow steps from database
-            var steps = await _dbProvider.GetStepsSnapshotAsync();
-
-            // Convert to DTOs
-            return steps.Select(s => new RWA.Web.Application.Models.Dtos.WorkflowStepDto
+            return await ExecuteSafelyAsync(nameof(GetWorkflowStepsSnapshotAsync), "Unknown", async () =>
             {
-                Id = s.Id,
-                StepName = s.StepName,
-                Status = s.Status,
-                DataPayload = s.DataPayload
-            });
+                await _dbProvider.SeedDefaultWorkflowIfEmptyAsync();
+                var steps = await _dbProvider.GetStepsSnapshotAsync();
+                return steps.Select(s => new RWA.Web.Application.Models.Dtos.WorkflowStepDto
+                {
+                    Id = s.Id,
+                    StepName = s.StepName,
+                    Status = s.Status,
+                    DataPayload = s.DataPayload
+                });
+            }, Enumerable.Empty<RWA.Web.Application.Models.Dtos.WorkflowStepDto>());
         }
 
-        public Task<IEnumerable<object>> GetCategoriesForDropdownAsync()
+        public async Task<IEnumerable<object>> GetCategoriesForDropdownAsync()
         {
-            return Task.FromResult(new List<object>().AsEnumerable());
+            return await ExecuteSafelyAsync(nameof(GetCategoriesForDropdownAsync), "Unknown", 
+                () => Task.FromResult(new List<object>().AsEnumerable()), new List<object>().AsEnumerable());
         }
 
-        public Task<List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>> GetEquivalenceCandidatesForMissingRowsAsync()
+        public async Task<List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>> GetEquivalenceCandidatesForMissingRowsAsync()
         {
-            return Task.FromResult(new List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>());
+            return await ExecuteSafelyAsync(nameof(GetEquivalenceCandidatesForMissingRowsAsync), "Unknown", 
+                () => Task.FromResult(new List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>()), new List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>());
         }
 
-        public Task<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync()
+        public async Task<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync()
         {
-            return Task.FromResult(new List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>());
+            return await ExecuteSafelyAsync(nameof(GetMissingRowsWithSuggestionsAsync), "Unknown", 
+                () => Task.FromResult(new List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>()), new List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>());
         }
 
         public async Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes)
         {
-            return await _dbProvider.GetInventaireNormaliseByNumLignes(numLignes);
+            return await ExecuteSafelyAsync(nameof(GetInventaireNormaliseByNumLignes), "Unknown", 
+                () => _dbProvider.GetInventaireNormaliseByNumLignes(numLignes), new List<HecateInventaireNormalise>(), new { numLignes });
         }
 
         public async Task<bool> IsResetCompleteAsync()
         {
-            try
+            return await ExecuteSafelyAsync(nameof(IsResetCompleteAsync), "Unknown", async () =>
             {
                 Console.WriteLine("Starting workflow reset...");
-                
-                // 1. Clear HecateInventaireNormalise table
                 await _dbProvider.ClearInventoryTableAsync();
-                
-                // 2. Initialize workflow steps and clear their payloads
                 await _dbProvider.InitializeWorkflowStepsAsync();
-                
-                // 3. Get updated steps and send to UI via SignalR
                 var steps = await _dbProvider.GetWorkflowStepsAsync();
                 await _hubContext.Clients.All.SendAsync("WorkflowStepsUpdated", steps);
-
                 await SendToastNotificationAsync("success", "Reset finished");
-                
                 Console.WriteLine("Workflow reset completed successfully.");
                 return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error during workflow reset: {ex.Message}");
-                return false; // This will prevent the state transition if reset fails
-            }
+            }, false);
         }
     }
 }

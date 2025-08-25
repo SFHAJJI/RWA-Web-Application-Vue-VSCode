@@ -1,7 +1,7 @@
 <template>
   <v-stepper v-model="currentStep" :items="items" show-actions>
     <template v-slot:item.1>
-      <TethysStatus :step="step" />
+      <TethysStatus :payload="payload" />
     </template>
 
     <template v-slot:item.2>
@@ -11,7 +11,7 @@
 </template>
 
 <script setup>
-import { ref, defineProps } from 'vue';
+import { ref, defineProps, computed } from 'vue';
 import TethysStatus from './TethysStatus.vue';
 import RAFHelper from './RAFHelper.vue';
 
@@ -20,6 +20,15 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+});
+
+const payload = computed(() => {
+    try {
+        const parsed = JSON.parse(props.step.dataPayload);
+        return parsed.Dtos || [];
+    } catch (e) {
+        return [];
+    }
 });
 
 const currentStep = ref(1);

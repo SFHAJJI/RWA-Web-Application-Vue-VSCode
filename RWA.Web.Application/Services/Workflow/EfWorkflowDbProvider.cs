@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RWA.Web.Application.Models;
+using RWA.Web.Application.Services;
+using RWA.Web.Application.Services.Helpers;
 
 namespace RWA.Web.Application.Services.Workflow
 {
@@ -93,7 +95,7 @@ namespace RWA.Web.Application.Services.Workflow
         {
             try
             {
-                return await WithDbAsync(async db => await db.WorkflowSteps.FirstOrDefaultAsync(s => s.StepName == stepName));
+                return await WithDbAsync(async db => await db.WorkflowSteps.FirstOrDefaultAsync(s => s.StepName.TrimmedEquals(stepName, StringComparison.OrdinalIgnoreCase)));
             }
             catch (ObjectDisposedException)
             {
@@ -107,7 +109,7 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 return await WithDbAsync(async db =>
                 {
-                    var cur = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.Status == _statusOptions.CurrentStatus);
+                    var cur = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.Status.TrimmedEquals(_statusOptions.CurrentStatus, StringComparison.OrdinalIgnoreCase));
                     if (cur == null)
                     {
                         if (!await db.WorkflowSteps.AnyAsync())
@@ -209,7 +211,7 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 await WithDbAsync(async db =>
                 {
-                    var step = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.StepName == stepName);
+                    var step = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.StepName.TrimmedEquals(stepName, StringComparison.OrdinalIgnoreCase));
                     if (step != null)
                     {
                         var oldStatus = step.Status;
@@ -245,7 +247,7 @@ namespace RWA.Web.Application.Services.Workflow
         {
             await WithDbAsync(async db =>
             {
-                var step = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.StepName == stepName);
+                var step = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.StepName.TrimmedEquals(stepName, StringComparison.OrdinalIgnoreCase));
                 if (step != null)
                 {
                     step.Status = status;
@@ -287,7 +289,7 @@ namespace RWA.Web.Application.Services.Workflow
                         if (!string.IsNullOrEmpty(row.Categorie1))
                         {
                             var exactMatch = await db.HecateCategorieRwas
-                                .FirstOrDefaultAsync(c => c.Libelle == row.Categorie1);
+                                .FirstOrDefaultAsync(c => c.Libelle.TrimmedEquals(row.Categorie1, StringComparison.OrdinalIgnoreCase));
 
                             if (exactMatch != null)
                             {
@@ -315,7 +317,7 @@ namespace RWA.Web.Application.Services.Workflow
         {
             return await WithDbAsync(async db =>
             {
-                var cat = await db.HecateCatDepositaire1s.FirstOrDefaultAsync(c => c.LibelleDepositaire1 == libelle);
+                var cat = await db.HecateCatDepositaire1s.FirstOrDefaultAsync(c => c.LibelleDepositaire1.TrimmedEquals(libelle, StringComparison.OrdinalIgnoreCase));
                 if (cat == null)
                 {
                     cat = new HecateCatDepositaire1 { LibelleDepositaire1 = libelle };
@@ -330,7 +332,7 @@ namespace RWA.Web.Application.Services.Workflow
         {
             return await WithDbAsync(async db =>
             {
-                var cat = await db.HecateCatDepositaire2s.FirstOrDefaultAsync(c => c.LibelleDepositaire2 == libelle);
+                var cat = await db.HecateCatDepositaire2s.FirstOrDefaultAsync(c => c.LibelleDepositaire2.TrimmedEquals(libelle, StringComparison.OrdinalIgnoreCase));
                 if (cat == null)
                 {
                     cat = new HecateCatDepositaire2 { LibelleDepositaire2 = libelle };
@@ -448,7 +450,7 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 return await WithDbAsync(async db =>
                 {
-                    var current = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.Status == _statusOptions.CurrentStatus);
+                    var current = await db.WorkflowSteps.FirstOrDefaultAsync(s => s.Status.TrimmedEquals(_statusOptions.CurrentStatus, StringComparison.OrdinalIgnoreCase));
                     if (current != null)
                     {
                         current.Status = _statusOptions.WarningStatus; // ForceNext uses warning status
@@ -657,7 +659,7 @@ namespace RWA.Web.Application.Services.Workflow
                 {
                     // Clear the payload and set appropriate status
                     step.DataPayload = "{}"; // Empty JSON payload
-                    step.Status = step.StepName == "Upload Inventory Files" ? "current" : "pending";
+                    step.Status = step.StepName.TrimmedEquals("Upload Inventory Files", StringComparison.OrdinalIgnoreCase) ? "current" : "pending";
                 }
                 
                 await db.SaveChangesAsync();
@@ -729,6 +731,40 @@ namespace RWA.Web.Application.Services.Workflow
                 }
 
                 await db.SaveChangesAsync();
+            });
+        }
+
+        public async Task<List<HecateContrepartiesTransparence>> GetHecateContrepartiesTransparenceAsync()
+        {
+            return await WithDbAsync(async db =>
+            {
+                return await db.HecateContrepartiesTransparences.AsNoTracking().ToListAsync();
+            });
+        }
+
+        public async Task UpdateInventaireNormaliseRangeAsync(List<HecateInventaireNormalise> items)
+        {
+            await WithDbAsync(async db =>
+            {
+                db.HecateInventaireNormalises.UpdateRange(items);
+                await db.SaveChangesAsync();
+            });
+        }
+
+        public async Task<List<HecateTethy>> GetTethysDataByRafAsync(List<string> rafs)
+        {
+            return await WithDbAsync(async db =>
+            {
+                var query = db.HecateTethys.AsNoTracking();
+
+                // Use a predicate builder to create a more efficient query
+                var predicate = PredicateBuilder.New<HecateTethy>();
+                foreach (var raf in rafs)
+                {
+                    predicate = predicate.Or(t => (t.IdentifiantRaf != null && t.IdentifiantRaf.TrimmedEquals(raf, StringComparison.OrdinalIgnoreCase)) || (t.RafTeteGroupeReglementaire != null && t.RafTeteGroupeReglementaire.TrimmedEquals(raf, StringComparison.OrdinalIgnoreCase)));
+                }
+
+                return await query.Where(predicate).Select(item => item.TrimProperties()).ToListAsync();
             });
         }
     }
