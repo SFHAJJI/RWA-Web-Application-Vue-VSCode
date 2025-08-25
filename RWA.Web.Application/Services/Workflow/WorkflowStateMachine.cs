@@ -153,20 +153,14 @@ namespace RWA.Web.Application.Services.Workflow
                     await InvokeEventAsync(ValidationWarning, context))
                 .InternalTransition<ValidationResultContext>(_validationErrorTrigger!, async (context, transition) =>
                     await InvokeEventAsync(ValidationError, context))
-                .Permit(Trigger.Next, State.EnrichiExport)
+                .Permit(Trigger.NextRafManagerToEnrichiExport, State.EnrichiExport)
                 .Permit(Trigger.Previous, State.BDDManager)
                 .PermitIfAsync(Trigger.Reset, State.UploadInventoryFiles, async () => await InvokeResetCompleteAsync());
 
             _machine.Configure(State.EnrichiExport)
                 .OnEntryAsync(async () => await InvokeEventAsync(EnrichiExportEntry))
                 .OnExitAsync(async () => await InvokeEventAsync(EnrichiExportExit, "Fichier Enrichie Generation"))
-                .InternalTransition<ValidationResultContext>(_validationSuccessTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationSuccess, context))
-                .InternalTransition<ValidationResultContext>(_validationWarningTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationWarning, context))
-                .InternalTransition<ValidationResultContext>(_validationErrorTrigger!, async (context, transition) =>
-                    await InvokeEventAsync(ValidationError, context))
-                .Permit(Trigger.Previous, State.RafManager)
+                
                 .PermitIfAsync(Trigger.Reset, State.UploadInventoryFiles, async () => await InvokeResetCompleteAsync());
 
             // Subscribe to transition events
