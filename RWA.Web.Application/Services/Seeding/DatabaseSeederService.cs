@@ -150,7 +150,6 @@ namespace RWA.Web.Application.Services.Seeding
                 {
                     var columnMap = CreateColumnMap(catDt, _columnMappings.EquivalenceCatRWA.CategorieRWA);
                     var entities = catDt.AsEnumerable()
-                        .AsParallel()
                         .Select(row => new HecateCategorieRwa
                         {
                             IdCatRwa = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.CategorieRWA.CodeRWA)]) ?? string.Empty,
@@ -193,7 +192,6 @@ namespace RWA.Web.Application.Services.Seeding
                 {
                     var columnMap = CreateColumnMap(typeDt, _columnMappings.EquivalenceCatRWA.TypeBloomberg);
                     var entities = typeDt.AsEnumerable()
-                        .AsParallel()
                         .Select(row => new HecateTypeBloomberg
                         {
                             IdTypeBloomberg = row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.TypeBloomberg.CodeBloomberg)]) ?? string.Empty,
@@ -235,7 +233,6 @@ namespace RWA.Web.Application.Services.Seeding
                 {
                     var columnMap = CreateColumnMap(eqDt, _columnMappings.EquivalenceCatRWA.EquivalenceCatRWA);
                     var entities = eqDt.AsEnumerable()
-                        .AsParallel()
                         .Select(row => row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire1)]))
                         .Where(code => !string.IsNullOrEmpty(code))
                         .Distinct()
@@ -279,7 +276,6 @@ namespace RWA.Web.Application.Services.Seeding
                 {
                     var columnMap = CreateColumnMap(eqDt, _columnMappings.EquivalenceCatRWA.EquivalenceCatRWA);
                     var entities = eqDt.AsEnumerable()
-                        .AsParallel()
                         .Select(row => row.Field<string>(columnMap[nameof(_columnMappings.EquivalenceCatRWA.EquivalenceCatRWA.CodeDepositaire2)]))
                         .Where(code => !string.IsNullOrEmpty(code))
                         .Distinct()
@@ -342,7 +338,6 @@ namespace RWA.Web.Application.Services.Seeding
                 {
                     var columnMap = CreateColumnMap(eqDt, _columnMappings.EquivalenceCatRWA.EquivalenceCatRWA);
                     var entities = eqDt.AsEnumerable()
-                        .AsParallel()
 
                         .Select(row =>
                         {

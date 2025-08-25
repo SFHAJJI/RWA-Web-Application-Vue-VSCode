@@ -3,6 +3,8 @@ import { ref, computed, watch } from 'vue';
 import { useWorkflowStore } from '../../stores/workflow';
 import { useToastStore } from '../../stores/toast';
 import { validateFiles } from '../../validation/validateInventoryFilenames';
+import SkeletonLoader from '../loaders/SkeletonLoader.vue';
+import ProgressiveLoader from '../loaders/ProgressiveLoader.vue';
 
 const store = useWorkflowStore();
 const files = ref([]);
@@ -49,9 +51,9 @@ const uploadFiles = async () => {
     // client-side validation mirror of server: validate filenames before attempting upload
     const result = validateFiles(files.value || []);
     if (!result.valid) {
-    snackbarMessage.value = `Invalid filenames: ${result.badNames.join(', ')}`;
-    const t = useToastStore();
-    t.pushToast({ type: 'warning', message: snackbarMessage.value });
+        snackbarMessage.value = `Invalid filenames: ${result.badNames.join(', ')}`;
+        const t = useToastStore();
+        t.pushToast({ type: 'warning', message: snackbarMessage.value });
         return;
     }
 
@@ -83,43 +85,32 @@ const validationError = computed(() => {
 <template>
     <v-container>
         <!-- Show success alert when upload is successfully finished -->
-        <v-alert
-            v-if="isUploadSuccessful"
-            type="success"
-            variant="outlined"
-            class="mb-4"
-        >
+        <v-alert v-if="isUploadSuccessful" type="success" variant="outlined" class="mb-4">
             This step is successfully finished.
         </v-alert>
-        
+
         <!-- Show skeleton loader while uploading -->
-        <v-skeleton-loader v-if="store.loading" type="card"></v-skeleton-loader>
+        <SkeletonLoader v-if="store.loading" />
 
         <!-- Show upload component only when step is not successfully finished and not uploading -->
         <div v-else-if="!isUploadSuccessful">
             <v-row>
                 <v-col>
                     <h3>Upload Inventory Files</h3>
-                    <v-file-input
-                        v-model="files"
-                        :show-size="1000"
-                        color="deep-purple-accent-4"
-                        label="File input"
-                        placeholder="Select your files"
-                        variant="outlined"
-                        counter
-                        multiple
-                        accept=".xlsx"
-                    >
+                    <v-file-input v-model="files" :show-size="1000" color="deep-purple-accent-4" label="File input"
+                        placeholder="Select your files" variant="outlined" counter multiple accept=".xlsx">
                         <template v-slot:selection="{ fileNames }">
                             <template v-for="(fileName, index) in fileNames" :key="fileName">
-                                <v-chip class="me-2" color="deep-purple-accent-4" size="small" label closable @click:close="files.splice(index, 1)">
-                                {{ fileName }}
+                                <v-chip class="me-2" color="deep-purple-accent-4" size="small" label closable
+                                    @click:close="files.splice(index, 1)">
+                                    {{ fileName }}
                                 </v-chip>
                             </template>
                         </template>
                     </v-file-input>
-                    <v-btn @click="uploadFiles" :disabled="files.length === 0 || !filesValid">Upload</v-btn>
+                    <ProgressiveLoader :loading="store.stepLoading['upload-inventory']">
+                        <v-btn @click="uploadFiles" :disabled="files.length === 0 || !filesValid">Upload</v-btn>
+                    </ProgressiveLoader>
                     <v-btn @click="store.triggerTransition('Revalidate')" v-if="validationError">Revalidate</v-btn>
                     <!-- global toast via window event 'workflow-toast' will be used -->
                 </v-col>
@@ -127,12 +118,8 @@ const validationError = computed(() => {
             <v-row v-if="validationError">
                 <v-col>
                     <v-alert type="error" class="mb-4">{{ validationError }}</v-alert>
-                    <v-data-table
-                        :headers="[
-                            { title: 'Identifiant Origine', value: 'IdentifiantOrigine' }
-                        ]"
-                        :items="errorRows"
-                    ></v-data-table>
+                    <v-data-table :headers="[{ title: 'Identifiant Origine', value: 'IdentifiantOrigine' }]"
+                        :items="errorRows"></v-data-table>
                 </v-col>
             </v-row>
         </div>
