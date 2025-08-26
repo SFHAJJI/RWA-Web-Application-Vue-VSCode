@@ -123,6 +123,8 @@ const props = defineProps({
   },
 });
 
+console.log('Tethys Payload:', props.payload);
+
 const isGroupedView = ref(false);
 const items = ref(props.payload);
 
@@ -147,7 +149,7 @@ const classicHeaders = [
 
 const groupedItems = computed(() => {
   return itemsToDisplay.value.reduce((acc, item) => {
-    const groupKey = `${item.Source} - ${item.CptTethys}`;
+    const groupKey = `${item.Source} - ${item.Cpt}`;
     if (!acc[groupKey]) {
       acc[groupKey] = [];
     }
@@ -164,9 +166,9 @@ function handleClassicSelection(item, selectedValue) {
 }
 
 function handleGroupedSelection(groupKey, selectedValue) {
-  const [source, cptTethys] = groupKey.split(' - ');
+  const [source, cpt] = groupKey.split(' - ');
   items.value.forEach((d) => {
-    if (d.Source === source && d.CptTethys === cptTethys) {
+    if (d.Source === source && d.Cpt === cpt) {
       d.Raf = selectedValue;
     }
   });

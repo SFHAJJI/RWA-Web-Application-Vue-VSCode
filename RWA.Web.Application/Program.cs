@@ -91,6 +91,7 @@ namespace RWA.Web.Application
             builder.Services.AddSingleton<Services.Workflow.WorkflowStateMachine>();
             builder.Services.AddSingleton<Services.Workflow.IWorkflowStateActions, Services.Workflow.WorkflowStateActions>();
             builder.Services.AddSingleton<Services.Workflow.IWorkflowOrchestrator, Services.Workflow.WorkflowOrchestrator>();
+            builder.Services.AddScoped<Services.Workflow.IExcelExportService, Services.Workflow.ExcelExportService>();
             
             // Configure DbContext: Production uses SQL Server, Development uses in-memory via middleware
             if (builder.Environment.IsDevelopment())

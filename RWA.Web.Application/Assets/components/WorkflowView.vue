@@ -311,8 +311,8 @@ function doReset() {
                         <UploadInventory v-if="step.stepName === 'Upload inventory'" :step="step" />
                         <RwaCategoryManager v-else-if="step.stepName === 'RWA Category Manager'" :step="step" />
                         <BddManager v-else-if="step.stepName === 'BDD Manager'" :step="step" />
-                        <RafManager v-else-if="step.stepName === 'RAF Manager'" :step="step" />
-                        <FichierEnrichiGeneration v-else-if="step.stepName === 'Fichier Enrichie Generation'" :step="step" />
+                        <RafManager v-else-if="step.stepName === 'RAF Manager' && store.workflowSteps.find(s => s.stepName === 'Fichier Enrichie Generation')?.status !== 'Current'" :step="step" />
+                        <FichierEnrichiGeneration v-else-if="step.stepName === 'Fichier Enrichie Generation' || (step.stepName === 'RAF Manager' && store.workflowSteps.find(s => s.stepName === 'Fichier Enrichie Generation')?.status === 'Current')" :step="step" />
                         <div v-else>
                             <p>Step component not found: {{ step.stepName }}</p>
                         </div>
@@ -326,7 +326,7 @@ function doReset() {
             <!-- Reset is always available; placed between previous and next for ergonomics -->
             <v-btn color="error" class="mx-2" @click="resetWithConfirm">Reset</v-btn>
 
-            <v-btn @click="store.navigateNextVisual()" :disabled="store.workflowSteps[store.uiActiveIndex]?.stepName === 'RAF Manager' ? false : !store.canNavigateNext()">Next</v-btn>
+            <v-btn @click="store.navigateNextVisual()" :disabled="!store.canNavigateNext()">Next</v-btn>
         </div>
         <v-dialog v-model="resetDialog" width="480">
             <v-card>

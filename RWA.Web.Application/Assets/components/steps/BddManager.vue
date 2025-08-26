@@ -2,7 +2,7 @@
     <div>
         <h2>BDD Manager</h2>
         <div class="card">
-            <v-container fluid v-if="!loading && !workflowStore.stepLoading['bdd-manager']">
+            <v-container fluid v-if="!workflowStore.stepLoading['bdd-manager']">
                 <!-- OBL Validator Section -->
                 <div v-if="oblValidatorPayload.length > 0" class="mb-4">
                     <v-card>
@@ -79,9 +79,8 @@
                 </div>
             </v-container>
             <v-container v-else>
-                <SkeletonLoader />
+                <ProgressiveLoader />
             </v-container>
-            <v-progress-linear v-if="workflowStore.stepLoading['bdd-manager']" indeterminate color="primary"></v-progress-linear>
         </div>
     </div>
 </template>
@@ -89,10 +88,9 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import { useWorkflowStore } from '../../stores/workflow';
-import SkeletonLoader from '../loaders/SkeletonLoader.vue';
 import ProgressiveLoader from '../loaders/ProgressiveLoader.vue';
 
-const props = defineProps({
+defineProps({
     step: {
         type: Object,
         required: true

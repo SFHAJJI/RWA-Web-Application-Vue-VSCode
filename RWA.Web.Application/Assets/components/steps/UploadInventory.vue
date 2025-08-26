@@ -4,7 +4,6 @@ import { useWorkflowStore } from '../../stores/workflow';
 import { useToastStore } from '../../stores/toast';
 import { validateFiles } from '../../validation/validateInventoryFilenames';
 import SkeletonLoader from '../loaders/SkeletonLoader.vue';
-import ProgressiveLoader from '../loaders/ProgressiveLoader.vue';
 
 const store = useWorkflowStore();
 const files = ref([]);

@@ -159,4 +159,4 @@ const loadTableCounts = async () => {
 onMounted(loadTableCounts);
 </script>
 
-<style src="../public/css/audit-panel.css" scoped></style>
+<style src="../assets/styles/audit-panel.css" scoped></style>

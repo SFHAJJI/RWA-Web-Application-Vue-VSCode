@@ -150,7 +150,6 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useWorkflowStore } from '../../stores/workflow'
 import ExpandedRowContent from './ExpandedRowContent.vue'
-import GroupingDetails from './GroupingDetails.vue'
 import SkeletonLoader from '../loaders/SkeletonLoader.vue';
 import ProgressiveLoader from '../loaders/ProgressiveLoader.vue';
 
@@ -366,12 +365,6 @@ async function expandRow(expandedItems: any[]) {
     }
 }
 
-async function reload() {
-    workflowStore.setStepLoading('rwa-category-reload', true);
-    // Reload from current workflow step payload using the same logic
-    loadDataFromStore()
-    workflowStore.setStepLoading('rwa-category-reload', false);
-}
 </script>
 
 <style scoped>

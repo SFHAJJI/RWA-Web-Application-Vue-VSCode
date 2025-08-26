@@ -531,10 +531,82 @@ namespace RWA.Web.Application.Services.Workflow
 
         private async Task SetTethysStatus()
         {
-            var payload = await _dbProvider.GetTethysMappingPayloadAsync();
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var payload = new HecateTethysPayload();
+
+            // Handle items with empty RAF
+            var emptyRafItems = allItems.Where(i => string.IsNullOrEmpty(i.Raf)).ToList();
+            foreach (var item in emptyRafItems)
+            {
+                payload.Dtos.Add(new HecateTethysDto
+                {
+                    NumLigne = item.NumLigne,
+                    Source = item.Source,
+                    Cpt = item.Nom,
+                    Raf = item.Raf,
+                    IsMappingTethysSuccessful = false
+                });
+            }
+
+            // Initial update for empty RAF items
             var payloadJson = JsonSerializer.Serialize(payload);
             await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
             await NotifyWorkflowStepsUpdatedAsync();
+
+            // Handle items with RAF
+            var itemsWithRaf = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).ToList();
+            var distinctRafs = itemsWithRaf.Select(i => i.Raf).Distinct().ToList();
+
+            foreach (var raf in distinctRafs)
+            {
+                // Query Tethys for the current RAF
+                var tethysData = await _dbProvider.GetTethysDataByRafAsync(new List<string> { raf });
+
+                var tethysDataDictByIdentifiantRaf = tethysData
+                    .Where(t => !string.IsNullOrEmpty(t.IdentifiantRaf))
+                    .ToDictionary(t => t.IdentifiantRaf.Replace(" ", "").ToLower(), StringComparer.OrdinalIgnoreCase);
+
+                var tethysDataDictByRafTeteGroupeReglementaire = tethysData
+                    .Where(t => !string.IsNullOrEmpty(t.RafTeteGroupeReglementaire))
+                    .ToDictionary(t => t.RafTeteGroupeReglementaire.Replace(" ", "").ToLower(), StringComparer.OrdinalIgnoreCase);
+
+                var itemsForCurrentRaf = itemsWithRaf.Where(i => i.Raf == raf);
+
+                foreach (var item in itemsForCurrentRaf)
+                {
+                    var dto = new HecateTethysDto
+                    {
+                        NumLigne = item.NumLigne,
+                        Source = item.Source,
+                        Cpt = item.Nom,
+                        Raf = item.Raf,
+                        IsMappingTethysSuccessful = false
+                    };
+
+                    if (tethysDataDictByIdentifiantRaf.TryGetValue(item.Raf.Replace(" ", "").ToLower(), out var tethy))
+                    {
+                        dto.CptTethys = tethy.LibelleCourt;
+                        dto.IsGeneric = false;
+                        dto.IsMappingTethysSuccessful = true;
+                    }
+                    else if (tethysDataDictByRafTeteGroupeReglementaire.TryGetValue(item.Raf.Replace(" ", "").ToLower(), out tethy))
+                    {
+                        dto.CptTethys = tethy.NomTeteGroupeReglementaire;
+                        dto.IsGeneric = true;
+                        dto.IsMappingTethysSuccessful = true;
+                    }
+
+                    payload.Dtos.Add(dto);
+                     payloadJson = JsonSerializer.Serialize(payload);
+                    await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
+                    await NotifyWorkflowStepsUpdatedAsync();
+                }
+
+                // Update after processing all items for the current RAF
+                payloadJson = JsonSerializer.Serialize(payload);
+                await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
+                await NotifyWorkflowStepsUpdatedAsync();
+            }
         }
         // State exit actions
 
@@ -1097,7 +1169,11 @@ namespace RWA.Web.Application.Services.Workflow
                 if (!string.IsNullOrEmpty(nextStepName))
                 {
                     Console.WriteLine($"[HandleStepProgressionAsync] Setting next step '{nextStepName}' to CurrentStatus");
-
+                    if (transitionDto.Destination == "EnrichiExport")
+                    {
+                         await _dbProvider.UpdateStepStatusAsync(transitionDto.Source, _statusOptions.SuccessStatus);
+                   
+                    }
                     // ATOMIC UPDATE: Use the atomic method to ensure database consistency
                     await _dbProvider.UpdateStepStatusAndDataAsync(nextStepName, _statusOptions.CurrentStatus, string.Empty);
                     Console.WriteLine($"[HandleStepProgressionAsync] Successfully set '{nextStepName}' to CurrentStatus using atomic update");

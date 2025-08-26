@@ -1,9 +1,6 @@
 <template>
     <div>
-        <div v-if="!sortedPayload || sortedPayload.length === 0">
-            <SkeletonLoader />
-        </div>
-        <v-data-table v-else :headers="headers" :items="sortedPayload">
+        <v-data-table :headers="headers" :items="sortedPayload">
             <template v-slot:item.IsMappingTethysSuccessful="{ value }">
                 <v-chip :color="getColor(value)" :text="value ? 'OK' : 'KO'" size="x-small"></v-chip>
             </template>
@@ -13,7 +10,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import SkeletonLoader from '../loaders/SkeletonLoader.vue';
 
 interface TethysDto {
     NumLigne: number;
