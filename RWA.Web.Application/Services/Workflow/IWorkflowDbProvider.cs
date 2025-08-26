@@ -50,5 +50,6 @@ namespace RWA.Web.Application.Services.Workflow
         Task<List<HecateTethy>> GetTethysDataByRafAsync(List<string> rafs);
         Task UpdateRafAsync(List<HecateTethysDto> items);
         Task<bool> AreAllRafsCompletedAsync();
+        Task<HecateTethysPayload> GetTethysMappingPayloadAsync();
     }
 }

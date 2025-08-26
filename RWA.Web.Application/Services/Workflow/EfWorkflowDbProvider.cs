@@ -346,7 +346,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
-            var processingTasks = mappings.Select(async mapping =>
+            foreach (var mapping in mappings)
             {
                 try
                 {
@@ -382,11 +382,8 @@ namespace RWA.Web.Application.Services.Workflow
                 {
                     _logger.LogError(ex, "Error processing RWA mapping for source {Source}", mapping.Source);
                 }
-            });
+            }
 
-            await Task.WhenAll(processingTasks);
-
-            // Return the number of mappings queued for processing
             return mappings.Count;
         }
 
@@ -511,6 +508,25 @@ namespace RWA.Web.Application.Services.Workflow
         }
 
         // RWA Category Manager specific methods
+
+        private class CaseInsensitiveTupleComparer : IEqualityComparer<(string Source, string Cat1, string Cat2)>
+        {
+            public bool Equals((string Source, string Cat1, string Cat2) x, (string Source, string Cat1, string Cat2) y)
+            {
+                return StringComparer.OrdinalIgnoreCase.Equals(x.Source, y.Source) &&
+                       StringComparer.OrdinalIgnoreCase.Equals(x.Cat1, y.Cat1) &&
+                       StringComparer.OrdinalIgnoreCase.Equals(x.Cat2, y.Cat2);
+            }
+
+            public int GetHashCode((string Source, string Cat1, string Cat2) obj)
+            {
+                return HashCode.Combine(
+                    StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Source ?? string.Empty),
+                    StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Cat1 ?? string.Empty),
+                    StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Cat2 ?? string.Empty)
+                );
+            }
+        }
         
         public async Task<RWA.Web.Application.Models.Dtos.RwaCategoryManagerPayloadDto> ProcessRwaCategoryMappingAsync()
         {
@@ -528,13 +544,13 @@ namespace RWA.Web.Application.Services.Workflow
                     .AsNoTracking()
                     .ToListAsync();
 
-                // Create a lookup for faster mapping using the Libelle properties
+                // Create a lookup for faster, case-insensitive mapping
                 var mappingLookup = equivalenceMappings
                     .ToLookup(em => (
-                        em.Source,
-                        em.RefCatDepositaire1Navigation?.LibelleDepositaire1 ?? string.Empty,
-                        em.RefCatDepositaire2Navigation?.LibelleDepositaire2 ?? string.Empty
-                    ));
+                        Source: em.Source,
+                        Cat1: em.RefCatDepositaire1Navigation?.LibelleDepositaire1 ?? string.Empty,
+                        Cat2: em.RefCatDepositaire2Navigation?.LibelleDepositaire2 ?? string.Empty
+                    ), new CaseInsensitiveTupleComparer());
 
                 var successfulMappings = new List<HecateInventaireNormalise>();
                 var failedMappings = new List<HecateInventaireNormalise>();
@@ -542,7 +558,11 @@ namespace RWA.Web.Application.Services.Workflow
                 // 3. Process mappings in parallel
                 Parallel.ForEach(inventoryRows, inventoryRow =>
                 {
-                    var key = (inventoryRow.Source, inventoryRow.Categorie1, inventoryRow.Categorie2);
+                    var key = (
+                        Source: inventoryRow.Source,
+                        Cat1: inventoryRow.Categorie1 ?? string.Empty,
+                        Cat2: inventoryRow.Categorie2 ?? string.Empty
+                    );
                     var mapping = mappingLookup[key].FirstOrDefault();
 
                     if (mapping != null)
@@ -825,6 +845,34 @@ namespace RWA.Web.Application.Services.Workflow
             return await WithDbAsync(async db =>
             {
                 return await db.HecateInventaireNormalises.AllAsync(h => !string.IsNullOrEmpty(h.Raf));
+            });
+        }
+
+        public async Task<HecateTethysPayload> GetTethysMappingPayloadAsync()
+        {
+            return await WithDbAsync(async db =>
+            {
+                var dtos = await db.HecateInventaireNormalises
+                    .AsNoTracking()
+                    .Select(item => new
+                    {
+                        item,
+                        tethyByIdentifiantRaf = db.HecateTethys.AsNoTracking().FirstOrDefault(t => t.IdentifiantRaf == item.Raf),
+                        tethyByRafTeteGroupeReglementaire = db.HecateTethys.AsNoTracking().FirstOrDefault(t => t.RafTeteGroupeReglementaire == item.Raf)
+                    })
+                    .Select(x => new HecateTethysDto
+                    {
+                        NumLigne = x.item.NumLigne,
+                        Source = x.item.Source,
+                        Cpt = x.item.Nom,
+                        Raf = x.item.Raf,
+                        CptTethys = x.tethyByIdentifiantRaf != null ? x.tethyByIdentifiantRaf.LibelleCourt : x.tethyByRafTeteGroupeReglementaire.NomTeteGroupeReglementaire,
+                        IsGeneric = x.tethyByRafTeteGroupeReglementaire != null,
+                        IsMappingTethysSuccessful = x.tethyByIdentifiantRaf != null || x.tethyByRafTeteGroupeReglementaire != null
+                    })
+                    .ToListAsync();
+
+                return new HecateTethysPayload { Dtos = dtos };
             });
         }
     }

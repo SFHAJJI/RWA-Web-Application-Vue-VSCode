@@ -9,98 +9,105 @@
     </v-alert>
 
     <div v-else>
-      <v-switch
-        v-model="isGroupedView"
-        label="Grouped View"
-        color="primary"
-      ></v-switch>
+      <div v-if="areAllMappingsSuccessful">
+        <v-alert type="success" prominent border="start">
+          All mappings are successful. Ready to proceed.
+        </v-alert>
+      </div>
+      <div v-else>
+        <v-switch
+          v-model="isGroupedView"
+          label="Grouped View"
+          color="primary"
+        ></v-switch>
 
-      <transition name="fade" mode="out-in">
-        <div :key="isGroupedView">
-          <!-- Grouped View using v-list -->
-          <div v-if="isGroupedView">
-            <v-list lines="two" class="grouped-list">
-              <v-list-group v-for="(group, groupKey) in groupedItems" :key="groupKey" :value="groupKey">
-                <template v-slot:activator="{ props }">
-                  <v-list-item v-bind="props">
-                    <v-list-item-title>{{ groupKey }}</v-list-item-title>
-                    <template v-slot:append>
-                      <v-icon v-if="isGroupComplete(group)" color="success">mdi-check-circle</v-icon>
-                      <v-icon v-else color="error">mdi-close-circle</v-icon>
-                    </template>
-                  </v-list-item>
-                </template>
+        <transition name="fade" mode="out-in">
+          <div :key="isGroupedView">
+            <!-- Grouped View using v-list -->
+            <div v-if="isGroupedView">
+              <v-list lines="two" class="grouped-list">
+                <v-list-group v-for="(group, groupKey) in groupedItems" :key="groupKey" :value="groupKey">
+                  <template v-slot:activator="{ props }">
+                    <v-list-item v-bind="props">
+                      <v-list-item-title>{{ groupKey }}</v-list-item-title>
+                      <template v-slot:append>
+                        <v-icon v-if="isGroupComplete(group)" color="success">mdi-check-circle</v-icon>
+                        <v-icon v-else color="error">mdi-close-circle</v-icon>
+                      </template>
+                    </v-list-item>
+                  </template>
 
-                <v-table class="inner-table">
-                  <thead>
-                    <tr>
-                      <th class="text-left">NumLigne</th>
-                      <th class="text-left">CptTethys</th>
-                      <th class="text-left">IsGeneric</th>
-                      <th class="text-left">IsMappingTethysSuccessful</th>
-                      <th class="text-left">Raf</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="item in group" :key="item.NumLigne">
-                      <td>{{ item.NumLigne }}</td>
-                      <td>{{ item.CptTethys }}</td>
-                      <td>{{ item.IsGeneric }}</td>
-                      <td>{{ item.IsMappingTethysSuccessful }}</td>
-                      <td class="raf-cell">
-                        <v-icon v-if="item.Raf" color="success" class="status-icon">mdi-check-circle</v-icon>
-                        <v-icon v-else color="error" class="status-icon">mdi-close-circle</v-icon>
-                        {{ item.Raf }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </v-table>
+                  <v-table class="inner-table">
+                    <thead>
+                      <tr>
+                        <th class="text-left">NumLigne</th>
+                        <th class="text-left">CptTethys</th>
+                        <th class="text-left">IsGeneric</th>
+                        <th class="text-left">IsMappingTethysSuccessful</th>
+                        <th class="text-left">Raf</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in group" :key="item.NumLigne">
+                        <td>{{ item.NumLigne }}</td>
+                        <td>{{ item.CptTethys }}</td>
+                        <td>{{ item.IsGeneric }}</td>
+                        <td>{{ item.IsMappingTethysSuccessful }}</td>
+                        <td class="raf-cell">
+                          <v-icon v-if="item.Raf" color="success" class="status-icon">mdi-check-circle</v-icon>
+                          <v-icon v-else color="error" class="status-icon">mdi-close-circle</v-icon>
+                          {{ item.Raf }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </v-table>
 
-                <DetailsTable
-                  @selection-changed="(selectedDetail) => handleGroupedSelection(groupKey, selectedDetail)"
-                />
-              </v-list-group>
-            </v-list>
-          </div>
-
-          <!-- Classic Table -->
-          <v-data-table
-            v-else
-            :items="items"
-            :headers="classicHeaders"
-            item-value="NumLigne"
-            show-expand
-            class="modern-table"
-          >
-            <template v-slot:item.Raf="{ item }">
-              <td class="raf-cell">
-                <v-icon v-if="item.Raf" color="success" class="status-icon">mdi-check-circle</v-icon>
-                <v-icon v-else color="error" class="status-icon">mdi-close-circle</v-icon>
-                {{ item.Raf }}
-              </td>
-            </template>
-            <template v-slot:expanded-row="{ columns, item }">
-              <tr class="expanded-row-content">
-                <td :colspan="columns.length">
-                  <div class="details-connector"></div>
                   <DetailsTable
-                    @selection-changed="(selectedDetail) => handleClassicSelection(item, selectedDetail)"
+                    @selection-changed="(selectedDetail) => handleGroupedSelection(groupKey, selectedDetail)"
                   />
-                </td>
-              </tr>
-            </template>
-          </v-data-table>
-        </div>
-      </transition>
+                </v-list-group>
+              </v-list>
+            </div>
 
-      <v-row class="mt-6">
-        <v-col cols="12" class="d-flex justify-end">
-          <v-btn color="primary" elevation="2" large @click="submit">
-            <v-icon left>mdi-check-circle</v-icon>
-            Submit
-          </v-btn>
-        </v-col>
-      </v-row>
+            <!-- Classic Table -->
+            <v-data-table
+              v-else
+              :items="itemsToDisplay"
+              :headers="classicHeaders"
+              item-value="NumLigne"
+              show-expand
+              class="modern-table"
+            >
+              <template v-slot:item.Raf="{ item }">
+                <td class="raf-cell">
+                  <v-icon v-if="item.Raf" color="success" class="status-icon">mdi-check-circle</v-icon>
+                  <v-icon v-else color="error" class="status-icon">mdi-close-circle</v-icon>
+                  {{ item.Raf }}
+                </td>
+              </template>
+              <template v-slot:expanded-row="{ columns, item }">
+                <tr class="expanded-row-content">
+                  <td :colspan="columns.length">
+                    <div class="details-connector"></div>
+                    <DetailsTable
+                      @selection-changed="(selectedDetail) => handleClassicSelection(item, selectedDetail)"
+                    />
+                  </td>
+                </tr>
+              </template>
+            </v-data-table>
+          </div>
+        </transition>
+
+        <v-row class="mt-6">
+          <v-col cols="12" class="d-flex justify-end">
+            <v-btn color="primary" elevation="2" large @click="submit">
+              <v-icon left>mdi-check-circle</v-icon>
+              Submit
+            </v-btn>
+          </v-col>
+        </v-row>
+      </div>
     </div>
   </div>
 </template>
@@ -119,6 +126,14 @@ const props = defineProps({
 const isGroupedView = ref(false);
 const items = ref(props.payload);
 
+const areAllMappingsSuccessful = computed(() => {
+  return items.value.every(item => item.IsMappingTethysSuccessful);
+});
+
+const itemsToDisplay = computed(() => {
+  return items.value.filter(item => !item.IsMappingTethysSuccessful);
+});
+
 const classicHeaders = [
   { title: 'NumLigne', key: 'NumLigne' },
   { title: 'Source', key: 'Source' },
@@ -131,7 +146,7 @@ const classicHeaders = [
 ];
 
 const groupedItems = computed(() => {
-  return items.value.reduce((acc, item) => {
+  return itemsToDisplay.value.reduce((acc, item) => {
     const groupKey = `${item.Source} - ${item.CptTethys}`;
     if (!acc[groupKey]) {
       acc[groupKey] = [];

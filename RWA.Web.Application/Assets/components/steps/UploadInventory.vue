@@ -108,9 +108,7 @@ const validationError = computed(() => {
                             </template>
                         </template>
                     </v-file-input>
-                    <ProgressiveLoader :loading="store.stepLoading['upload-inventory']">
-                        <v-btn @click="uploadFiles" :disabled="files.length === 0 || !filesValid">Upload</v-btn>
-                    </ProgressiveLoader>
+                    <v-btn @click="uploadFiles" :disabled="files.length === 0 || !filesValid" :loading="store.stepLoading['upload-inventory']">Upload</v-btn>
                     <v-btn @click="store.triggerTransition('Revalidate')" v-if="validationError">Revalidate</v-btn>
                     <!-- global toast via window event 'workflow-toast' will be used -->
                 </v-col>

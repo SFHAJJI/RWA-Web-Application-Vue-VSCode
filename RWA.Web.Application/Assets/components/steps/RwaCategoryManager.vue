@@ -126,13 +126,6 @@
                                                 Submit Mappings
                                             </v-btn>
                                         </ProgressiveLoader>
-                                        <ProgressiveLoader :loading="workflowStore.stepLoading['rwa-category-reload']">
-                                            <v-btn id="rwa-category-reload-btn" outlined color="secondary" large
-                                                @click="reload" aria-label="Reload missing rows">
-                                                <v-icon left>mdi-refresh</v-icon>
-                                                Reload Data
-                                            </v-btn>
-                                        </ProgressiveLoader>
                                     </div>
 
                                     <!-- Progress indicator -->

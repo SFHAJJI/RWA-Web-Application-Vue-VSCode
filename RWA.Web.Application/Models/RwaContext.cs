@@ -1138,7 +1138,7 @@ public partial class RwaContext : DbContext
 
         modelBuilder.Entity<HecateContrepartiesTransparence>(entity =>
         {
-            entity.HasKey(e => new { e.LibelleContrepartieOrigine, e.LibelleCourtTethys });
+            entity.HasKey(e => e.LibelleContrepartieOrigine);
 
             entity
                 .ToTable("HECATE_CONTREPARTIES_TRANSPARENCE");

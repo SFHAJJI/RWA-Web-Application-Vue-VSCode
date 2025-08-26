@@ -40,7 +40,7 @@ const sortedPayload = computed(() => {
         if (a.IsMappingTethysSuccessful === b.IsMappingTethysSuccessful) {
             return 0;
         }
-        return a.IsMappingTethysSuccessful ? -1 : 1;
+        return a.IsMappingTethysSuccessful ? 1 : -1;
     });
 });
 

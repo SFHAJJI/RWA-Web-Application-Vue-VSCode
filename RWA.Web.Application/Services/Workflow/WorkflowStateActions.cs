@@ -531,51 +531,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         private async Task SetTethysStatus()
         {
-            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
-            var rafs = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).Select(i => i.Raf).Distinct().ToList();
-            var tethysData = await _dbProvider.GetTethysDataByRafAsync(rafs);
-            var tethysDataDictByIdentifiantRaf = tethysData
-                .Where(t => !string.IsNullOrEmpty(t.IdentifiantRaf))
-                .GroupBy(t => t.IdentifiantRaf ?? string.Empty)
-                .ToDictionary(g => g.Key, g => g.First());
-
-            var tethysDataDictByRafTeteGroupeReglementaire = tethysData
-                .Where(t => !string.IsNullOrEmpty(t.RafTeteGroupeReglementaire))
-                .GroupBy(t => t.RafTeteGroupeReglementaire ?? string.Empty)
-                .ToDictionary(g => g.Key, g => g.First());
-
-            var payload = new HecateTethysPayload();
-
-            foreach (var item in allItems)
-            {
-                var dto = new HecateTethysDto
-                {
-                    NumLigne = item.NumLigne,
-                    Source = item.Source,
-                    Cpt = item.Nom,
-                    Raf = item.Raf,
-                    IsMappingTethysSuccessful = false
-                };
-
-                if (!string.IsNullOrEmpty(item.Raf))
-                {
-                    if (tethysDataDictByIdentifiantRaf.TryGetValue(item.Raf, out var tethy))
-                    {
-                        dto.CptTethys = tethy.LibelleCourt;
-                        dto.IsGeneric = false;
-                        dto.IsMappingTethysSuccessful = true;
-                    }
-                    else if (tethysDataDictByRafTeteGroupeReglementaire.TryGetValue(item.Raf, out tethy))
-                    {
-                        dto.CptTethys = tethy.NomTeteGroupeReglementaire;
-                        dto.IsGeneric = true;
-                        dto.IsMappingTethysSuccessful = true;
-                    }
-                }
-
-                payload.Dtos.Add(dto);
-            }
-
+            var payload = await _dbProvider.GetTethysMappingPayloadAsync();
             var payloadJson = JsonSerializer.Serialize(payload);
             await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
             await NotifyWorkflowStepsUpdatedAsync();

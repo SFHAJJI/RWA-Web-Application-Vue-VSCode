@@ -2,7 +2,7 @@
     <div>
         <h2>BDD Manager</h2>
         <div class="card">
-            <v-container fluid v-if="!workflowStore.loading">
+            <v-container fluid v-if="!loading && !workflowStore.stepLoading['bdd-manager']">
                 <!-- OBL Validator Section -->
                 <div v-if="oblValidatorPayload.length > 0" class="mb-4">
                     <v-card>
@@ -22,7 +22,7 @@
                                         <v-text-field :model-value="formatDate(item.DateMaturite)" label="Date Maturite"
                                             :rules="[rules.required]" v-bind="props" readonly variant="outlined" density="compact" hide-details>
                                             <template v-slot:append-inner>
-                                                <v-tooltip location="top">
+                                                <v-tooltip location="top" v-if="!item.DateMaturite">
                                                     <template v-slot:activator="{ props: tooltipProps }">
                                                         <v-icon v-bind="tooltipProps" color="warning" size="x-small">mdi-alert-circle</v-icon>
                                                     </template>
@@ -81,6 +81,7 @@
             <v-container v-else>
                 <SkeletonLoader />
             </v-container>
+            <v-progress-linear v-if="workflowStore.stepLoading['bdd-manager']" indeterminate color="primary"></v-progress-linear>
         </div>
     </div>
 </template>
@@ -101,6 +102,7 @@ const props = defineProps({
 const workflowStore = useWorkflowStore();
 const oblValidatorPayload = ref([]);
 const addToBDDPayload = ref([]);
+const loading = ref(true);
 
 const rules = {
     required: value => !!value || 'Required.',
@@ -161,7 +163,7 @@ const loadDataFromStore = () => {
                     ...item,
                     DateMaturite: item.DateMaturite ? new Date(item.DateMaturite) : null,
                     TauxObligation: item.TauxObligation !== null && item.TauxObligation !== undefined ? item.TauxObligation : null,
-                    isEditingDateMaturite: !item.DateMaturite,
+                    isEditingDateMaturite: false,
                     isEditingTauxObligation: item.TauxObligation === null || item.TauxObligation === undefined,
                 })) || [];
                 console.log("Processed OBLValidatorPayload:", oblValidatorPayload.value);
@@ -179,6 +181,7 @@ const loadDataFromStore = () => {
         oblValidatorPayload.value = [];
         addToBDDPayload.value = [];
     }
+    loading.value = false;
 };
 
 onMounted(loadDataFromStore);
