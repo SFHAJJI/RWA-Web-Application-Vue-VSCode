@@ -308,11 +308,11 @@ function doReset() {
                         </div>
                     </div>
                     <div :key="step.id">
-                        <UploadInventory v-if="step.stepName === 'Upload inventory'" :step="step" />
+                        <UploadInventory v-if="step.stepName === 'Upload Inventory'" :step="step" />
                         <RwaCategoryManager v-else-if="step.stepName === 'RWA Category Manager'" :step="step" />
                         <BddManager v-else-if="step.stepName === 'BDD Manager'" :step="step" />
-                        <RafManager v-else-if="step.stepName === 'RAF Manager' && store.workflowSteps.find(s => s.stepName === 'Fichier Enrichie Generation')?.status !== 'Current'" :step="step" />
-                        <FichierEnrichiGeneration v-else-if="step.stepName === 'Fichier Enrichie Generation' || (step.stepName === 'RAF Manager' && store.workflowSteps.find(s => s.stepName === 'Fichier Enrichie Generation')?.status === 'Current')" :step="step" />
+                        <RafManager v-else-if="step.stepName === 'RAF Manager' && store.workflowSteps.find(s => s.stepName === 'Generate FichierEnrichi')?.status !== 'Current'" :step="step" />
+                        <FichierEnrichiGeneration v-else-if="step.stepName === 'Generate FichierEnrichi' || (step.stepName === 'RAF Manager' && store.workflowSteps.find(s => s.stepName === 'Generate FichierEnrichi')?.status === 'Current')" :step="step" />
                         <div v-else>
                             <p>Step component not found: {{ step.stepName }}</p>
                         </div>

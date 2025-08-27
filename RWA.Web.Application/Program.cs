@@ -42,6 +42,8 @@ namespace RWA.Web.Application
             builder.Services.Configure<WorkflowStatusMappingOptions>(builder.Configuration.GetSection("WorkflowStatusMapping"));
             // Bind Excel column mappings options for seeding process
             builder.Services.Configure<ExcelColumnMappings>(builder.Configuration.GetSection("ExcelColumnMappings"));
+            // Bind workflow step names mapping
+            builder.Services.Configure<WorkflowStepNamesMapping>(builder.Configuration.GetSection("WorkflowStepNamesMapping"));
             builder.Services.AddScoped<ILdapAuthService, LdapAuthService>();
             // Validation services - use FluentValidation-based service
             builder.Services.AddSingleton<Services.Validation.FluentValidationService>();

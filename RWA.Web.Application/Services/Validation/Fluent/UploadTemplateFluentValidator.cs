@@ -3,7 +3,7 @@ using RWA.Web.Application.Models;
 
 namespace RWA.Web.Application.Services.Validation.Fluent
 {
-    [RWA.Web.Application.Services.Validation.SupportedWorkflowStep("Upload inventory")]
+    [RWA.Web.Application.Services.Validation.SupportedWorkflowStep(nameof(WorkflowStepNamesMapping.UploadInventory))]
     public class UploadTemplateFluentValidator : AbstractValidator<WorkflowStep>
     {
         public UploadTemplateFluentValidator()

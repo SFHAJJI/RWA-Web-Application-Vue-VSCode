@@ -102,7 +102,7 @@ namespace RWA.Web.Application.Controllers
         [HttpPost("post-upload")]
         [HttpPost("upload")]
         /// <summary>
-        /// Upload inventory file(s) and trigger server-side import/validation.
+        /// Upload Inventory file(s) and trigger server-side import/validation.
         /// </summary>
         /// <remarks>
         /// Called from: POST /api/workflow/upload (or /post-upload) when a user selects and uploads an inventory file.

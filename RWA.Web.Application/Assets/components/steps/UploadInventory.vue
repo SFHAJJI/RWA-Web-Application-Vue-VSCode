@@ -13,7 +13,7 @@ const filesValid = ref(true);
 
 // Check if current upload step is successfully finished
 const isUploadSuccessful = computed(() => {
-    const uploadStep = store.workflowSteps.find(s => s.stepName === 'Upload inventory');
+    const uploadStep = store.workflowSteps.find(s => s.stepName === 'Upload Inventory');
     return uploadStep?.status === 'SuccessfulFinish';
 });
 
@@ -36,7 +36,7 @@ watch(files, (newFiles) => {
 // Clear local file selection when the server reset clears the upload payload or after successful upload
 // Clear files when the upload step payload is cleared, and when the store.resetCounter increments
 watch(() => store.workflowSteps, (steps) => {
-    const uploadStep = (steps || []).find((s: any) => s.stepName === 'Upload inventory');
+    const uploadStep = (steps || []).find((s: any) => s.stepName === 'Upload Inventory');
     if (!uploadStep || !uploadStep.dataPayload) {
         files.value = [];
     }

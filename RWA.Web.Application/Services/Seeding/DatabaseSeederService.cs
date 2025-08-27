@@ -14,13 +14,15 @@ namespace RWA.Web.Application.Services.Seeding
         private readonly RwaContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly ExcelColumnMappings _columnMappings;
+        private readonly WorkflowStepNamesMapping _workflowStepNames;
         private readonly string _rwaDatoDir;
 
-        public DatabaseSeederService(RwaContext context, IWebHostEnvironment environment, IOptions<ExcelColumnMappings> columnMappings)
+        public DatabaseSeederService(RwaContext context, IWebHostEnvironment environment, IOptions<ExcelColumnMappings> columnMappings, IOptions<WorkflowStepNamesMapping> workflowStepNames)
         {
             _context = context;
             _environment = environment;
             _columnMappings = columnMappings.Value;
+            _workflowStepNames = workflowStepNames.Value;
             _rwaDatoDir = Path.Combine(environment.ContentRootPath, "RWA Data", "Seeding");
         }
 
@@ -82,11 +84,11 @@ namespace RWA.Web.Application.Services.Seeding
                 }
 
                 var steps = new[] {
-                    new WorkflowStep { StepName = "Upload inventory", Status = "Current", DataPayload = "{}" },
-                    new WorkflowStep { StepName = "RWA Category Manager", Status = "Pending", DataPayload = "{}" },
-                    new WorkflowStep { StepName = "BDD Manager", Status = "Pending", DataPayload = "{}" },
-                    new WorkflowStep { StepName = "RAF Manager", Status = "Pending", DataPayload = "{}" },
-                    new WorkflowStep { StepName = "Fichier Enrichie Generation", Status = "Pending", DataPayload = "{}" }
+                    new WorkflowStep { StepName = _workflowStepNames.UploadInventory, Status = "Current", DataPayload = "{}" },
+                    new WorkflowStep { StepName = _workflowStepNames.RWACategoryManager, Status = "Pending", DataPayload = "{}" },
+                    new WorkflowStep { StepName = _workflowStepNames.BDDManager, Status = "Pending", DataPayload = "{}" },
+                    new WorkflowStep { StepName = _workflowStepNames.RAFManager, Status = "Pending", DataPayload = "{}" },
+                    new WorkflowStep { StepName = _workflowStepNames.FichierEnrichieGeneration, Status = "Pending", DataPayload = "{}" }
                 };
 
                 await _context.WorkflowSteps.AddRangeAsync(steps);

@@ -4,6 +4,7 @@ using RWA.Web.Application.Services.Workflow.Dtos;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 
 namespace RWA.Web.Application.Services.Workflow
 {
@@ -70,9 +71,11 @@ namespace RWA.Web.Application.Services.Workflow
         private StateMachine<State, Trigger>.TriggerWithParameters<ForceNextContext>? _forceNextFallbackTrigger;
 
         private State _currentState = State.InitialState;
+        private readonly WorkflowStepNamesMapping _workflowStepNames;
 
-        public WorkflowStateMachine()
+        public WorkflowStateMachine(IOptions<WorkflowStepNamesMapping> workflowStepNames)
         {
+            _workflowStepNames = workflowStepNames.Value;
             _machine = new StateMachine<State, Trigger>(() => _currentState, s => _currentState = s);
             ConfigureStateMachine();
         }
@@ -102,7 +105,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             _machine.Configure(State.UploadInventoryFiles)
                 .OnEntryAsync(async () => await InvokeEventAsync(UploadInventoryEntry))
-                .OnExitAsync(async () => await InvokeEventAsync(UploadInventoryExit, "Upload inventory"))
+                .OnExitAsync(async () => await InvokeEventAsync(UploadInventoryExit, _workflowStepNames.UploadInventory))
                 .InternalTransition<List<(string FileName, byte[] Content)>>(_setUploadTrigger!, async (files, transition) =>
                     await InvokeEventAsync(TriggerUpload, files))
                 .InternalTransition<AggregateUploadResultContext>(_uploadPendingTrigger!, async (context, transition) =>
@@ -124,7 +127,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             _machine.Configure(State.RWACategoryManager)
                 .OnEntryAsync(async () => await InvokeEventAsync(RWACategoryManagerEntry))
-                .OnExitAsync(async () => await InvokeEventAsync(RWACategoryManagerExit, "RWA Category Manager"))
+                .OnExitAsync(async () => await InvokeEventAsync(RWACategoryManagerExit, _workflowStepNames.RWACategoryManager))
                 .PermitReentry(Trigger.ReValidate)
                 .InternalTransition<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>(_applyRwaMappingsTrigger!, async (mappings, transition) =>
                     await InvokeEventAsync(ApplyRwaMappings, mappings))
@@ -135,7 +138,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             _machine.Configure(State.BDDManager)
                 .OnEntryAsync(async () => await InvokeEventAsync(BDDManagerEntry))
-                .OnExitAsync(async () => await InvokeEventAsync(BDDManagerExit, "BDD Manager"))
+                .OnExitAsync(async () => await InvokeEventAsync(BDDManagerExit, _workflowStepNames.BDDManager))
                 .InternalTransition<UnexpectedErrorContext>(_unexpectedErrorTrigger!, async (context, transition) =>
                     await InvokeEventAsync(UnexpectedError, context))
                 .InternalTransition<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>(_addBddHistoriqueTrigger!, async (items, transition) =>
@@ -148,7 +151,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             _machine.Configure(State.RafManager)
                 .OnEntryAsync(async () => await InvokeEventAsync(RafManagerEntry))
-                .OnExitAsync(async () => await InvokeEventAsync(RafManagerExit, "RAF Manager"))
+                .OnExitAsync(async () => await InvokeEventAsync(RafManagerExit, _workflowStepNames.RAFManager))
                 .InternalTransition<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>>(_updateRafTrigger!, async (items, transition) =>
                     await InvokeEventAsync(UpdateRaf, items))
                 .Permit(Trigger.NextRafManagerToEnrichiExport, State.EnrichiExport)
@@ -157,7 +160,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             _machine.Configure(State.EnrichiExport)
                 .OnEntryAsync(async () => await InvokeEventAsync(EnrichiExportEntry))
-                .OnExitAsync(async () => await InvokeEventAsync(EnrichiExportExit, "Fichier Enrichie Generation"))
+                .OnExitAsync(async () => await InvokeEventAsync(EnrichiExportExit, _workflowStepNames.FichierEnrichieGeneration))
                 
                 .PermitIfAsync(Trigger.Reset, State.UploadInventoryFiles, async () => await InvokeResetCompleteAsync());
 

@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace RWA.Web.Application.Services.Validation.Fluent
 {
-    [RWA.Web.Application.Services.Validation.SupportedWorkflowStep("Upload inventory")]
+    [RWA.Web.Application.Services.Validation.SupportedWorkflowStep(nameof(WorkflowStepNamesMapping.UploadInventory))]
     public class MandatoryColumnsFluentValidator : AbstractValidator<WorkflowStep>
     {
         private static readonly string[] Required = new[] {

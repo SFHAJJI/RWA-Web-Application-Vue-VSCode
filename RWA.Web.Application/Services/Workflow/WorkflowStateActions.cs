@@ -28,6 +28,7 @@ namespace RWA.Web.Application.Services.Workflow
         private readonly IWorkflowDbProvider _dbProvider;
         private readonly IHubContext<WorkflowHub> _hubContext;
         private readonly WorkflowStatusMappingOptions _statusOptions;
+        private readonly WorkflowStepNamesMapping _workflowStepNames;
         private UploadTriggerCallbackDelegate? _uploadTriggerCallback;
         private ValidationTriggerCallbackDelegate? _validationTriggerCallback;
         private ErrorTriggerCallbackDelegate? _errorTriggerCallback;
@@ -41,7 +42,8 @@ namespace RWA.Web.Application.Services.Workflow
             IWebHostEnvironment env,
             IWorkflowDbProvider dbProvider,
             IHubContext<WorkflowHub> hubContext,
-            IOptions<WorkflowStatusMappingOptions> statusOptions)
+            IOptions<WorkflowStatusMappingOptions> statusOptions,
+            IOptions<WorkflowStepNamesMapping> workflowStepNames)
         {
             _importService = importService ?? throw new ArgumentNullException(nameof(importService));
             _validatorsFactory = validatorsFactory ?? throw new ArgumentNullException(nameof(validatorsFactory));
@@ -50,6 +52,7 @@ namespace RWA.Web.Application.Services.Workflow
             _dbProvider = dbProvider ?? throw new ArgumentNullException(nameof(dbProvider));
             _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
             _statusOptions = statusOptions?.Value ?? throw new ArgumentNullException(nameof(statusOptions));
+            _workflowStepNames = workflowStepNames?.Value ?? throw new ArgumentNullException(nameof(workflowStepNames));
         }
 
         public void SetTriggerCallbacks(
@@ -271,7 +274,7 @@ namespace RWA.Web.Application.Services.Workflow
         
         public async Task OnRWACategoryManagerEntryAsync()
         {
-            await ExecuteSafelyAsync(nameof(OnRWACategoryManagerEntryAsync), "RWACategoryManager", async () =>
+            await ExecuteSafelyAsync(nameof(OnRWACategoryManagerEntryAsync), _workflowStepNames.RWACategoryManager, async () =>
             {
                 Console.WriteLine($"[OnRWACategoryManagerEntryAsync] Entering RWA Category Manager step");
 
@@ -315,7 +318,7 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 // All mappings complete - mark step as successfully finished and transition to next step
                 Console.WriteLine($"[HandleCategoryMappingResultAsync] All mappings complete, setting step to SuccessStatus and transitioning to next step");
-                await _dbProvider.UpdateStepStatusAsync("RWA Category Manager", _statusOptions.SuccessStatus);
+                await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.RWACategoryManager, _statusOptions.SuccessStatus);
                 
                 // Notify UI of the successful completion
                 await SendToastNotificationAsync("success", "All RWA category mappings applied successfully.");
@@ -333,7 +336,7 @@ namespace RWA.Web.Application.Services.Workflow
                 
                 var payloadJson = JsonSerializer.Serialize(result);
                 
-                await _dbProvider.UpdateStepStatusAndDataAsync("RWA Category Manager", _statusOptions.ErrorStatus, payloadJson);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.RWACategoryManager, _statusOptions.ErrorStatus, payloadJson);
                 
                 // Notify UI via SignalR
                 await SendToastNotificationAsync("error", $"{result.MissingMappingRows.Count} RWA category mappings still require attention.");
@@ -357,7 +360,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             if (payload.BDDManagerPayload.OBLValidatorPayload.Count == 0 && payload.BDDManagerPayload.AddToBDDPayload.Count == 0)
             {
-                await _dbProvider.UpdateStepStatusAsync("BDD Manager", _statusOptions.SuccessStatus);
+                await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.BDDManager, _statusOptions.SuccessStatus);
                 if (_nextStepTriggerCallback != null)
                 {
                     await _nextStepTriggerCallback(Trigger.GoToRafManager);
@@ -367,14 +370,14 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 // 5. Update Workflow Step
                 var payloadJson = JsonSerializer.Serialize(payload);
-                await _dbProvider.UpdateStepStatusAndDataAsync("BDD Manager", _statusOptions.ErrorStatus, payloadJson);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.BDDManager, _statusOptions.ErrorStatus, payloadJson);
                 await NotifyWorkflowStepsUpdatedAsync();
             }
         }
 
         private async Task<(List<EnrichedInventaireDto> EnrichedItems, Dictionary<int, HecateInventaireNormalise> AllItemsDict)> FetchBddMatchingDataAsync()
         {
-            var previousStep = await _dbProvider.GetStepByNameAsync("RWA Category Manager");
+            var previousStep = await _dbProvider.GetStepByNameAsync(_workflowStepNames.RWACategoryManager);
             var enrichedItems = JsonSerializer.Deserialize<List<EnrichedInventaireDto>>(previousStep.DataPayload);
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
             var allItemsDict = allItems.ToDictionary(i => i.NumLigne, i => i);
@@ -480,7 +483,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnBDDManagerEntryAsync()
         {
-            await ExecuteSafelyAsync(nameof(OnBDDManagerEntryAsync), "BDDManager", async () =>
+            await ExecuteSafelyAsync(nameof(OnBDDManagerEntryAsync), _workflowStepNames.BDDManager, async () =>
             {
                 Console.WriteLine($"[OnBDDManagerEntryAsync] Entering BDD Manager step");
 
@@ -490,7 +493,7 @@ namespace RWA.Web.Application.Services.Workflow
         }
         public async Task OnRafManagerEntryAsync()
         {
-            await ExecuteSafelyAsync(nameof(OnRafManagerEntryAsync), "RafManager", async () =>
+            await ExecuteSafelyAsync(nameof(OnRafManagerEntryAsync), _workflowStepNames.RAFManager, async () =>
             {
                 Console.WriteLine($"[OnRafManagerEntryAsync] Entering Raf Manager step");
 
@@ -550,7 +553,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             // Initial update for empty RAF items
             var payloadJson = JsonSerializer.Serialize(payload);
-            await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
+            await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.RAFManager, _statusOptions.CurrentStatus, payloadJson);
             await NotifyWorkflowStepsUpdatedAsync();
 
             // Handle items with RAF
@@ -598,13 +601,13 @@ namespace RWA.Web.Application.Services.Workflow
 
                     payload.Dtos.Add(dto);
                      payloadJson = JsonSerializer.Serialize(payload);
-                    await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
+                    await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.RAFManager, _statusOptions.CurrentStatus, payloadJson);
                     await NotifyWorkflowStepsUpdatedAsync();
                 }
 
                 // Update after processing all items for the current RAF
                 payloadJson = JsonSerializer.Serialize(payload);
-                await _dbProvider.UpdateStepStatusAndDataAsync("RAF Manager", _statusOptions.CurrentStatus, payloadJson);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.RAFManager, _statusOptions.CurrentStatus, payloadJson);
                 await NotifyWorkflowStepsUpdatedAsync();
             }
         }
@@ -673,7 +676,7 @@ namespace RWA.Web.Application.Services.Workflow
             // 2. Create WorkflowStep for validation
             var workflowStep = new Models.WorkflowStep
             {
-                StepName = "UploadInventory",
+                StepName = _workflowStepNames.UploadInventory,
                 Status = _statusOptions.CurrentStatus,
                 DataPayload = parseResult.ParsedRowsJson
             };
@@ -707,7 +710,7 @@ namespace RWA.Web.Application.Services.Workflow
 
             var context = new ValidationResultContext
             {
-                StepName = "UploadInventory",
+                StepName = _workflowStepNames.UploadInventory,
                 ValidationResult = aggregateValidationResult,
                 ParsedFiles = parsedFiles
             };
@@ -733,12 +736,12 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnTriggerUploadAsync(List<(string FileName, byte[] Content)> files)
         {
-            await ExecuteSafelyAsync(nameof(OnTriggerUploadAsync), "UploadInventory", async () =>
+            await ExecuteSafelyAsync(nameof(OnTriggerUploadAsync), _workflowStepNames.UploadInventory, async () =>
             {
                 Console.WriteLine($"[OnTriggerUploadAsync] Processing upload: {files.Count} files - [{string.Join(", ", files.Select(f => $"{f.FileName} ({f.Content.Length} bytes)"))}]");
 
                 var fileProcessingResults = new List<FileProcessingResult>();
-                var validators = _validatorsFactory.GetValidatorsFor("Upload inventory");
+                var validators = _validatorsFactory.GetValidatorsFor(_workflowStepNames.UploadInventory);
                 foreach (var file in files)
                 {
                     var result = await ProcessAndValidateFileAsync(file, validators);
@@ -759,7 +762,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnUploadPendingAsync(AggregateUploadResultContext aggregateContext)
         {
-            await ExecuteSafelyAsync(nameof(OnUploadPendingAsync), "UploadInventory", async () =>
+            await ExecuteSafelyAsync(nameof(OnUploadPendingAsync), _workflowStepNames.UploadInventory, async () =>
             {
                 var importTasks = aggregateContext.Results.Select(async context =>
                 {
@@ -793,12 +796,12 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnUploadSuccessAsync(AggregateUploadResultContext context)
         {
-            await ExecuteSafelyAsync(nameof(OnUploadSuccessAsync), "UploadInventory", async () =>
+            await ExecuteSafelyAsync(nameof(OnUploadSuccessAsync), _workflowStepNames.UploadInventory, async () =>
             {
                 Console.WriteLine($"[OnUploadSuccessAsync] Upload completed successfully for all files.");
 
                 // ATOMIC UPDATE: Update current step to SuccessStatus
-                await _dbProvider.UpdateStepStatusAndDataAsync("Upload inventory", _statusOptions.SuccessStatus, string.Empty);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.UploadInventory, _statusOptions.SuccessStatus, string.Empty);
                 Console.WriteLine($"[OnUploadSuccessAsync] Set step status to SuccessStatus using atomic update");
 
                 // Success notification for all successful files
@@ -819,10 +822,10 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnUploadFailedAsync(AggregateUploadResultContext context)
         {
-            await ExecuteSafelyAsync(nameof(OnUploadFailedAsync), "UploadInventory", async () =>
+            await ExecuteSafelyAsync(nameof(OnUploadFailedAsync), _workflowStepNames.UploadInventory, async () =>
             {
                 // Update step status to ErrorStatus
-                await _dbProvider.UpdateStepStatusAsync("Upload inventory", _statusOptions.ErrorStatus);
+                await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.UploadInventory, _statusOptions.ErrorStatus);
 
                 // Error notification for each failed file
                 foreach (var result in context.Results.Where(r => !r.IsSuccess))
@@ -837,7 +840,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
         {
-            await ExecuteSafelyAsync(nameof(OnApplyRwaMappingsAsync), "RWACategoryManager", async () =>
+            await ExecuteSafelyAsync(nameof(OnApplyRwaMappingsAsync), _workflowStepNames.RWACategoryManager, async () =>
             {
                 Console.WriteLine($"[OnApplyRwaMappingsAsync] Applying {mappings.Count} RWA mappings");
 
@@ -865,12 +868,12 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings)
         {
-            await ExecuteSafelyAsync(nameof(OnApplyEquivalenceMappingsAsync), "RWACategoryManager", () => Task.CompletedTask, mappings);
+            await ExecuteSafelyAsync(nameof(OnApplyEquivalenceMappingsAsync), _workflowStepNames.RWACategoryManager, () => Task.CompletedTask, mappings);
         }
 
         public async Task OnAddBddHistoriqueAsync(List<HecateInterneHistoriqueDto> items)
         {
-            await ExecuteSafelyAsync(nameof(OnAddBddHistoriqueAsync), "BDDManager", async () =>
+            await ExecuteSafelyAsync(nameof(OnAddBddHistoriqueAsync), _workflowStepNames.BDDManager, async () =>
             {
                 try
                 {
@@ -887,7 +890,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnUpdateObligationsAsync(List<ObligationUpdateDto> items)
         {
-            await ExecuteSafelyAsync(nameof(OnUpdateObligationsAsync), "BDDManager", async () =>
+            await ExecuteSafelyAsync(nameof(OnUpdateObligationsAsync), _workflowStepNames.BDDManager, async () =>
             {
                 try
                 {
@@ -902,7 +905,7 @@ namespace RWA.Web.Application.Services.Workflow
         }
         public async Task OnUpdateRafAsync(List<HecateTethysDto> items)
         {
-            await ExecuteSafelyAsync(nameof(OnUpdateRafAsync), "RafManager", async () =>
+            await ExecuteSafelyAsync(nameof(OnUpdateRafAsync), _workflowStepNames.RAFManager, async () =>
             {
                 try
                 {
@@ -920,7 +923,7 @@ namespace RWA.Web.Application.Services.Workflow
         {
             if (success)
             {
-                await _dbProvider.UpdateStepStatusAsync("BDD Manager", _statusOptions.SuccessStatus);
+                await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.BDDManager, _statusOptions.SuccessStatus);
                 await SendToastNotificationAsync("success", "Items successfully added to BDD.");
                 if (_nextStepTriggerCallback != null)
                 {
@@ -934,7 +937,7 @@ namespace RWA.Web.Application.Services.Workflow
                     var errorContext = new UnexpectedErrorContext
                     {
                         ErrorMessage = $"Failed to add items to BDD: {errorMessage}",
-                        StepName = "BDDManager"
+                        StepName = _workflowStepNames.BDDManager
                     };
                     await _errorTriggerCallback(Trigger.UnexpectedError, errorContext);
                 }
@@ -947,7 +950,7 @@ namespace RWA.Web.Application.Services.Workflow
                 var allRafsCompleted = await _dbProvider.AreAllRafsCompletedAsync();
                 if (allRafsCompleted)
                 {
-                    await _dbProvider.UpdateStepStatusAsync("RAF Manager", _statusOptions.SuccessStatus);
+                    await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.RAFManager, _statusOptions.SuccessStatus);
                     await SendToastNotificationAsync("success", "All Rafs updated successfully.");
                     if (_nextStepTriggerCallback != null)
                     {
@@ -956,7 +959,7 @@ namespace RWA.Web.Application.Services.Workflow
                 }
                 else
                 {
-                    await _dbProvider.UpdateStepStatusAsync("RAF Manager", _statusOptions.CurrentWarningStatus);
+                    await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.RAFManager, _statusOptions.CurrentWarningStatus);
                     await SendToastNotificationAsync("warning", "Some Rafs are still missing.");
                     await NotifyWorkflowStepsUpdatedAsync();
                 }
@@ -968,7 +971,7 @@ namespace RWA.Web.Application.Services.Workflow
                     var errorContext = new UnexpectedErrorContext
                     {
                         ErrorMessage = $"Failed to update Rafs: {errorMessage}",
-                        StepName = "RAF Manager"
+                        StepName = _workflowStepNames.RAFManager
                     };
                     await _errorTriggerCallback(Trigger.UnexpectedError, errorContext);
                 }
@@ -990,7 +993,7 @@ namespace RWA.Web.Application.Services.Workflow
                     var errorContext = new UnexpectedErrorContext
                     {
                         ErrorMessage = $"Failed to update obligations: {errorMessage}",
-                        StepName = "BDDManager"
+                        StepName = _workflowStepNames.BDDManager
                     };
                     await _errorTriggerCallback(Trigger.UnexpectedError, errorContext);
                 }
@@ -1005,7 +1008,7 @@ namespace RWA.Web.Application.Services.Workflow
 
                 // ATOMIC CLEAR: Clear any previous validation messages atomically
                 Console.WriteLine($"[OnValidationSuccessAsync] Clearing validation messages atomically");
-                await _dbProvider.UpdateStepStatusAndDataAsync("Upload inventory", _statusOptions.CurrentStatus, string.Empty);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.UploadInventory, _statusOptions.CurrentStatus, string.Empty);
                 Console.WriteLine($"[OnValidationSuccessAsync] Validation messages cleared successfully");
 
                 // Trigger UploadPending for all files to start database import
@@ -1050,7 +1053,7 @@ namespace RWA.Web.Application.Services.Workflow
 
                 // ATOMIC UPDATE: Use the new method that handles load-modify-save in one context
                 Console.WriteLine($"[OnValidationWarningAsync] Updating step atomically - Status: CurrentWarningStatus, ValidationMessages: {validationDtos.Count}");
-                await _dbProvider.UpdateStepStatusAndDataAsync("Upload inventory", _statusOptions.CurrentWarningStatus, jsonPayload);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.UploadInventory, _statusOptions.CurrentWarningStatus, jsonPayload);
                 Console.WriteLine($"[OnValidationWarningAsync] Step updated successfully");
 
                 // Notify UI with updated steps (clean approach)
@@ -1099,7 +1102,7 @@ namespace RWA.Web.Application.Services.Workflow
 
                 // ATOMIC UPDATE: Use the new method that handles load-modify-save in one context
                 Console.WriteLine($"[OnValidationErrorAsync] Updating step atomically - Status: ErrorStatus, ValidationMessages: {validationDtos.Count}");
-                await _dbProvider.UpdateStepStatusAndDataAsync("Upload inventory", _statusOptions.ErrorStatus, jsonPayload);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.UploadInventory, _statusOptions.ErrorStatus, jsonPayload);
                 Console.WriteLine($"[OnValidationErrorAsync] Step updated successfully");
 
                 // Notify UI with updated steps (clean approach)
@@ -1196,11 +1199,11 @@ namespace RWA.Web.Application.Services.Workflow
         {
             return stateName switch
             {
-                "UploadInventoryFiles" => "Upload inventory",
-                "RWACategoryManager" => "RWA Category Manager",
-                "BDDManager" => "BDD Manager",
-                "RafManager" => "RAF Manager",
-                "EnrichiExport" => "Fichier Enrichie Generation",
+                "UploadInventoryFiles" => _workflowStepNames.UploadInventory,
+                "RWACategoryManager" => _workflowStepNames.RWACategoryManager,
+                "BDDManager" => _workflowStepNames.BDDManager,
+                "RafManager" => _workflowStepNames.RAFManager,
+                "EnrichiExport" => _workflowStepNames.FichierEnrichieGeneration,
                 _ => null
             };
         }
