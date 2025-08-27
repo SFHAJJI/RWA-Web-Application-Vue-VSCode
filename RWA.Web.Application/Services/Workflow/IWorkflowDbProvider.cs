@@ -10,7 +10,6 @@ namespace RWA.Web.Application.Services.Workflow
         Task<IEnumerable<object>> GetCategoriesForDropdownAsync();
         Task<WorkflowStep?> GetStepByNameAsync(string stepName);
         Task<WorkflowStep?> GetCurrentStepAsync();
-        Task SeedDefaultWorkflowIfEmptyAsync();
         Task<System.Collections.Generic.List<WorkflowStep>> GetStepsSnapshotAsync();
         Task AddRangeWorkflowStepsAsync(IEnumerable<WorkflowStep> steps);
         Task SaveChangesAsync();

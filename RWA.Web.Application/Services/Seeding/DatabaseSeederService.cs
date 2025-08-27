@@ -39,6 +39,8 @@ namespace RWA.Web.Application.Services.Seeding
                 }
 
              
+  // PHASE 5: WORKFLOW STEPS
+                await SeedWorkflowStepsAsync();
 
                 // PHASE 2: Tasks related to EquivalenceCatRWA file. Run sequentially.
                 Console.WriteLine("⚡ PHASE 2: Processing EquivalenceCatRWA prerequisite tasks...");
@@ -57,7 +59,7 @@ namespace RWA.Web.Application.Services.Seeding
                 await SeedTethysAsync();
                 // PHASE 4: 👥 USER DATA
                 await SeedUsersAsync();
-
+              
                 totalStopwatch.Stop();
                 Console.WriteLine($"🏆 ULTRA-FAST SEEDING COMPLETED: {totalStopwatch.ElapsedMilliseconds}ms total");
             }
@@ -65,6 +67,37 @@ namespace RWA.Web.Application.Services.Seeding
             {
                 Console.WriteLine($"💥 SEEDING FAILED: {ex.Message}");
                 throw;
+            }
+        }
+
+        private async Task SeedWorkflowStepsAsync()
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                if (await _context.WorkflowSteps.AnyAsync())
+                {
+                    Console.WriteLine("⚡ Workflow steps already seeded - SKIPPING");
+                    return;
+                }
+
+                var steps = new[] {
+                    new WorkflowStep { StepName = "Upload inventory", Status = "Current", DataPayload = "{}" },
+                    new WorkflowStep { StepName = "RWA Category Manager", Status = "Pending", DataPayload = "{}" },
+                    new WorkflowStep { StepName = "BDD Manager", Status = "Pending", DataPayload = "{}" },
+                    new WorkflowStep { StepName = "RAF Manager", Status = "Pending", DataPayload = "{}" },
+                    new WorkflowStep { StepName = "Fichier Enrichie Generation", Status = "Pending", DataPayload = "{}" }
+                };
+
+                await _context.WorkflowSteps.AddRangeAsync(steps);
+                await _context.SaveChangesAsync();
+
+                sw.Stop();
+                Console.WriteLine($"⚡ Workflow Steps: {steps.Length} records in {sw.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"💥 Workflow Steps failed: {ex.Message}");
             }
         }
 

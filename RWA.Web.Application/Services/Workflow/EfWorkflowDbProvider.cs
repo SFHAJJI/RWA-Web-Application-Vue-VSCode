@@ -127,33 +127,6 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
-        public async Task SeedDefaultWorkflowIfEmptyAsync()
-        {
-            try
-            {
-                await WithDbAsync(async db =>
-                {
-                    var existing = await db.WorkflowSteps.ToListAsync();
-                    if (existing.Any()) return;
-
-                    var steps = new[] {
-                        new WorkflowStep { StepName = "Upload inventory", Status = _statusOptions.CurrentStatus, DataPayload = "{}" },
-                        new WorkflowStep { StepName = "RWA Category Manager", Status = _statusOptions.PendingStatus, DataPayload = "{}" },
-                        new WorkflowStep { StepName = "BDD Manager", Status = _statusOptions.PendingStatus, DataPayload = "{}" },
-                        new WorkflowStep { StepName = "RAF Manager", Status = _statusOptions.PendingStatus, DataPayload = "{}" },
-                        new WorkflowStep { StepName = "Fichier Enrichie Generation", Status = _statusOptions.PendingStatus, DataPayload = "{}" }
-                    };
-
-                    db.WorkflowSteps.AddRange(steps);
-                    await db.SaveChangesAsync();
-                });
-            }
-            catch (ObjectDisposedException)
-            {
-                // Context disposed, ignore
-            }
-        }
-
         public async Task<System.Collections.Generic.List<WorkflowStep>> GetStepsSnapshotAsync()
         {
             try

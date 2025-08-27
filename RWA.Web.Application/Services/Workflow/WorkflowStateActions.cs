@@ -1210,7 +1210,6 @@ namespace RWA.Web.Application.Services.Workflow
         {
             return await ExecuteSafelyAsync(nameof(GetWorkflowStepsSnapshotAsync), "Unknown", async () =>
             {
-                await _dbProvider.SeedDefaultWorkflowIfEmptyAsync();
                 var steps = await _dbProvider.GetStepsSnapshotAsync();
                 return steps.Select(s => new RWA.Web.Application.Models.Dtos.WorkflowStepDto
                 {
