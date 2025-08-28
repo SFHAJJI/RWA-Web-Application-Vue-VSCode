@@ -110,7 +110,7 @@
                                                 </v-tooltip>
                                             </template>
                                         </v-text-field>
-                                        <span v-else>{{ formatDateForDisplay(item.dateMaturite) }}</span>
+                                        <span v-else>{{ item.dateMaturite }}</span>
                                     </template>
                                     <span v-else>{{ item[header.value] }}</span>
                                 </div>
@@ -142,8 +142,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import { getOblValidationColumns, getOblValidationData, submitOblValidation } from '../../api/bddManagerApi';
 import type { HecateInventaireNormaliseDto } from '../../types/bddManager';
+
+dayjs.extend(customParseFormat);
+dayjs.extend(isSameOrAfter);
 
 const loading = ref(false);
 const formValid = ref(true);
@@ -166,18 +172,12 @@ const rules = {
     },
     date: (value: any, periodeCloture?: string, minDateOverride?: string) => {
         if (!value) return 'Required.';
-        const pattern = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/\d{4}$/;
-        if (!pattern.test(value)) return 'Format must be dd/mm/yyyy.';
-        
-        const [day, month, year] = value.split('/').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-            return 'Invalid date.';
-        }
+        const date = dayjs(value, 'DD/MM/YYYY', true);
+        if (!date.isValid()) return 'Format must be dd/mm/yyyy.';
 
-        const minDate = minDateOverride ? new Date(minDateOverride) : getMinDate(periodeCloture);
-        if (minDate && date < minDate) {
-            return `Date must be on or after ${formatDateForDisplay(minDate)}.`;
+        const minDate = minDateOverride ? dayjs(minDateOverride) : getMinDate(periodeCloture);
+        if (minDate && date.isBefore(minDate, 'day')) {
+            return `Date must be on or after ${minDate.format('DD/MM/YYYY')}.`;
         }
         return true;
     }
@@ -188,7 +188,7 @@ const getMinDate = (periodeCloture?: string) => {
     try {
         const month = parseInt(periodeCloture.substring(0, 2));
         const year = parseInt(periodeCloture.substring(2, 6));
-        return new Date(year, month, 0);
+        return dayjs(new Date(year, month, 0));
     } catch {
         return undefined;
     }
@@ -198,10 +198,10 @@ const earliestMinDate = computed(() => {
     const dates = rows.value
         .filter(r => r.isDateMaturiteInvalid)
         .map(row => getMinDate(row.periodeCloture))
-        .filter(date => date !== undefined) as Date[];
+        .filter(date => date !== undefined) as dayjs.Dayjs[];
     if (dates.length === 0) return undefined;
-    const earliest = new Date(Math.min(...dates.map(d => d.getTime())));
-    return earliest.toISOString().split('T')[0];
+    const earliest = dayjs(Math.min(...dates.map(d => d.valueOf())));
+    return earliest.format('YYYY-MM-DD');
 });
 
 const isFieldInvalid = (row: HecateInventaireNormaliseDto, field: 'tauxObligation' | 'dateMaturite') => {
@@ -229,17 +229,10 @@ const isSubmitDisabled = computed(() => {
     return submitDisabled.value;
 });
 
-const formatDateForDisplay = (date: string | null | Date) => {
+const formatDateForDisplay = (date: string | null) => {
     if (!date) return '';
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return date.toString();
-    return d.toLocaleDateString('fr-FR');
-};
-
-const parseDateForModel = (dateStr: string | null) => {
-    if (!dateStr || rules.date(dateStr) !== true) return null;
-    const [day, month, year] = dateStr.split('/').map(Number);
-    return new Date(year, month - 1, day).toISOString().split('T')[0];
+    const d = dayjs(date);
+    return d.isValid() ? d.format('DD/MM/YYYY') : date.toString();
 };
 
 const applyDateToAll = () => {
@@ -248,7 +241,7 @@ const applyDateToAll = () => {
     rows.value.forEach(row => {
         if (row.isDateMaturiteInvalid) {
             const minDate = getMinDate(row.periodeCloture);
-            if (minDate && new Date(dateToApply) >= minDate) {
+            if (minDate && dayjs(dateToApply, 'DD/MM/YYYY').isSameOrAfter(minDate, 'day')) {
                 row.dateMaturite = dateToApply;
             }
         }
@@ -271,11 +264,7 @@ const exportToXLSX = () => {
     const dataToExport = rows.value.map(row => {
         const rowData: any = {};
         headerKeys.forEach(key => {
-            let value = (row as any)[key];
-            if (key === 'dateMaturite') {
-                value = formatDateForDisplay(value);
-            }
-            rowData[key] = value;
+            rowData[key] = (row as any)[key];
         });
         return rowData;
     });
@@ -330,11 +319,7 @@ const submit = async () => {
     try {
         const dataToSubmit = rows.value.map(row => {
             const { isTauxObligationInvalid, isDateMaturiteInvalid, ...rest } = row as any;
-            return {
-                ...rest,
-                tauxObligation: rest.tauxObligation === null || rest.tauxObligation === '' ? null : Number(rest.tauxObligation),
-                dateMaturite: parseDateForModel(rest.dateMaturite)
-            };
+            return rest;
         });
         console.log('Submitting data:', JSON.stringify(dataToSubmit, null, 2));
         await submitOblValidation(dataToSubmit);

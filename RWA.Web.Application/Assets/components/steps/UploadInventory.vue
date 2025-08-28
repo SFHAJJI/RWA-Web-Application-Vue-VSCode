@@ -56,6 +56,7 @@ const uploadFiles = async () => {
         return;
     }
 
+    store.setStepLoading('upload-inventory', true);
     const formData = new FormData();
     for (const file of files.value) {
         // the server expects a single file parameter named 'file' (IFormFile)
@@ -64,6 +65,7 @@ const uploadFiles = async () => {
     await store.uploadFiles(formData);
     // clear local selection after successful upload
     files.value = [];
+    store.setStepLoading('upload-inventory', false);
 };
 
 const errorRows = computed(() => {

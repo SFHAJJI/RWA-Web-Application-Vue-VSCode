@@ -731,21 +731,17 @@ namespace RWA.Web.Application.Services.Workflow
                 foreach (var entity in entities)
                 {
                     var item = items.First(i => i.NumLigne == entity.NumLigne);
-                    if (item.IsDateMaturiteInvalid)
+                    
+                    if (DateOnly.TryParseExact(item.DateMaturite, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
                     {
-                        if (DateOnly.TryParseExact(item.DateMaturite, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
-                        {
-                            entity.DateMaturite = parsedDate;
-                        }
-                        else
-                        {
-                            entity.DateMaturite = null;
-                        }
+                        entity.DateMaturite = parsedDate;
                     }
-                    if (item.IsTauxObligationInvalid)
+                    else
                     {
-                        entity.TauxObligation = item.TauxObligation;
+                        entity.DateMaturite = null;
                     }
+        
+                    entity.TauxObligation = item.TauxObligation;
                 }
 
                 await db.SaveChangesAsync();

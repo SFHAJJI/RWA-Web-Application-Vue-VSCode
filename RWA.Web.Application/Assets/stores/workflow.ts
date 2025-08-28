@@ -292,7 +292,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     function initSignalR() {
         connection.value = new HubConnectionBuilder()
             .withUrl("/workflowHub")
-            .withAutomaticReconnect()
+            .withAutomaticReconnect([0, 2000, 10000, 30000, null])
             .build();
 
             connection.value.on("ReceiveWorkflowUpdate", (steps) => {

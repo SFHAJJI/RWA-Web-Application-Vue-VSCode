@@ -532,15 +532,16 @@ namespace RWA.Web.Application.Services.Workflow
                 var categories = await _dbProvider.GetCategorieRwaOptionsAsync();
                 var categoriesDict = categories.ToDictionary(c => c.IdCatRwa, c => c);
 
-                var enrichedItems = allItems.Select(item => new EnrichedInventaireDto
+                Parallel.ForEach(allItems, item =>
                 {
-                    NumLigne = item.NumLigne,
-                    IsValeurMobiliere = categoriesDict.ContainsKey(item.RefCategorieRwa) && ((categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("Y", StringComparison.OrdinalIgnoreCase) ?? false) || (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false)),
-                    Libelle = categoriesDict.ContainsKey(item.RefCategorieRwa) ? categoriesDict[item.RefCategorieRwa].Libelle : string.Empty
-                }).ToList();
+                    var isValeurMobiliere = categoriesDict.ContainsKey(item.RefCategorieRwa) &&
+                                            ((categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("Y", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                             (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false));
 
-                var payloadJson = JsonSerializer.Serialize(enrichedItems);
-                await _dbProvider.UpdateStepStatusAndDataAsync(stepName, _statusOptions.SuccessStatus, payloadJson);
+                    item.AdditionalInformation = new AdditionalInformation { IsValeurMobiliere = isValeurMobiliere };
+                });
+
+                await _dbProvider.UpdateInventaireNormaliseRangeAsync(allItems);
             });
         }
 
