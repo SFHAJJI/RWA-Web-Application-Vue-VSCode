@@ -39,6 +39,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         // BDD Manager specific methods
         Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsync();
+        Task<List<HecateInterneHistorique>> GetAllHecateInterneHistoriqueAsync();
         Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate);
         Task AddBddHistoriqueAsync(List<HecateInterneHistoriqueDto> items);
         Task UpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto> items);

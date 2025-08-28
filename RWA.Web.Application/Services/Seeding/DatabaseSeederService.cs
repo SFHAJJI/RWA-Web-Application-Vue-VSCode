@@ -108,7 +108,7 @@ namespace RWA.Web.Application.Services.Seeding
             var sw = Stopwatch.StartNew();
             try
             {
-                var filePath = Path.Combine(_rwaDatoDir, "Config", "BDDHistorique.xlsx");
+                var filePath = Path.Combine(_rwaDatoDir, "Config", "BDDHistoriqueTest.xlsx");
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"⚠️  BDD Historique file not found: {filePath}");
@@ -160,7 +160,7 @@ namespace RWA.Web.Application.Services.Seeding
             var sw = Stopwatch.StartNew();
             try
             {
-                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
+                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWATest.xlsx");
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
@@ -202,7 +202,7 @@ namespace RWA.Web.Application.Services.Seeding
             var sw = Stopwatch.StartNew();
             try
             {
-                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
+                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWATest.xlsx");
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
@@ -243,7 +243,7 @@ namespace RWA.Web.Application.Services.Seeding
             var sw = Stopwatch.StartNew();
             try
             {
-                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
+                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWATest.xlsx");
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
@@ -286,7 +286,7 @@ namespace RWA.Web.Application.Services.Seeding
             var sw = Stopwatch.StartNew();
             try
             {
-                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
+                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWATest.xlsx");
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");
@@ -329,7 +329,7 @@ namespace RWA.Web.Application.Services.Seeding
             var sw = Stopwatch.StartNew();
             try
             {
-                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWA.xlsx");
+                var filePath = Path.Combine(_rwaDatoDir, "Config", "EquivalenceCatRWATest.xlsx");
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"⚠️  EquivalenceCatRWA file not found: {filePath}");

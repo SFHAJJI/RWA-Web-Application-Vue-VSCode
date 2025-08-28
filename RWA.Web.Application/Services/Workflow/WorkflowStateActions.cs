@@ -368,8 +368,9 @@ namespace RWA.Web.Application.Services.Workflow
             else
             {
                 statusPayload.OBLValidationStepStatus = "Finished";
-                var notMatchedByBdd = allItems.Where(i => string.IsNullOrEmpty(i.Rafenrichi)).ToList();
-                var itemsToAdd = notMatchedByBdd.Where(s => !string.IsNullOrEmpty(s.Raf)).ToList();
+                var itemsToProcess = await PerformBddMatching(allItems);
+
+                var itemsToAdd = itemsToProcess.Where(i => i.AdditionalInformation.AddtoBDDDto.AddToBDD).ToList();
 
                 if (itemsToAdd.Any())
                 {
@@ -389,6 +390,40 @@ namespace RWA.Web.Application.Services.Workflow
                     }
                 }
             }
+        }
+
+        private async Task<List<HecateInventaireNormalise>> PerformBddMatching(List<HecateInventaireNormalise> allItems)
+        {
+            var bddItems = await _dbProvider.GetAllHecateInterneHistoriqueAsync();
+            var bddIdUniqueRetenuSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantUniqueRetenu));
+            var bddIdOrigineSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantOrigine));
+
+            var itemsToProcess = allItems.Where(i => i.AdditionalInformation.IsValeurMobiliere).ToList();
+
+            Parallel.ForEach(itemsToProcess, item =>
+            {
+                var additionalInfo = item.AdditionalInformation;
+                if (bddIdUniqueRetenuSet.Contains(item.IdentifiantOrigine))
+                {
+                    var match = bddItems.First(b => b.IdentifiantUniqueRetenu == item.IdentifiantOrigine);
+                    additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdUniqueRetenu = true };
+                    item.Raf = match.Raf;
+                }
+                else if (bddIdOrigineSet.Contains(item.IdentifiantOrigine))
+                {
+                    var match = bddItems.First(b => b.IdentifiantOrigine == item.IdentifiantOrigine);
+                    additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdOrigine = true };
+                    item.Raf = match.Raf;
+                }
+                else
+                {
+                    additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = true };
+                }
+                item.AdditionalInformation = additionalInfo;
+            });
+
+            await _dbProvider.UpdateInventaireNormaliseRangeAsync(itemsToProcess);
+            return itemsToProcess;
         }
 
         public async Task OnBDDManagerEntryAsync()

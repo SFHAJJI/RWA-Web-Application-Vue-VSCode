@@ -119,7 +119,7 @@ public partial class HecateInventaireNormalise
             IdentifiantUniqueRetenu = this.IdentifiantUniqueRetenu,
             Raf = this.Raf,
             LibelleOrigine = this.LibelleOrigine,
-            DateEcheance = this.DateFinContrat?.ToString("dd/MM/yyyy") ?? string.Empty
+            DateEcheance = this.DateFinContrat?.ToString("yyyy-MM-dd") ?? string.Empty
         };
     }
 

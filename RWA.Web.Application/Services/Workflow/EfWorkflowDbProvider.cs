@@ -543,10 +543,16 @@ namespace RWA.Web.Application.Services.Workflow
                         Cat1: inventoryRow.Categorie1 ?? string.Empty,
                         Cat2: inventoryRow.Categorie2 ?? string.Empty
                     );
+                    
+                    _logger.LogInformation("Processing row {NumLigne}: Source='{Source}', Cat1='{Cat1}', Cat2='{Cat2}'", 
+                        inventoryRow.NumLigne, key.Source, key.Cat1, key.Cat2);
+
                     var mapping = mappingLookup[key].FirstOrDefault();
 
                     if (mapping != null)
                     {
+                        _logger.LogInformation("Row {NumLigne} SUCCESS: Found mapping to RWA Category '{RwaCat}'", 
+                            inventoryRow.NumLigne, mapping.RefCategorieRwa);
                         inventoryRow.RefCategorieRwa = mapping.RefCategorieRwa;
                         if (categoriesRwa.TryGetValue(mapping.RefCategorieRwa, out var categorieRwa))
                         {
@@ -559,6 +565,8 @@ namespace RWA.Web.Application.Services.Workflow
                     }
                     else
                     {
+                        _logger.LogWarning("Row {NumLigne} FAILED: No mapping found for key (Source='{Source}', Cat1='{Cat1}', Cat2='{Cat2}')", 
+                            inventoryRow.NumLigne, key.Source, key.Cat1, key.Cat2);
                         lock (failedMappings)
                         {
                             failedMappings.Add(inventoryRow);
@@ -699,7 +707,13 @@ namespace RWA.Web.Application.Services.Workflow
             });
         }
 
-        
+        public async Task<List<HecateInterneHistorique>> GetAllHecateInterneHistoriqueAsync()
+        {
+            return await WithDbAsync(async db =>
+            {
+                return await db.HecateInterneHistoriques.AsNoTracking().ToListAsync();
+            });
+        }
 
         public async Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate)
         {

@@ -293,11 +293,12 @@ namespace RWA.Web.Application.Controllers
             return Ok(columns);
         }
 
-        [HttpPost("add-to-bdd-data")]
+        [HttpGet("add-to-bdd-data")]
         public async Task<IActionResult> GetAddToBddData()
         {
-             var data = await (_orchestrator as WorkflowOrchestrator).GetItemsToAddTobdd();
-            var dto = data.Select(i => i.ToBddHistoDto());
+            var data = await (_orchestrator as WorkflowOrchestrator).GetItemsToAddTobdd();
+            var filteredData = data.Where(i => i.AdditionalInformation.AddtoBDDDto.AddToBDD);
+            var dto = filteredData.Select(i => i.ToBddHistoDto());
             return Ok(dto);
         }
 
