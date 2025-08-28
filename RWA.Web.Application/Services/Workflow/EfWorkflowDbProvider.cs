@@ -510,12 +510,7 @@ namespace RWA.Web.Application.Services.Workflow
         {
             return await WithDbAsync(async db =>
             {
-                // 1. Get all uploaded inventory rows that don't have RefCategorieRwa set
-                var inventoryRows = await db.HecateInventaireNormalises
-                    .Where(h => string.IsNullOrEmpty(h.RefCategorieRwa))
-                    .ToListAsync();
-
-                // 2. Get all equivalence mappings with their navigation properties
+                // 1. Get all equivalence mappings with their navigation properties
                 var equivalenceMappings = await db.HecateEquivalenceCatRwas
                     .Include(e => e.RefCatDepositaire1Navigation)
                     .Include(e => e.RefCatDepositaire2Navigation)
@@ -532,6 +527,12 @@ namespace RWA.Web.Application.Services.Workflow
                         Cat2: em.RefCatDepositaire2Navigation?.LibelleDepositaire2 ?? string.Empty
                     ), new CaseInsensitiveTupleComparer());
 
+                // 2. Get all uploaded inventory rows that don't have RefCategorieRwa set, using AsNoTracking
+                var inventoryRows = await db.HecateInventaireNormalises
+                    .Where(h => string.IsNullOrEmpty(h.RefCategorieRwa))
+                    .AsNoTracking()
+                    .ToListAsync();
+
                 var successfulMappings = new List<HecateInventaireNormalise>();
                 var failedMappings = new List<HecateInventaireNormalise>();
 
@@ -543,16 +544,11 @@ namespace RWA.Web.Application.Services.Workflow
                         Cat1: inventoryRow.Categorie1 ?? string.Empty,
                         Cat2: inventoryRow.Categorie2 ?? string.Empty
                     );
-                    
-                    _logger.LogInformation("Processing row {NumLigne}: Source='{Source}', Cat1='{Cat1}', Cat2='{Cat2}'", 
-                        inventoryRow.NumLigne, key.Source, key.Cat1, key.Cat2);
 
                     var mapping = mappingLookup[key].FirstOrDefault();
 
                     if (mapping != null)
                     {
-                        _logger.LogInformation("Row {NumLigne} SUCCESS: Found mapping to RWA Category '{RwaCat}'", 
-                            inventoryRow.NumLigne, mapping.RefCategorieRwa);
                         inventoryRow.RefCategorieRwa = mapping.RefCategorieRwa;
                         if (categoriesRwa.TryGetValue(mapping.RefCategorieRwa, out var categorieRwa))
                         {
@@ -565,8 +561,6 @@ namespace RWA.Web.Application.Services.Workflow
                     }
                     else
                     {
-                        _logger.LogWarning("Row {NumLigne} FAILED: No mapping found for key (Source='{Source}', Cat1='{Cat1}', Cat2='{Cat2}')", 
-                            inventoryRow.NumLigne, key.Source, key.Cat1, key.Cat2);
                         lock (failedMappings)
                         {
                             failedMappings.Add(inventoryRow);
