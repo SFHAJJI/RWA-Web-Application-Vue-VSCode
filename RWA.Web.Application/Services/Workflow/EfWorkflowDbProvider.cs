@@ -287,34 +287,36 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
-        private async Task<long> GetOrCreateCatDepositaire1Async(string libelle)
+        private async Task<long> GetOrCreateCategoryAsync<TEntity, TKey>(DbSet<TEntity> dbSet, System.Linq.Expressions.Expression<Func<TEntity, bool>> predicate, Func<TEntity> createEntity, Func<TEntity, TKey> getKey) where TEntity : class
         {
             return await WithDbAsync(async db =>
             {
-                var cat = await db.HecateCatDepositaire1s.FirstOrDefaultAsync(c => c.LibelleDepositaire1.TrimmedEquals(libelle, StringComparison.OrdinalIgnoreCase));
+                var cat = await dbSet.FirstOrDefaultAsync(predicate);
                 if (cat == null)
                 {
-                    cat = new HecateCatDepositaire1 { LibelleDepositaire1 = libelle };
-                    db.HecateCatDepositaire1s.Add(cat);
+                    cat = createEntity();
+                    dbSet.Add(cat);
                     await db.SaveChangesAsync();
                 }
-                return cat.IdDepositaire1;
+                return (long)Convert.ChangeType(getKey(cat), typeof(long));
             });
         }
 
-        private async Task<long> GetOrCreateCatDepositaire2Async(string libelle)
+        private void UpdateIdentifiantUniqueRetenu(HecateInventaireNormalise item, HecateCategorieRwa categorieRwa)
         {
-            return await WithDbAsync(async db =>
+            if (categorieRwa != null)
             {
-                var cat = await db.HecateCatDepositaire2s.FirstOrDefaultAsync(c => c.LibelleDepositaire2.TrimmedEquals(libelle, StringComparison.OrdinalIgnoreCase));
-                if (cat == null)
+                if (categorieRwa.ValeurMobiliere.Trim().Equals("O", StringComparison.OrdinalIgnoreCase))
                 {
-                    cat = new HecateCatDepositaire2 { LibelleDepositaire2 = libelle };
-                    db.HecateCatDepositaire2s.Add(cat);
-                    await db.SaveChangesAsync();
+                    item.IdentifiantUniqueRetenu = item.IdentifiantOrigine;
+                    item.AdditionalInformation.IsValeurMobiliere = true;
                 }
-                return cat.IdDepositaire2;
-            });
+                else if (categorieRwa.ValeurMobiliere.Trim().Equals("N", StringComparison.OrdinalIgnoreCase))
+                {
+                    item.IdentifiantUniqueRetenu = $"{item.Source}{categorieRwa.IdCatRwa}{item.PeriodeCloture}";
+                    item.AdditionalInformation.IsValeurMobiliere = false;
+                }
+            }
         }
 
         public async Task<int> ApplyRwaMappingsAsync(System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings)
@@ -325,8 +327,8 @@ namespace RWA.Web.Application.Services.Workflow
                 {
                     await WithDbAsync(async db =>
                     {
-                        var cat1Id = await GetOrCreateCatDepositaire1Async(mapping.Cat1);
-                        var cat2Id = await GetOrCreateCatDepositaire2Async(mapping.Cat2 ?? string.Empty);
+                        var cat1Id = await GetOrCreateCategoryAsync(db.HecateCatDepositaire1s, c => c.LibelleDepositaire1.TrimmedEquals(mapping.Cat1, StringComparison.OrdinalIgnoreCase), () => new HecateCatDepositaire1 { LibelleDepositaire1 = mapping.Cat1 }, c => c.IdDepositaire1);
+                        var cat2Id = await GetOrCreateCategoryAsync(db.HecateCatDepositaire2s, c => c.LibelleDepositaire2.TrimmedEquals(mapping.Cat2 ?? string.Empty, StringComparison.OrdinalIgnoreCase), () => new HecateCatDepositaire2 { LibelleDepositaire2 = mapping.Cat2 ?? string.Empty }, c => c.IdDepositaire2);
 
                         var equivalence = new HecateEquivalenceCatRwa
                         {
@@ -343,9 +345,12 @@ namespace RWA.Web.Application.Services.Workflow
                             .Where(i => mapping.NumLignes.Contains(i.NumLigne))
                             .ToListAsync();
 
+                        var categorieRwa = await db.HecateCategorieRwas.FindAsync(mapping.CategorieRwaId);
+
                         foreach (var item in inventoryItems)
                         {
                             item.RefCategorieRwa = mapping.CategorieRwaId;
+                            UpdateIdentifiantUniqueRetenu(item, categorieRwa);
                         }
 
                         await db.SaveChangesAsync();
@@ -517,6 +522,8 @@ namespace RWA.Web.Application.Services.Workflow
                     .AsNoTracking()
                     .ToListAsync();
 
+                var categoriesRwa = await db.HecateCategorieRwas.AsNoTracking().ToDictionaryAsync(c => c.IdCatRwa, c => c);
+
                 // Create a lookup for faster, case-insensitive mapping
                 var mappingLookup = equivalenceMappings
                     .ToLookup(em => (
@@ -541,6 +548,10 @@ namespace RWA.Web.Application.Services.Workflow
                     if (mapping != null)
                     {
                         inventoryRow.RefCategorieRwa = mapping.RefCategorieRwa;
+                        if (categoriesRwa.TryGetValue(mapping.RefCategorieRwa, out var categorieRwa))
+                        {
+                            UpdateIdentifiantUniqueRetenu(inventoryRow, categorieRwa);
+                        }
                         lock (successfulMappings)
                         {
                             successfulMappings.Add(inventoryRow);

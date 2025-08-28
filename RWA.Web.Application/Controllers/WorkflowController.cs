@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using RWA.Web.Application.Models.Dtos;
 using Newtonsoft.Json.Linq;
+using RWA.Web.Application.Services;
+using System.Threading;
 
 namespace RWA.Web.Application.Controllers
 {
@@ -257,6 +259,73 @@ namespace RWA.Web.Application.Controllers
             };
 
             return Ok(cfg);
+        }
+
+        [HttpGet("obl-validation-columns")]
+        public IActionResult GetOblValidationColumns()
+        {
+            // Define columns for HecateInventaireNormalise
+            var columns = new[]
+            {
+                new { field = "periodeCloture", header = "Periode Cloture" },
+                new { field = "source", header = "Source" },
+                new { field = "refCategorieRwa", header = "Categorie RWA" },
+                new { field = "identifiantUniqueRetenu", header = "Identifiant Unique Retenu" },
+                new { field = "raf", header = "RAF" },
+                new { field = "libelleOrigine", header = "Libelle Origine" },
+                new { field = "dateFinContrat", header = "Date Fin Contrat" },
+                new { field = "identifiantOrigine", header = "Identifiant Origine" },
+                new { field = "valeurDeMarche", header = "Valeur De Marche" },
+                new { field = "categorie1", header = "Categorie 1" },
+                new { field = "categorie2", header = "Categorie 2" },
+                new { field = "deviseDeCotation", header = "Devise De Cotation" },
+                new { field = "tauxObligation", header = "Taux Obligation" },
+                new { field = "dateMaturite", header = "Date Maturite" },
+                new { field = "dateExpiration", header = "Date Expiration" },
+                new { field = "tiers", header = "Tiers" },
+                new { field = "boaSj", header = "BOA SJ" },
+                new { field = "boaContrepartie", header = "BOA Contrepartie" },
+                new { field = "boaDefaut", header = "BOA Defaut" },
+                new { field = "bloomberg", header = "Bloomberg" }
+            };
+            return Ok(columns);
+        }
+
+        [HttpPost("obl-validation-data")]
+        public async Task<IActionResult> GetOblValidationData([FromBody] DataTableRequest request, CancellationToken cancellationToken)
+        {
+            var data = await (_orchestrator as WorkflowOrchestrator).GetInvalidObligations();
+            var dto = data.Select(i => i.ToDto());
+            var response = await dto.AsQueryable().ToDataTablesResponse(request, cancellationToken);
+            return Ok(response);
+        }
+
+        [HttpGet("add-to-bdd-columns")]
+        public IActionResult GetAddToBddColumns()
+        {
+            // Define columns for HecateInterneHistorique
+            var columns = new[]
+            {
+                new { field = "source", header = "Source" },
+                new { field = "refCategorieRwa", header = "Categorie RWA" },
+                new { field = "identifiantUniqueRetenu", header = "Identifiant Unique Retenu" },
+                new { field = "raf", header = "RAF" },
+                new { field = "libelleOrigine", header = "Libelle Origine" },
+                new { field = "dateEcheance", header = "Date Echeance" },
+                new { field = "identifiantOrigine", header = "Identifiant Origine" },
+                new { field = "bbgticker", header = "BBG Ticker" },
+                new { field = "libelleTypeDette", header = "Libelle Type Dette" }
+            };
+            return Ok(columns);
+        }
+
+        [HttpPost("add-to-bdd-data")]
+        public async Task<IActionResult> GetAddToBddData([FromBody] DataTableRequest request, CancellationToken cancellationToken)
+        {
+            var data = await (_orchestrator as WorkflowOrchestrator).GetItemsToAddTobdd();
+            var dto = data.Select(i => i.ToDto());
+            var response = await dto.AsQueryable().ToDataTablesResponse(request, cancellationToken);
+            return Ok(response);
         }
 
         // No in-memory mock helpers - workflow is persisted through the orchestrator-owned DbContext

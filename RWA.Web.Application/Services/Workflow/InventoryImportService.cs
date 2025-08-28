@@ -62,6 +62,7 @@ namespace RWA.Web.Application.Services.Workflow
                     ent.IdentifiantOrigine = colIdent != null && !(r[colIdent] is DBNull) ? r[colIdent].ToString()?.Trim() ?? string.Empty : string.Empty;
                     ent.Identifiant = string.Empty;
                     ent.Nom = colNom != null && !(r[colNom] is DBNull) ? r[colNom].ToString()?.Trim() ?? string.Empty : string.Empty;
+                    ent.LibelleOrigine = ent.Nom;
                     if (colVm != null && double.TryParse(r[colVm]?.ToString(), out var vm)) ent.ValeurDeMarche = vm;
                     ent.Categorie1 = colCat1 != null ? Convert.ToString(r[colCat1])?.Trim() : null;
                     ent.Categorie2 = colCat2 != null ? Convert.ToString(r[colCat2])?.Trim() : null;

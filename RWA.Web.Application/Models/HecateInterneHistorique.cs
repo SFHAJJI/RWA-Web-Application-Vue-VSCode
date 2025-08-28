@@ -38,4 +38,20 @@ public partial class HecateInterneHistorique
     public string? LibelleTypeDette { get; set; }
 
     public string? LastUpdate { get; set; }
+
+    public Dtos.HecateInterneHistoriqueDto ToDto()
+    {
+        return new Dtos.HecateInterneHistoriqueDto
+        {
+            Source = this.Source,
+            IdentifiantOrigine = this.IdentifiantOrigine,
+            RefCategorieRwa = this.RefCategorieRwa ?? string.Empty,
+            IdentifiantUniqueRetenu = this.IdentifiantUniqueRetenu ?? string.Empty,
+            Raf = this.Raf ?? string.Empty,
+            LibelleOrigine = this.LibelleOrigine ?? string.Empty,
+            DateEcheance = this.DateEcheance?.ToString("dd/MM/yyyy") ?? string.Empty,
+            Bbgticker = this.Bbgticker ?? string.Empty,
+            LibelleTypeDette = this.LibelleTypeDette ?? string.Empty
+        };
+    }
 }

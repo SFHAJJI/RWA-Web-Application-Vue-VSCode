@@ -359,6 +359,16 @@ namespace RWA.Web.Application.Services.Workflow
             return _actions.GetInventaireNormaliseByNumLignes(numLignes);
         }
 
+        public Task<List<HecateInventaireNormalise>> GetInvalidObligations()
+        {
+            return (_actions as WorkflowStateActions).GetInvalidObligations();
+        }
+
+        public Task<List<HecateInterneHistorique>> GetItemsToAddTobdd()
+        {
+            return (_actions as WorkflowStateActions).GetItemsToAddTobdd();
+        }
+
         /// <summary>
         /// Dispose method to unsubscribe from state machine events.
         /// This prevents multiple subscriptions to the singleton state machine.

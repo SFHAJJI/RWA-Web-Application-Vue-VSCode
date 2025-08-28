@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using RWA.Web.Application.Models.Dtos;
+using System.Text.Json;
 
 namespace RWA.Web.Application.Models;
 
@@ -55,6 +57,44 @@ public partial class HecateInventaireNormalise
 
     public DateOnly? DateFinContrat { get; set; }
 
+    private AdditionalInformation _additionalInformation = new AdditionalInformation();
+
+    [NotMapped]
+    public AdditionalInformation AdditionalInformation
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(Commentaires))
+            {
+                try
+                {
+                    var deserialized = JsonSerializer.Deserialize<AdditionalInformation>(Commentaires);
+                    if (deserialized != null)
+                    {
+                        _additionalInformation = deserialized;
+                    }
+                }
+                catch
+                {
+                    // Fail silently as requested
+                }
+            }
+            return _additionalInformation;
+        }
+        set
+        {
+            _additionalInformation = value;
+            try
+            {
+                Commentaires = JsonSerializer.Serialize(value);
+            }
+            catch
+            {
+                // Fail silently as requested
+            }
+        }
+    }
+
     public string? Commentaires { get; set; }
 
     public string? Bloomberg { get; set; }
@@ -68,4 +108,46 @@ public partial class HecateInventaireNormalise
     public virtual HecateTypeDepot RefTypeDepotNavigation { get; set; } = null!;
 
     public virtual HecateTypeResultat RefTypeResultatNavigation { get; set; } = null!;
+
+    public HecateInterneHistoriqueDto ToBddHistoDto()
+    {
+        return new HecateInterneHistoriqueDto
+        {
+            Source = this.Source,
+            IdentifiantOrigine = this.IdentifiantOrigine,
+            RefCategorieRwa = this.RefCategorieRwa,
+            IdentifiantUniqueRetenu = this.IdentifiantUniqueRetenu,
+            Raf = this.Raf,
+            LibelleOrigine = this.LibelleOrigine,
+            DateEcheance = this.DateFinContrat?.ToString("dd/MM/yyyy") ?? string.Empty
+        };
+    }
+
+    public HecateInventaireNormaliseDto ToDto()
+    {
+        return new HecateInventaireNormaliseDto
+        {
+            NumLigne = this.NumLigne.ToString(),
+            PeriodeCloture = this.PeriodeCloture,
+            Source = this.Source,
+            RefCategorieRwa = this.RefCategorieRwa ?? string.Empty,
+            IdentifiantUniqueRetenu = this.IdentifiantUniqueRetenu ?? string.Empty,
+            Raf = this.Raf ?? string.Empty,
+            LibelleOrigine = this.LibelleOrigine ?? string.Empty,
+            DateFinContrat = this.DateFinContrat?.ToString("dd/MM/yyyy") ?? string.Empty,
+            IdentifiantOrigine = this.IdentifiantOrigine,
+            ValeurDeMarche = this.ValeurDeMarche.ToString(),
+            Categorie1 = this.Categorie1,
+            Categorie2 = this.Categorie2 ?? string.Empty,
+            DeviseDeCotation = this.DeviseDeCotation,
+            TauxObligation = (this.TauxObligation ?? 0).ToString(),
+            DateMaturite = this.DateMaturite?.ToString("dd/MM/yyyy") ?? string.Empty,
+            DateExpiration = this.DateExpiration?.ToString("dd/MM/yyyy") ?? string.Empty,
+            Tiers = this.Tiers ?? string.Empty,
+            BoaSj = this.BoaSj ?? string.Empty,
+            BoaContrepartie = this.BoaContrepartie ?? string.Empty,
+            BoaDefaut = this.BoaDefaut ?? string.Empty,
+            Bloomberg = this.Bloomberg ?? string.Empty
+        };
+    }
 }

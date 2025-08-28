@@ -73,5 +73,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>> GetEquivalenceCandidatesForMissingRowsAsync();
         Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>> GetMissingRowsWithSuggestionsAsync();
         Task<List<Models.HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
+        Task<List<Models.HecateInventaireNormalise>> GetInvalidObligations();
+        Task<List<Models.HecateInterneHistorique>> GetItemsToAddTobdd();
     }
 }

@@ -346,139 +346,45 @@ namespace RWA.Web.Application.Services.Workflow
 
         private async Task ProcessBddMatchingAsync()
         {
-            // 1. Fetch Data
-            var (enrichedItems, allItemsDict) = await FetchBddMatchingDataAsync();
+            var oblValidator = new ObligationValidator();
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var itemsToValidate = allItems.Where(i => i.RefCategorieRwa.TrimmedEquals("OBL")).ToList();
+            var invalidObligations = itemsToValidate.Where(i => !oblValidator.Validate(i).IsValid).ToList();
 
-            // 2. Perform Matching
-            var matchingResult = await PerformBddMatchingAsync(enrichedItems, allItemsDict);
+            var statusPayload = new BddManagerStepStatusDto();
 
-            // 3. Save changes from matching
-            await _dbProvider.SaveChangesAsync();
-
-            // 4. Prepare Payload
-            var payload = PrepareBddPayload(matchingResult);
-
-            if (payload.BDDManagerPayload.OBLValidatorPayload.Count == 0 && payload.BDDManagerPayload.AddToBDDPayload.Count == 0)
+            if (invalidObligations.Any())
             {
-                await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.BDDManager, _statusOptions.SuccessStatus);
-                if (_nextStepTriggerCallback != null)
-                {
-                    await _nextStepTriggerCallback(Trigger.GoToRafManager);
-                }
+                statusPayload.OBLValidationStepStatus = "Current";
+                statusPayload.AddToBDDStepStatus = "Open";
+                var payloadJson = JsonSerializer.Serialize(statusPayload);
+                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.BDDManager, _statusOptions.CurrentStatus, payloadJson);
+                await NotifyWorkflowStepsUpdatedAsync();
             }
             else
             {
-                // 5. Update Workflow Step
-                var payloadJson = JsonSerializer.Serialize(payload);
-                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.BDDManager, _statusOptions.ErrorStatus, payloadJson);
-                await NotifyWorkflowStepsUpdatedAsync();
-            }
-        }
+                statusPayload.OBLValidationStepStatus = "Finished";
+                var notMatchedByBdd = allItems.Where(i => string.IsNullOrEmpty(i.Rafenrichi)).ToList();
+                var itemsToAdd = notMatchedByBdd.Where(s => !string.IsNullOrEmpty(s.Raf)).ToList();
 
-        private async Task<(List<EnrichedInventaireDto> EnrichedItems, Dictionary<int, HecateInventaireNormalise> AllItemsDict)> FetchBddMatchingDataAsync()
-        {
-            var previousStep = await _dbProvider.GetStepByNameAsync(_workflowStepNames.RWACategoryManager);
-            var enrichedItems = JsonSerializer.Deserialize<List<EnrichedInventaireDto>>(previousStep.DataPayload);
-            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
-            var allItemsDict = allItems.ToDictionary(i => i.NumLigne, i => i);
-            return (enrichedItems, allItemsDict);
-        }
-
-        private async Task<MatchingResult> PerformBddMatchingAsync(
-            List<EnrichedInventaireDto> enrichedItems,
-            Dictionary<int, HecateInventaireNormalise> allItemsDict)
-        {
-            var result = new MatchingResult();
-
-            foreach (var enrichedItem in enrichedItems)
-            {
-                var item = allItemsDict[enrichedItem.NumLigne];
-
-                if (!enrichedItem.IsValeurMobiliere)
+                if (itemsToAdd.Any())
                 {
-                    result.NotValeurMobiliere.Add(item);
-                    continue;
+                    statusPayload.AddToBDDStepStatus = "Current";
+                    var payloadJson = JsonSerializer.Serialize(statusPayload);
+                    await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.BDDManager, _statusOptions.CurrentStatus, payloadJson);
+                    await NotifyWorkflowStepsUpdatedAsync();
                 }
-
-                var match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantOrigine.TrimmedEquals(item.Identifiant, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
+                else
                 {
-                    item.Rafenrichi = match.Raf;
-                    item.IdentifiantUniqueRetenu = match.IdentifiantUniqueRetenu;
-                    item.DateFinContrat = match.DateEcheance;
-                    result.MatchedByIdentifiantOrigineBDD.Add(item);
-                    continue;
-                }
-
-                match = await _dbProvider.FindMatchInHistoriqueAsync(h => h.IdentifiantUniqueRetenu.TrimmedEquals(item.Identifiant, StringComparison.OrdinalIgnoreCase) || (item.Identifiant != null && h.IdentifiantUniqueRetenu.Contains(item.Identifiant)));
-                if (match != null)
-                {
-                    item.Rafenrichi = match.Raf;
-                    item.IdentifiantUniqueRetenu = match.IdentifiantUniqueRetenu;
-                    item.DateFinContrat = match.DateEcheance;
-                    result.MatchedByIdentifiantUniqueRetenuBDD.Add(item);
-                    continue;
-                }
-                item.IdentifiantUniqueRetenu = item.Identifiant; // Default to original if no match
-                result.NotMatchedByBDD.Add(item);
-            }
-
-            return result;
-        }
-
-        private BddManagerPayloadDto PrepareBddPayload(MatchingResult matchingResult)
-        {
-            var auditPayload = new List<AuditInventoryDto>();
-            auditPayload.AddRange(matchingResult.MatchedByIdentifiantOrigineBDD.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.Ok, BDDMatch = BddMatchType.IdentifiantOrigineBDD }));
-            auditPayload.AddRange(matchingResult.MatchedByIdentifiantUniqueRetenuBDD.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.Ok, BDDMatch = BddMatchType.UniqueRetenuBDD }));
-            auditPayload.AddRange(matchingResult.NotMatchedByBDD.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.Ko, BDDMatch = BddMatchType.NotMatched }));
-            auditPayload.AddRange(matchingResult.NotValeurMobiliere.Select(i => new AuditInventoryDto { NumLigne = i.NumLigne, MatchedBDD = BddMatchStatus.NotApplicable, BDDMatch = BddMatchType.NotApplicable }));
-
-            var oblValidator = new ObligationValidator();
-            var oblValidatorPayload = new List<HecateInventaireNormalise>();
-            var addToBddPayload = new List<HecateInterneHistorique>();
-
-            var allMatchedAndNotMatched = matchingResult.MatchedByIdentifiantOrigineBDD
-                .Concat(matchingResult.MatchedByIdentifiantUniqueRetenuBDD)
-                .Concat(matchingResult.NotMatchedByBDD);
-
-            foreach (var item in allMatchedAndNotMatched)
-            {
-                if (item.RefCategorieRwa.TrimmedEquals("OBL"))
-                {
-                    var validationResult = oblValidator.Validate(item);
-                    if (!validationResult.IsValid)
+                    statusPayload.AddToBDDStepStatus = "Finished";
+                    var payloadJson = JsonSerializer.Serialize(statusPayload);
+                    await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.BDDManager, _statusOptions.SuccessStatus, payloadJson);
+                    if (_nextStepTriggerCallback != null)
                     {
-                        oblValidatorPayload.Add(item);
+                        await _nextStepTriggerCallback(Trigger.GoToRafManager);
                     }
                 }
             }
-
-            if (oblValidatorPayload.Count == 0)
-            {
-                addToBddPayload = matchingResult.NotMatchedByBDD
-                    .Where(s => !string.IsNullOrEmpty(s.Raf))
-                    .Select(item => new HecateInterneHistorique(item))
-                    .ToList();
-            }
-
-            return new BddManagerPayloadDto
-            {
-                AuditInventoryPayload = auditPayload,
-                BDDManagerPayload = new BddManagerPayload
-                {
-                    OBLValidatorPayload = oblValidatorPayload,
-                    AddToBDDPayload = addToBddPayload
-                }
-            };
-        }
-
-        private class MatchingResult
-        {
-            public List<HecateInventaireNormalise> MatchedByIdentifiantOrigineBDD { get; set; } = new List<HecateInventaireNormalise>();
-            public List<HecateInventaireNormalise> MatchedByIdentifiantUniqueRetenuBDD { get; set; } = new List<HecateInventaireNormalise>();
-            public List<HecateInventaireNormalise> NotMatchedByBDD { get; set; } = new List<HecateInventaireNormalise>();
-            public List<HecateInventaireNormalise> NotValeurMobiliere { get; set; } = new List<HecateInventaireNormalise>();
         }
 
         public async Task OnBDDManagerEntryAsync()
@@ -1246,6 +1152,24 @@ namespace RWA.Web.Application.Services.Workflow
         {
             return await ExecuteSafelyAsync(nameof(GetInventaireNormaliseByNumLignes), "Unknown", 
                 () => _dbProvider.GetInventaireNormaliseByNumLignes(numLignes), new List<HecateInventaireNormalise>(), new { numLignes });
+        }
+
+        public async Task<List<HecateInventaireNormalise>> GetInvalidObligations()
+        {
+            var oblValidator = new ObligationValidator();
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var itemsToValidate = allItems.Where(i => i.RefCategorieRwa.TrimmedEquals("OBL")).ToList();
+            return itemsToValidate.Where(i => !oblValidator.Validate(i).IsValid).ToList();
+        }
+
+        public async Task<List<HecateInterneHistorique>> GetItemsToAddTobdd()
+        {
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var notMatchedByBdd = allItems.Where(i => string.IsNullOrEmpty(i.Rafenrichi)).ToList();
+            return notMatchedByBdd
+                .Where(s => !string.IsNullOrEmpty(s.Raf))
+                .Select(item => new HecateInterneHistorique(item))
+                .ToList();
         }
 
         public async Task<bool> IsResetCompleteAsync()

@@ -44,5 +44,7 @@ namespace RWA.Web.Application.Services.Workflow
         List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto> GetEquivalenceCandidatesForMissingRows();
         List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> GetMissingRowsWithSuggestions();
         Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
+        Task<List<HecateInventaireNormalise>> GetInvalidObligations();
+        Task<List<HecateInterneHistorique>> GetItemsToAddTobdd();
     }
 }

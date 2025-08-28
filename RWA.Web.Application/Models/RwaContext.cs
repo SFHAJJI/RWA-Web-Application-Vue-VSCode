@@ -1255,6 +1255,7 @@ public partial class RwaContext : DbContext
                 .HasColumnName("BOA_SJ");
             entity.Property(e => e.Categorie1).HasMaxLength(100);
             entity.Property(e => e.Categorie2).HasMaxLength(100);
+            entity.Ignore(e => e.AdditionalInformation);
             entity.Property(e => e.Commentaires).HasMaxLength(200);
             entity.Property(e => e.DeviseDeCotation).HasMaxLength(50);
             entity.Property(e => e.Identifiant).HasMaxLength(50);
