@@ -35,7 +35,16 @@
                         >
                             <template v-for="header in headers" #[`item.${header.value}`]="{ item }">
                                 <div class="cell-content">
-                                    <span v-if="header.value === 'dateEcheance'">{{ formatDateForDisplay(item.dateEcheance) }}</span>
+                                    <v-select
+                                        v-if="header.value === 'libelleTypeDette'"
+                                        v-model="item.libelleTypeDette"
+                                        :items="['', 'SUBORDONNE']"
+                                        dense
+                                        hide-details
+                                        variant="outlined"
+                                        class="my-1"
+                                    ></v-select>
+                                    <span v-else-if="header.value === 'dateEcheance'">{{ formatDateForDisplay(item.dateEcheance) }}</span>
                                     <span v-else>{{ item[header.value] }}</span>
                                 </div>
                             </template>
@@ -134,7 +143,20 @@ const fetchData = async () => {
 const submit = async () => {
     loading.value = true;
     try {
-        await submitAddToBdd(rows.value);
+        // Create a deep copy and sanitize the data before submitting
+        const dataToSubmit = JSON.parse(JSON.stringify(rows.value)).map((row: HecateInterneHistoriqueDto) => {
+            // Default all null properties to empty strings
+            for (const key in row) {
+                if (row[key as keyof HecateInterneHistoriqueDto] === null) {
+                    (row as any)[key] = '';
+                }
+            }
+           
+            return row;
+        });
+
+        console.log('Submitting data:', JSON.stringify(dataToSubmit, null, 2));
+        await submitAddToBdd(dataToSubmit);
     } catch (error) {
         console.error('Error submitting data:', error);
     } finally {
@@ -162,14 +184,18 @@ onMounted(fetchData);
     font-weight: 600 !important;
     color: #4a4a4a !important;
     background-color: #f5f5f5;
+    padding: 0 8px !important;
+    font-size: 0.8rem !important;
 }
 .rwa-data-table :deep(td) {
     vertical-align: middle;
+    padding: 0 8px !important;
+    font-size: 0.8rem !important;
 }
 .cell-content {
-    padding-top: 4px;
-    padding-bottom: 4px;
-    min-width: 180px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-width: 150px;
 }
 .submit-btn:hover {
     transform: translateY(-2px);

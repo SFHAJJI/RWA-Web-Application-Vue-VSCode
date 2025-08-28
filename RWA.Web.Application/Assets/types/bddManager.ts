@@ -30,8 +30,8 @@ export interface HecateInterneHistoriqueDto {
     identifiantUniqueRetenu: string;
     raf: string;
     libelleOrigine: string;
-    dateEcheance: string;
+    dateEcheance: string | null;
     identifiantOrigine: string;
-    bbgticker: string;
-    libelleTypeDette: string;
+    bbgticker: string | null;
+    libelleTypeDette: string | null;
 }

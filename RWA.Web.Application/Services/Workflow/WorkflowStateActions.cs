@@ -398,7 +398,7 @@ namespace RWA.Web.Application.Services.Workflow
             var bddIdUniqueRetenuSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantUniqueRetenu));
             var bddIdOrigineSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantOrigine));
 
-            var itemsToProcess = allItems.Where(i => i.AdditionalInformation.IsValeurMobiliere).ToList();
+            var itemsToProcess = allItems.Where(i => i.AdditionalInformation.IsValeurMobiliere && !string.IsNullOrEmpty(i.Raf)).ToList();
 
             Parallel.ForEach(itemsToProcess, item =>
             {
