@@ -48,14 +48,6 @@ namespace RWA.Web.Application.Controllers
             return Ok(cats);
         }
 
-        [HttpGet("get-equivalence-candidates")]
-        public ActionResult<IEnumerable<Models.Dtos.EquivalenceCandidateDto>> GetEquivalenceCandidates()
-        {
-            var list = (_orchestrator as WorkflowOrchestrator)?.GetEquivalenceCandidatesForMissingRows();
-            if (list == null) return Ok(new Models.Dtos.EquivalenceCandidateDto[0]);
-            return Ok(list);
-        }
-
         [HttpPost("post-apply-equivalences")]
         [HttpPost("apply-equivalences")]
         /// <summary>
@@ -222,23 +214,7 @@ namespace RWA.Web.Application.Controllers
             return NoContent();
         }
 
-        [HttpPost("update-bdd")]
-        public async Task<IActionResult> PostUpdateBdd([FromBody] List<HecateInterneHistoriqueDto> items)
-        {
-            if (items == null || items.Count == 0) return BadRequest("No items provided.");
 
-            await (_orchestrator as WorkflowOrchestrator).TriggerAddBddHistoriqueAsync(items);
-            return NoContent();
-        }
-
-        [HttpPost("update-obligations")]
-        public async Task<IActionResult> PostUpdateObligations([FromBody] List<ObligationUpdateDto> items)
-        {
-            if (items == null || items.Count == 0) return BadRequest("No items provided.");
-
-            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateObligationsAsync(items);
-            return NoContent();
-        }
 
         [HttpPost("update-raf")]
         public async Task<IActionResult> PostUpdateRaf([FromBody] List<HecateTethysDto> items)
@@ -271,6 +247,8 @@ namespace RWA.Web.Application.Controllers
                 new { field = "source", header = "Source" },
                 new { field = "refCategorieRwa", header = "Categorie RWA" },
                 new { field = "identifiantUniqueRetenu", header = "Identifiant Unique Retenu" },
+                new { field = "tauxObligation", header = "Taux Obligation" },
+                new { field = "dateMaturite", header = "Date Maturite" },
                 new { field = "raf", header = "RAF" },
                 new { field = "libelleOrigine", header = "Libelle Origine" },
                 new { field = "dateFinContrat", header = "Date Fin Contrat" },
@@ -279,8 +257,6 @@ namespace RWA.Web.Application.Controllers
                 new { field = "categorie1", header = "Categorie 1" },
                 new { field = "categorie2", header = "Categorie 2" },
                 new { field = "deviseDeCotation", header = "Devise De Cotation" },
-                new { field = "tauxObligation", header = "Taux Obligation" },
-                new { field = "dateMaturite", header = "Date Maturite" },
                 new { field = "dateExpiration", header = "Date Expiration" },
                 new { field = "tiers", header = "Tiers" },
                 new { field = "boaSj", header = "BOA SJ" },
@@ -291,13 +267,11 @@ namespace RWA.Web.Application.Controllers
             return Ok(columns);
         }
 
-        [HttpPost("obl-validation-data")]
-        public async Task<IActionResult> GetOblValidationData([FromBody] DataTableRequest request, CancellationToken cancellationToken)
+        [HttpGet("obl-validation-data")]
+        public async Task<IActionResult> GetOblValidationData()
         {
             var data = await (_orchestrator as WorkflowOrchestrator).GetInvalidObligations();
-            var dto = data.Select(i => i.ToDto());
-            var response = await dto.AsQueryable().ToDataTablesResponse(request, cancellationToken);
-            return Ok(response);
+            return Ok(data);
         }
 
         [HttpGet("add-to-bdd-columns")]
@@ -320,12 +294,29 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpPost("add-to-bdd-data")]
-        public async Task<IActionResult> GetAddToBddData([FromBody] DataTableRequest request, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetAddToBddData()
         {
-            var data = await (_orchestrator as WorkflowOrchestrator).GetItemsToAddTobdd();
-            var dto = data.Select(i => i.ToDto());
-            var response = await dto.AsQueryable().ToDataTablesResponse(request, cancellationToken);
-            return Ok(response);
+             var data = await (_orchestrator as WorkflowOrchestrator).GetItemsToAddTobdd();
+            var dto = data.Select(i => i.ToBddHistoDto());
+            return Ok(dto);
+        }
+
+        [HttpPost("submit-obl-validation")]
+        public async Task<IActionResult> SubmitOblValidation([FromBody] List<HecateInventaireNormaliseDto> items)
+        {
+            if (items == null || items.Count == 0) return BadRequest("No items provided.");
+
+            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateObligationsAsync(items);
+            return NoContent();
+        }
+
+        [HttpPost("submit-add-to-bdd")]
+        public async Task<IActionResult> SubmitAddToBdd([FromBody] List<HecateInterneHistoriqueDto> items)
+        {
+            if (items == null || items.Count == 0) return BadRequest("No items provided.");
+
+            await (_orchestrator as WorkflowOrchestrator).TriggerAddBddHistoriqueAsync(items);
+            return NoContent();
         }
 
         // No in-memory mock helpers - workflow is persisted through the orchestrator-owned DbContext

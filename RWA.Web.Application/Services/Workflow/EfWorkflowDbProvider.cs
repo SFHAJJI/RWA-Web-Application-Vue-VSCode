@@ -719,7 +719,7 @@ namespace RWA.Web.Application.Services.Workflow
             });
         }
 
-        public async Task UpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items)
+        public async Task UpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto> items)
         {
             await WithDbAsync(async db =>
             {
@@ -731,8 +731,21 @@ namespace RWA.Web.Application.Services.Workflow
                 foreach (var entity in entities)
                 {
                     var item = items.First(i => i.NumLigne == entity.NumLigne);
-                    entity.DateMaturite = item.DateMaturite;
-                    entity.TauxObligation = item.TauxObligation;
+                    if (item.IsDateMaturiteInvalid)
+                    {
+                        if (DateOnly.TryParseExact(item.DateMaturite, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
+                        {
+                            entity.DateMaturite = parsedDate;
+                        }
+                        else
+                        {
+                            entity.DateMaturite = null;
+                        }
+                    }
+                    if (item.IsTauxObligationInvalid)
+                    {
+                        entity.TauxObligation = item.TauxObligation;
+                    }
                 }
 
                 await db.SaveChangesAsync();

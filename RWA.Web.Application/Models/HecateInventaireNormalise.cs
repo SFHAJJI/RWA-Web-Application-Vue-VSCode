@@ -127,7 +127,7 @@ public partial class HecateInventaireNormalise
     {
         return new HecateInventaireNormaliseDto
         {
-            NumLigne = this.NumLigne.ToString(),
+            NumLigne = this.NumLigne,
             PeriodeCloture = this.PeriodeCloture,
             Source = this.Source,
             RefCategorieRwa = this.RefCategorieRwa ?? string.Empty,
@@ -136,11 +136,11 @@ public partial class HecateInventaireNormalise
             LibelleOrigine = this.LibelleOrigine ?? string.Empty,
             DateFinContrat = this.DateFinContrat?.ToString("dd/MM/yyyy") ?? string.Empty,
             IdentifiantOrigine = this.IdentifiantOrigine,
-            ValeurDeMarche = this.ValeurDeMarche.ToString(),
+            ValeurDeMarche = this.ValeurDeMarche,
             Categorie1 = this.Categorie1,
             Categorie2 = this.Categorie2 ?? string.Empty,
             DeviseDeCotation = this.DeviseDeCotation,
-            TauxObligation = (this.TauxObligation ?? 0).ToString(),
+            TauxObligation = this.TauxObligation,
             DateMaturite = this.DateMaturite?.ToString("dd/MM/yyyy") ?? string.Empty,
             DateExpiration = this.DateExpiration?.ToString("dd/MM/yyyy") ?? string.Empty,
             Tiers = this.Tiers ?? string.Empty,

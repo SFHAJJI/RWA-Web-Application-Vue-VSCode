@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace RWA.Web.Application.Models.Dtos
 {
@@ -16,6 +17,12 @@ namespace RWA.Web.Application.Models.Dtos
 
         public HecateInterneHistorique ToHecateInterneHistorique()
         {
+            DateOnly? dateEcheance = null;
+            if (DateOnly.TryParseExact(this.DateEcheance, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+            {
+                dateEcheance = parsedDate;
+            }
+
             return new HecateInterneHistorique
             {
                 Source = this.Source,
@@ -24,7 +31,7 @@ namespace RWA.Web.Application.Models.Dtos
                 IdentifiantUniqueRetenu = this.IdentifiantUniqueRetenu,
                 Raf = this.Raf,
                 LibelleOrigine = this.LibelleOrigine,
-                DateEcheance = DateOnly.Parse(this.DateEcheance),
+                DateEcheance = dateEcheance,
                 Bbgticker = this.Bbgticker,
                 LibelleTypeDette = this.LibelleTypeDette,
                 LastUpdate = DateTime.UtcNow.ToString("o")

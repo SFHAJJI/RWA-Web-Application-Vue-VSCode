@@ -8,5 +8,6 @@ namespace RWA.Web.Application.Services.Validation
     {
         // Return the strongly-typed Fluent validators applicable for the given step name
         IEnumerable<IValidator<WorkflowStep>> GetValidatorsFor(string stepName);
+        IValidator<T> GetValidator<T>();
     }
 }

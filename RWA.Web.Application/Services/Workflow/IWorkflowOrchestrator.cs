@@ -20,7 +20,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task TriggerUploadAsync(List<(string FileName, byte[] Content)> files);
         Task TriggerApplyRwaMappingsAsync(List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> mappings);
         Task TriggerAddBddHistoriqueAsync(List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto> items);
-        Task TriggerUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items);
+        Task TriggerUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto> items);
         Task TriggerUpdateRafAsync(List<RWA.Web.Application.Models.Dtos.HecateTethysDto> items);
         Task TriggerApplyEquivalenceMappingsAsync(List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto> mappings);
         Task TriggerAsync(string triggerName);
@@ -44,7 +44,7 @@ namespace RWA.Web.Application.Services.Workflow
         List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto> GetEquivalenceCandidatesForMissingRows();
         List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto> GetMissingRowsWithSuggestions();
         Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
-        Task<List<HecateInventaireNormalise>> GetInvalidObligations();
-        Task<List<HecateInterneHistorique>> GetItemsToAddTobdd();
+        Task<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>> GetInvalidObligations();
+        Task<List<HecateInventaireNormalise>> GetItemsToAddTobdd();
     }
 }

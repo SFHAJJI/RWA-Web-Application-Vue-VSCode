@@ -35,6 +35,8 @@ namespace RWA.Web.Application.Services.Workflow
         private NextStepTriggerCallbackDelegate? _nextStepTriggerCallback;
 
 
+        private readonly IValidator<HecateInventaireNormalise> _obligationValidator;
+
         public WorkflowStateActions(
             IInventoryImportService importService,
             IValidatorsFactory validatorsFactory,
@@ -43,7 +45,8 @@ namespace RWA.Web.Application.Services.Workflow
             IWorkflowDbProvider dbProvider,
             IHubContext<WorkflowHub> hubContext,
             IOptions<WorkflowStatusMappingOptions> statusOptions,
-            IOptions<WorkflowStepNamesMapping> workflowStepNames)
+            IOptions<WorkflowStepNamesMapping> workflowStepNames,
+            IValidator<HecateInventaireNormalise> obligationValidator)
         {
             _importService = importService ?? throw new ArgumentNullException(nameof(importService));
             _validatorsFactory = validatorsFactory ?? throw new ArgumentNullException(nameof(validatorsFactory));
@@ -53,6 +56,7 @@ namespace RWA.Web.Application.Services.Workflow
             _hubContext = hubContext ?? throw new ArgumentNullException(nameof(hubContext));
             _statusOptions = statusOptions?.Value ?? throw new ArgumentNullException(nameof(statusOptions));
             _workflowStepNames = workflowStepNames?.Value ?? throw new ArgumentNullException(nameof(workflowStepNames));
+            _obligationValidator = obligationValidator ?? throw new ArgumentNullException(nameof(obligationValidator));
         }
 
         public void SetTriggerCallbacks(
@@ -794,7 +798,7 @@ namespace RWA.Web.Application.Services.Workflow
             });
         }
 
-        public async Task OnUpdateObligationsAsync(List<ObligationUpdateDto> items)
+        public async Task OnUpdateObligationsAsync(List<HecateInventaireNormaliseDto> items)
         {
             await ExecuteSafelyAsync(nameof(OnUpdateObligationsAsync), _workflowStepNames.BDDManager, async () =>
             {
@@ -1154,22 +1158,30 @@ namespace RWA.Web.Application.Services.Workflow
                 () => _dbProvider.GetInventaireNormaliseByNumLignes(numLignes), new List<HecateInventaireNormalise>(), new { numLignes });
         }
 
-        public async Task<List<HecateInventaireNormalise>> GetInvalidObligations()
+        public async Task<List<HecateInventaireNormaliseDto>> GetInvalidObligations()
         {
-            var oblValidator = new ObligationValidator();
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
             var itemsToValidate = allItems.Where(i => i.RefCategorieRwa.TrimmedEquals("OBL")).ToList();
-            return itemsToValidate.Where(i => !oblValidator.Validate(i).IsValid).ToList();
+            
+            var invalidRows = new List<HecateInventaireNormaliseDto>();
+            foreach (var item in itemsToValidate)
+            {
+                var validationResult = _obligationValidator.Validate(item);
+                if (!validationResult.IsValid)
+                {
+                    var dto = item.ToDto();
+                    dto.IsTauxObligationInvalid = validationResult.Errors.Any(e => e.PropertyName == nameof(HecateInventaireNormalise.TauxObligation));
+                    dto.IsDateMaturiteInvalid = validationResult.Errors.Any(e => e.PropertyName == nameof(HecateInventaireNormalise.DateMaturite));
+                    invalidRows.Add(dto);
+                }
+            }
+            return invalidRows;
         }
 
-        public async Task<List<HecateInterneHistorique>> GetItemsToAddTobdd()
+        public async Task<List<HecateInventaireNormalise>> GetItemsToAddTobdd()
         {
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
-            var notMatchedByBdd = allItems.Where(i => string.IsNullOrEmpty(i.Rafenrichi)).ToList();
-            return notMatchedByBdd
-                .Where(s => !string.IsNullOrEmpty(s.Raf))
-                .Select(item => new HecateInterneHistorique(item))
-                .ToList();
+            return allItems;
         }
 
         public async Task<bool> IsResetCompleteAsync()

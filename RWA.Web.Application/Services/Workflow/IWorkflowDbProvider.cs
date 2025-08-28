@@ -41,7 +41,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsync();
         Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate);
         Task AddBddHistoriqueAsync(List<HecateInterneHistoriqueDto> items);
-        Task UpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items);
+        Task UpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto> items);
 
         // RAF Manager specific methods
         Task<List<HecateContrepartiesTransparence>> GetHecateContrepartiesTransparenceAsync();

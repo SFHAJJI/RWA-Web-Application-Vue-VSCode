@@ -258,7 +258,7 @@ namespace RWA.Web.Application.Services.Workflow
                 await _stateMachine.FireAsync(_stateMachine.AddBddHistoriqueTrigger, items);
         }
 
-        public async Task TriggerUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto> items)
+        public async Task TriggerUpdateObligationsAsync(List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto> items)
         {
             await EnsureInitializedAsync();
             if (_stateMachine.UpdateObligationsTrigger != null)
@@ -359,12 +359,12 @@ namespace RWA.Web.Application.Services.Workflow
             return _actions.GetInventaireNormaliseByNumLignes(numLignes);
         }
 
-        public Task<List<HecateInventaireNormalise>> GetInvalidObligations()
+        public Task<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>> GetInvalidObligations()
         {
             return (_actions as WorkflowStateActions).GetInvalidObligations();
         }
 
-        public Task<List<HecateInterneHistorique>> GetItemsToAddTobdd()
+        public Task<List<HecateInventaireNormalise>> GetItemsToAddTobdd()
         {
             return (_actions as WorkflowStateActions).GetItemsToAddTobdd();
         }

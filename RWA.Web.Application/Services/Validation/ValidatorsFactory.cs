@@ -34,6 +34,11 @@ namespace RWA.Web.Application.Services.Validation
 
             return matches;
         }
+
+        public IValidator<T> GetValidator<T>()
+        {
+            return _provider.GetService<IValidator<T>>();
+        }
     }
 
 }

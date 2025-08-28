@@ -52,6 +52,7 @@ namespace RWA.Web.Application
             builder.Services.AddTransient<FluentValidation.IValidator<RWA.Web.Application.Models.WorkflowStep>, RWA.Web.Application.Services.Validation.Fluent.UploadTemplateFluentValidator>();
             builder.Services.AddTransient<FluentValidation.IValidator<RWA.Web.Application.Models.WorkflowStep>, RWA.Web.Application.Services.Validation.Fluent.MandatoryColumnsFluentValidator>();
             builder.Services.AddTransient<FluentValidation.IValidator<RWA.Web.Application.Models.WorkflowStep>, RWA.Web.Application.Services.Validation.Fluent.RwaCategoryMappingFluentValidator>();
+            builder.Services.AddTransient<FluentValidation.IValidator<RWA.Web.Application.Models.HecateInventaireNormalise>, RWA.Web.Application.Services.Validation.ObligationValidator>();
 
             builder.Services.AddSingleton<Services.Validation.IValidatorsFactory, Services.Validation.ValidatorsFactory>();
             builder.Services.AddScoped<Services.ExcelManagementService.Export.ExcelManagementServiceFactory>();

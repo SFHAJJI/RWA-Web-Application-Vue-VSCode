@@ -1,5 +1,5 @@
 export interface HecateInventaireNormaliseDto {
-    numLigne: string;
+    numLigne: number;
     periodeCloture: string;
     source: string;
     refCategorieRwa: string;
@@ -8,18 +8,20 @@ export interface HecateInventaireNormaliseDto {
     libelleOrigine: string;
     dateFinContrat: string;
     identifiantOrigine: string;
-    valeurDeMarche: string;
+    valeurDeMarche: number;
     categorie1: string;
     categorie2: string;
     deviseDeCotation: string;
-    tauxObligation: string;
-    dateMaturite: string;
-    dateExpiration: string;
+    tauxObligation: number | null;
+    dateMaturite: string | null;
+    dateExpiration: string | null;
     tiers: string;
     boaSj: string;
     boaContrepartie: string;
     boaDefaut: string;
     bloomberg: string;
+    isTauxObligationInvalid: boolean;
+    isDateMaturiteInvalid: boolean;
 }
 
 export interface HecateInterneHistoriqueDto {

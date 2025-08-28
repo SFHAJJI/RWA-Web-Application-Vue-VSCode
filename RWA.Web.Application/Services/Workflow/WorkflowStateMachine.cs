@@ -43,7 +43,7 @@ namespace RWA.Web.Application.Services.Workflow
         public event Func<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>, Task>? ApplyRwaMappings;
         public event Func<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>, Task>? ApplyEquivalenceMappings;
         public event Func<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>, Task>? AddBddHistorique;
-        public event Func<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>, Task>? UpdateObligations;
+        public event Func<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>, Task>? UpdateObligations;
         public event Func<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>, Task>? UpdateRaf;
         public event Func<ValidationResultContext, Task>? ValidationSuccess;
         public event Func<ValidationResultContext, Task>? ValidationWarning;
@@ -59,7 +59,7 @@ namespace RWA.Web.Application.Services.Workflow
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>? _applyRwaMappingsTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? _applyEquivalencesTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>? _addBddHistoriqueTrigger;
-        private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>? _updateObligationsTrigger;
+        private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>>? _updateObligationsTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>>? _updateRafTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadPendingTrigger;
         private StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? _uploadSuccessTrigger;
@@ -87,7 +87,7 @@ namespace RWA.Web.Application.Services.Workflow
             _applyRwaMappingsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>(Trigger.ApplyRwaMappings);
             _applyEquivalencesTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>(Trigger.ApplyEquivalenceMappings);
             _addBddHistoriqueTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>(Trigger.AddBddHistorique);
-            _updateObligationsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>(Trigger.UpdateObligations);
+            _updateObligationsTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>>(Trigger.UpdateObligations);
             _updateRafTrigger = _machine.SetTriggerParameters<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>>(Trigger.UpdateRaf);
             _uploadPendingTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadPending);
             _uploadSuccessTrigger = _machine.SetTriggerParameters<AggregateUploadResultContext>(Trigger.UploadSuccess);
@@ -143,7 +143,7 @@ namespace RWA.Web.Application.Services.Workflow
                     await InvokeEventAsync(UnexpectedError, context))
                 .InternalTransition<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>(_addBddHistoriqueTrigger!, async (items, transition) =>
                     await InvokeEventAsync(AddBddHistorique, items))
-                .InternalTransition<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>(_updateObligationsTrigger!, async (items, transition) =>
+                .InternalTransition<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>>(_updateObligationsTrigger!, async (items, transition) =>
                     await InvokeEventAsync(UpdateObligations, items))
                 .Permit(Trigger.GoToRafManager, State.RafManager)
                 .Permit(Trigger.Previous, State.RWACategoryManager)
@@ -242,7 +242,7 @@ namespace RWA.Web.Application.Services.Workflow
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.RwaMappingRowDto>>? ApplyRwaMappingsTrigger => _applyRwaMappingsTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.EquivalenceMappingDto>>? ApplyEquivalencesTrigger => _applyEquivalencesTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateInterneHistoriqueDto>>? AddBddHistoriqueTrigger => _addBddHistoriqueTrigger;
-        public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.ObligationUpdateDto>>? UpdateObligationsTrigger => _updateObligationsTrigger;
+        public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>>? UpdateObligationsTrigger => _updateObligationsTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>>? UpdateRafTrigger => _updateRafTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadPendingTrigger => _uploadPendingTrigger;
         public StateMachine<State, Trigger>.TriggerWithParameters<AggregateUploadResultContext>? UploadSuccessTrigger => _uploadSuccessTrigger;
