@@ -436,8 +436,11 @@ namespace RWA.Web.Application.Services.Workflow
                 }
                 else
                 {
-                    additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = true };
-                }
+                    if (!string.IsNullOrEmpty(item.Raf)) {
+                         additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = true };
+               
+                    }
+                    }
                 item.AdditionalInformation = additionalInfo;
             }
 
@@ -468,7 +471,6 @@ namespace RWA.Web.Application.Services.Workflow
         private async Task ApplyCptTransparence()
         {
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
-            var test = allItems.Where(i => string.IsNullOrEmpty(i.Raf)).ToArray();
             var transparenceData = await _dbProvider.GetHecateContrepartiesTransparenceAsync();
 
             var itemsToUpdate = new List<HecateInventaireNormalise>();
