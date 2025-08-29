@@ -77,17 +77,12 @@ connection.on("ReceiveTethysTotalItems", (total: number) => {
     totalItems.value = total;
 });
 
-const fetchData = async () => {
-    const data = await getTethysStatus();
-    payload.value = data.map((item: any) => ({
-        NumLigne: item.numLigne,
-        Source: item.source,
-        Cpt: item.cpt,
-        Raf: item.raf,
-        CptTethys: item.cptTethys,
-        IsGeneric: item.isGeneric,
-        IsMappingTethysSuccessful: item.isMappingTethysSuccessful,
-    }));
+const fetchData = async (initial = false) => {
+    if (initial) {
+        payload.value = [];
+    }
+    const data = await getTethysStatus("all", payload.value.length.toString(), 20);
+    payload.value = [...payload.value, ...data.items];
 };
 
 onMounted(async () => {

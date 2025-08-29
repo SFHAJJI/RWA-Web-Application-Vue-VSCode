@@ -321,17 +321,46 @@ namespace RWA.Web.Application.Controllers
         }
 
         [HttpGet("tethys-status")]
-        public async Task<ActionResult<IEnumerable<HecateTethysDto>>> GetTethysStatus()
+        public async Task<ActionResult<TethysStatusPage>> GetTethysStatus(
+            [FromQuery] string filter = "all",
+            [FromQuery] string? cursor = null,
+            [FromQuery] int take = 20)
         {
-            var data = await _orchestrator.GetTethysStatusAsync();
-            return Ok(data);
+            var page = await _orchestrator.GetTethysStatusPageAsync(filter, cursor, take);
+            return Ok(page);
         }
 
         [HttpPost("update-tethys-status")]
-        public async Task<ActionResult<IEnumerable<HecateTethysDto>>> UpdateTethysStatus()
+        public async Task<IActionResult> UpdateTethysStatus()
         {
-            var data = await _orchestrator.TriggerUpdateTethysStatusAsync();
-            return Ok(data);
+            await _orchestrator.TriggerUpdateTethysStatusAsync();
+            return Ok();
+        }
+
+        [HttpGet("tethys/search")]
+        public async Task<ActionResult<object>> Search(
+          [FromQuery] string q, [FromQuery] string? cursor, [FromQuery] int take = 20)
+        {
+            // This is a placeholder implementation. You will need to replace this with your actual search logic.
+            var data = await _orchestrator.GetTethysStatusAsync();
+            var filteredData = data.Where(d => d.Cpt.Contains(q, System.StringComparison.OrdinalIgnoreCase) || d.Source.Contains(q, System.StringComparison.OrdinalIgnoreCase)).Take(take);
+            return Ok(new { items = filteredData, nextCursor = (string)null, total = data.Count() });
+        }
+
+        [HttpGet("tethys/suggestions/{numLigne}")]
+        public async Task<ActionResult<IEnumerable<HecateTethysDto>>> Suggestions(long numLigne)
+        {
+            // This is a placeholder implementation. You will need to replace this with your actual suggestion logic.
+            var data = await _orchestrator.GetTethysStatusAsync();
+            return Ok(data.Take(5));
+        }
+
+        [HttpPost("tethys/assign")]
+        public async Task<IActionResult> Assign([FromBody] AssignRafRequest req)
+        {
+            // This is a placeholder implementation. You will need to replace this with your actual assignment logic.
+            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateRafAsync(new List<HecateTethysDto> { new HecateTethysDto { NumLigne = (int)req.NumLigne, Raf = req.Raf } });
+            return Ok();
         }
 
         // No in-memory mock helpers - workflow is persisted through the orchestrator-owned DbContext

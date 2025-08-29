@@ -375,9 +375,33 @@ namespace RWA.Web.Application.Services.Workflow
             return (_actions as WorkflowStateActions).GetTethysStatusAsync();
         }
 
-        public async Task<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>> TriggerUpdateTethysStatusAsync()
+        public async Task TriggerUpdateTethysStatusAsync()
         {
-            return await (_actions as WorkflowStateActions).UpdateTethysStatusAsync();
+            await (_actions as WorkflowStateActions).UpdateTethysStatusAsync();
+        }
+
+        public async Task<RWA.Web.Application.Models.Dtos.TethysStatusPage> GetTethysStatusPageAsync(string filter, string? cursor, int take)
+        {
+            var allItems = await (_actions as WorkflowStateActions).GetTethysStatusAsync();
+            var filteredItems = allItems;
+
+            if (filter == "failed")
+            {
+                filteredItems = allItems.Where(i => !i.IsMappingTethysSuccessful).ToList();
+            }
+            else if (filter == "successful")
+            {
+                filteredItems = allItems.Where(i => i.IsMappingTethysSuccessful).ToList();
+            }
+
+            var pageItems = filteredItems.Take(take).ToList();
+
+            return new RWA.Web.Application.Models.Dtos.TethysStatusPage
+            {
+                Items = pageItems,
+                NextCursor = null, // Placeholder for cursor logic
+                Total = filteredItems.Count
+            };
         }
 
         /// <summary>

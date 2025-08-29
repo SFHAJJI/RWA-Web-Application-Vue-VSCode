@@ -1,278 +1,229 @@
 <template>
-  <div>
+  <div class="raf-helper">
     <h3 class="text-h6">RAF Helper</h3>
     <br />
 
-    <v-alert v-if="!items || items.length === 0" type="success" prominent border="start">
+    <v-alert v-if="!unresolved.length" type="success" prominent border="start">
       All inventory files are validated in Tethys
       <v-btn color="success" variant="outlined" class="ml-4">Generate Fichier Enrichi</v-btn>
     </v-alert>
 
-    <div v-else>
-      <div v-if="areAllMappingsSuccessful">
-        <v-alert type="success" prominent border="start">
-          All mappings are successful. Ready to proceed.
-        </v-alert>
-      </div>
-      <div v-else>
-        <v-switch
-          v-model="isGroupedView"
-          label="Grouped View"
-          color="primary"
-        ></v-switch>
+    <div v-else class="split">
+      <!-- LEFT: KO list -->
+      <section class="left">
+        <div class="left-toolbar">
+          <v-switch v-model="isGroupedView" label="Grouped View" color="primary" />
+          <v-text-field v-model="leftFilter" density="compact" hide-details
+                        prepend-inner-icon="mdi-magnify" placeholder="Filter…" />
+        </div>
 
-        <transition name="fade" mode="out-in">
-          <div :key="isGroupedView">
-            <!-- Grouped View using v-list -->
-            <div v-if="isGroupedView">
-              <v-list lines="two" class="grouped-list">
-                <v-list-group v-for="(group, groupKey) in groupedItems" :key="groupKey" :value="groupKey">
-                  <template v-slot:activator="{ props }">
-                    <v-list-item v-bind="props">
-                      <v-list-item-title>{{ groupKey }}</v-list-item-title>
-                      <template v-slot:append>
-                        <v-icon v-if="isGroupComplete(group)" color="success">mdi-check-circle</v-icon>
-                        <v-icon v-else color="error">mdi-close-circle</v-icon>
-                      </template>
-                    </v-list-item>
-                  </template>
+        <!-- Raw mode -->
+        <v-data-table
+          v-if="!isGroupedView"
+          :items="pagedKOs"
+          :headers="leftHeaders"
+          item-key="NumLigne"
+          fixed-header height="70vh"
+          density="compact"
+          :loading="loadingLeft"
+          @click:row="(event, { item }) => selectKO(item)"
+        >
+          <template #item.Raf="{ item }">
+            <StatusCell :raf="item.Raf" />
+          </template>
+        </v-data-table>
 
-                  <v-table class="inner-table">
-                    <thead>
-                      <tr>
-                        <th class="text-left">NumLigne</th>
-                        <th class="text-left">CptTethys</th>
-                        <th class="text-left">IsGeneric</th>
-                        <th class="text-left">IsMappingTethysSuccessful</th>
-                        <th class="text-left">Raf</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in group" :key="item.NumLigne">
-                        <td>{{ item.NumLigne }}</td>
-                        <td>{{ item.CptTethys }}</td>
-                        <td>{{ item.IsGeneric }}</td>
-                        <td>{{ item.IsMappingTethysSuccessful }}</td>
-                        <td class="raf-cell">
-                          <v-icon v-if="item.Raf" color="success" class="status-icon">mdi-check-circle</v-icon>
-                          <v-icon v-else color="error" class="status-icon">mdi-close-circle</v-icon>
-                          {{ item.Raf }}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </v-table>
+        <!-- Grouped mode (no nested DetailsTable) -->
+        <v-list v-else class="grouped-list" style="height:70vh; overflow:auto">
+          <v-list-group
+            v-for="(group, key) in grouped"
+            :key="key"
+            :value="key"
+          >
+            <template #activator="{ props }">
+              <v-list-item v-bind="props">
+                <v-list-item-title>{{ key }}</v-list-item-title>
+                <template #append>
+                  <v-icon :color="isGroupComplete(group)?'success':'error'">
+                    {{ isGroupComplete(group) ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                  </v-icon>
+                </template>
+              </v-list-item>
+            </template>
 
-                  <DetailsTable
-                    @selection-changed="(selectedDetail) => handleGroupedSelection(groupKey, selectedDetail)"
-                  />
-                </v-list-group>
-              </v-list>
-            </div>
-
-            <!-- Classic Table -->
-            <v-data-table
-              v-else
-              :items="itemsToDisplay"
-              :headers="classicHeaders"
-              item-value="NumLigne"
-              show-expand
-              class="modern-table"
-            >
-              <template v-slot:item.Raf="{ item }">
-                <td class="raf-cell">
-                  <v-icon v-if="item.Raf" color="success" class="status-icon">mdi-check-circle</v-icon>
-                  <v-icon v-else color="error" class="status-icon">mdi-close-circle</v-icon>
-                  {{ item.Raf }}
-                </td>
-              </template>
-              <template v-slot:expanded-row="{ columns, item }">
-                <tr class="expanded-row-content">
-                  <td :colspan="columns.length">
-                    <div class="details-connector"></div>
-                    <DetailsTable
-                      @selection-changed="(selectedDetail) => handleClassicSelection(item, selectedDetail)"
-                    />
-                  </td>
+            <v-table class="inner-table">
+              <thead>
+                <tr>
+                  <th>NumLigne</th><th>CptTethys</th><th>IsGeneric</th><th>OK?</th><th>Raf</th>
                 </tr>
-              </template>
-            </v-data-table>
-          </div>
-        </transition>
+              </thead>
+              <tbody>
+                <tr v-for="row in group" :key="row.NumLigne" @click="selectKO(row)" class="clickable">
+                  <td>{{ row.NumLigne }}</td>
+                  <td>{{ row.CptTethys }}</td>
+                  <td>{{ row.IsGeneric }}</td>
+                  <td>{{ row.IsMappingTethysSuccessful }}</td>
+                  <td><StatusCell :raf="row.Raf" /></td>
+                </tr>
+              </tbody>
+            </v-table>
+          </v-list-group>
+        </v-list>
 
-        <v-row class="mt-6">
-          <v-col cols="12" class="d-flex justify-end">
-            <v-btn color="primary" elevation="2" large @click="submit">
-              <v-icon left>mdi-check-circle</v-icon>
-              Submit
-            </v-btn>
-          </v-col>
-        </v-row>
-      </div>
+        <div class="left-footer">
+          <v-btn color="primary" @click="submit" :disabled="!hasChanges">
+            <v-icon start>mdi-check-circle</v-icon> Submit
+          </v-btn>
+        </div>
+      </section>
+
+      <v-divider vertical />
+
+      <!-- RIGHT: single reusable DetailsTable -->
+      <section class="right">
+        <div class="right-toolbar">
+          <div class="current">
+            <span v-if="selectedKO">
+              Working on <strong>#{{ selectedKO.NumLigne }}</strong> – {{ selectedKO.Source }} / {{ selectedKO.Cpt }}
+            </span>
+            <span v-else class="muted">Select a KO on the left to begin</span>
+          </div>
+          <div class="actions">
+            <v-btn size="small" variant="text" @click="skip">Skip</v-btn>
+          </div>
+        </div>
+
+        <DetailsTable
+          v-if="selectedKO"
+          :prefill="prefillFromKO(selectedKO)"
+          :page-size="20"
+          @assign="assign"
+        />
+        <v-skeleton-loader v-else type="table" class="skeleton" />
+      </section>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed, defineProps } from 'vue';
-import DetailsTable from './DetailsTable.vue';
+<script setup lang="ts">
+import { ref, computed, onMounted, reactive } from 'vue'
+import DetailsTable from './DetailsTable.vue'
+import StatusCell from './StatusCell.vue'
+import { fetchFailed, assignRaf, fetchSuggestions } from '../../api/tethysApi'
 
-const props = defineProps({
-  payload: {
-    type: Array,
-    required: true,
-  },
-});
+const isGroupedView = ref(false)
+const loadingLeft = ref(false)
+const leftFilter = ref('')
+const selectedKO = ref<any | null>(null)
+const dirtyIds = ref(new Set())
 
-console.log('Tethys Payload:', props.payload);
+const left = reactive({ items: [] as any[], cursor: null as string | null, total: 0, loading: false })
 
-const isGroupedView = ref(false);
-const items = ref(props.payload);
+async function loadLeft(initial = false) {
+    if (left.loading) return
+    left.loading = true
+    const d = await fetchFailed(initial ? undefined : left.cursor ?? undefined, 20)
+    left.items = initial ? d.items : [...left.items, ...d.items]
+    left.cursor = d.nextCursor ?? null
+    left.total = d.total
+    left.loading = false
+}
 
-const areAllMappingsSuccessful = computed(() => {
-  return items.value.every(item => item.IsMappingTethysSuccessful);
-});
+onMounted(() => loadLeft(true))
 
-const itemsToDisplay = computed(() => {
-  return items.value.filter(item => !item.IsMappingTethysSuccessful);
-});
+const unresolved = computed(() => left.items.filter(i => !i.isMappingTethysSuccessful))
+const leftHeaders = [
+  { title:'NumLigne', key:'NumLigne' },
+  { title:'Source', key:'Source' },
+  { title:'CptTethys', key:'CptTethys' },
+  { title:'Cpt', key:'Cpt' },
+  { title:'IsGeneric', key:'IsGeneric' },
+  { title:'OK?', key:'IsMappingTethysSuccessful' },
+  { title:'Raf', key:'Raf' },
+]
 
-const classicHeaders = [
-  { title: 'NumLigne', key: 'NumLigne' },
-  { title: 'Source', key: 'Source' },
-  { title: 'CptTethys', key: 'CptTethys' },
-  { title: 'Cpt', key: 'Cpt' },
-  { title: 'IsGeneric', key: 'IsGeneric' },
-  { title: 'IsMappingTethysSuccessful', key: 'IsMappingTethysSuccessful' },
-  { title: 'Raf', key: 'Raf' },
-  { title: '', key: 'data-table-expand', align: 'end' },
-];
+const pagedKOs = computed(() => {
+    const f = (leftFilter.value || '').toLowerCase()
+    return unresolved.value.filter(x =>
+        !f || String(x.numLigne).includes(f) || (x.cptTethys?.toLowerCase().includes(f)))
+})
 
-const groupedItems = computed(() => {
-  return itemsToDisplay.value.reduce((acc, item) => {
-    const groupKey = `${item.Source} - ${item.Cpt}`;
-    if (!acc[groupKey]) {
-      acc[groupKey] = [];
+const grouped = computed(() => {
+  return unresolved.value.reduce((acc, it) => {
+    const k = `${it.Source} - ${it.Cpt}`
+    ;(acc[k] ||= []).push(it)
+    return acc
+  }, {} as Record<string, any[]>)
+})
+
+function isGroupComplete(group: any[]) {
+  return group.every(i => i.Raf && i.Raf.trim() !== '')
+}
+
+function selectKO(row: any) {
+  selectedKO.value = row
+}
+
+function prefillFromKO(row: any) {
+  // return an object the DetailsTable can use to set initial query/filters
+  // e.g. { query: row.CptTethys ?? row.Cpt, chips: [row.Source, row.Tiers] }
+  return { query: row.CptTethys || row.Cpt, context: { source: row.Source, cpt: row.Cpt } }
+}
+
+async function assign(candidate: { raf: string, id?: number }) {
+    if (!selectedKO.value) return
+    const originalRaf = selectedKO.value.raf
+    const originalStatus = selectedKO.value.isMappingTethysSuccessful
+
+    // optimistic update
+    selectedKO.value.raf = candidate.raf
+    selectedKO.value.isMappingTethysSuccessful = true
+    dirtyIds.value.add(selectedKO.value.numLigne)
+
+    try {
+        await assignRaf(selectedKO.value.numLigne, candidate.raf)
+    } catch (error) {
+        // revert on failure
+        selectedKO.value.raf = originalRaf
+        selectedKO.value.isMappingTethysSuccessful = originalStatus
+        dirtyIds.value.delete(selectedKO.value.numLigne)
+        // show error toast
     }
-    acc[groupKey].push(item);
-    return acc;
-  }, {});
-});
 
-function handleClassicSelection(item, selectedValue) {
-  const index = items.value.findIndex(d => d.NumLigne === item.NumLigne);
-  if (index !== -1) {
-    items.value[index].Raf = selectedValue;
-  }
+    // auto-advance
+    const idx = unresolved.value.findIndex(i => i.numLigne === selectedKO.value.numLigne)
+    selectedKO.value = unresolved.value[idx + 1] || null
 }
 
-function handleGroupedSelection(groupKey, selectedValue) {
-  const [source, cpt] = groupKey.split(' - ');
-  items.value.forEach((d) => {
-    if (d.Source === source && d.Cpt === cpt) {
-      d.Raf = selectedValue;
-    }
-  });
+function undo(row: any) {
+  row.Raf = ''
+  row.IsMappingTethysSuccessful = false
+  dirtyIds.value.delete(row.NumLigne)
+  selectedKO.value = row
 }
 
-function isGroupComplete(group) {
-  return group.every(item => item.Raf && item.Raf.trim() !== '');
-}
+const hasChanges = computed(() => dirtyIds.value.size > 0)
 
 async function submit() {
-  try {
-    const itemsToSubmit = items.value.map(item => {
-      const newItem = {};
-      for (const key in item) {
-        newItem[key] = item[key] === null ? '' : item[key];
-      }
-      return newItem;
-    });
-
-    console.log('Submitting items:', JSON.parse(JSON.stringify(itemsToSubmit)));
-
-    const response = await fetch('/api/workflow/update-raf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(itemsToSubmit),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update RAF values');
+    const changed = left.items.filter(i => dirtyIds.value.has(i.numLigne))
+    for (const item of changed) {
+        await assignRaf(item.numLigne, item.raf)
     }
+    dirtyIds.value.clear()
+}
 
-    // Optionally, you can handle the success case here, e.g., show a notification.
-    console.log('RAF values updated successfully');
-  } catch (error) {
-    console.error('Error updating RAF values:', error);
-  }
+function skip() {
+  // mark item to revisit or move on
+  const idx = unresolved.value.findIndex(i => i.NumLigne === selectedKO.value?.NumLigne)
+  selectedKO.value = unresolved.value[idx + 1] || null
 }
 </script>
 
-<style>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-.grouped-list .v-list-group__items {
-  padding: 0 16px 16px;
-}
-.inner-table {
-  background-color: rgba(0,0,0,0.05);
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-.modern-table {
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-.modern-table .v-data-table-header {
-  background-color: #f5f5f5;
-}
-.modern-table .v-data-table-header th {
-  font-weight: 600;
-  color: #333;
-}
-.modern-table tbody tr:hover {
-  background-color: #f9f9f9;
-}
-.modern-table tbody tr:nth-of-type(odd) {
-  background-color: #fafafa;
-}
-.expanded-row-content {
-  position: relative;
-}
-.details-connector {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  width: 2px;
-  height: 10px;
-  background-color: #ccc;
-  animation: grow-connector 0.3s ease-out;
-}
-@keyframes grow-connector {
-  from {
-    height: 0;
-  }
-  to {
-    height: 10px;
-  }
-}
-.raf-cell {
-  position: relative;
-  transition: background-color 0.3s ease;
-}
-.status-icon {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  font-size: 16px;
-}
+<style scoped>
+.split { display: grid; grid-template-columns: 5fr 1px 7fr; gap: 0; }
+.left, .right { display: flex; flex-direction: column; min-height: 70vh; }
+.left-toolbar, .right-toolbar { position: sticky; top: 0; background: white; z-index: 1; padding: .5rem; border-bottom: 1px solid #eee; }
+.left-footer { padding: .5rem; border-top: 1px solid #eee; }
+.skeleton { height: 70vh; }
+.clickable { cursor: pointer; }
 </style>

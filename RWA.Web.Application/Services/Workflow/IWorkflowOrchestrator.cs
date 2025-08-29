@@ -48,6 +48,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>> GetInvalidObligations();
         Task<List<HecateInventaireNormalise>> GetItemsToAddTobdd();
         Task<List<HecateTethysDto>> GetTethysStatusAsync();
-        Task<List<HecateTethysDto>> TriggerUpdateTethysStatusAsync();
+        Task<TethysStatusPage> GetTethysStatusPageAsync(string filter, string? cursor, int take);
+        Task TriggerUpdateTethysStatusAsync();
     }
 }

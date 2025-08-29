@@ -1,80 +1,83 @@
 <template>
   <v-card flat class="ma-2 pa-3">
-    <v-radio-group v-model="selectedValue" @update:modelValue="onSelectionChange">
-      <v-data-table-server
-        v-model:items-per-page="options.itemsPerPage"
-        :headers="tableHeaders"
-        :items="serverItems"
-        :items-length="totalItems"
-        :loading="loading"
-        :search="search"
-        @update:options="updateOptions"
-        class="elevation-1 modern-table"
-        density="compact"
-        fixed-header
-        hover
-      >
-        <template v-slot:top>
-          <div class="filter-controls">
-            <v-text-field v-model="filters.IdentifiantRaf" density="compact" placeholder="RAF..." hide-details class="filter-item"></v-text-field>
-            <v-text-field v-model="filters.RaisonSociale" density="compact" placeholder="Raison Sociale..." hide-details class="filter-item"></v-text-field>
-            <v-text-field v-model="filters.CodeIsin" density="compact" placeholder="Code ISIN..." hide-details class="filter-item"></v-text-field>
-            <v-text-field v-model="filters.CodeCusip" density="compact" placeholder="Code CUSIP..." hide-details class="filter-item"></v-text-field>
-          </div>
-          <v-progress-linear :active="loading" indeterminate color="primary"></v-progress-linear>
-        </template>
-        <template v-slot:item.identifiantRaf="{ item }">
-          <v-radio v-if="item.identifiantRaf && item.identifiantRaf.trim()" :value="item.identifiantRaf" class="d-inline-block">
-            <template v-slot:label>
-              <span class="radio-label">{{ item.identifiantRaf }}</span>
-            </template>
-          </v-radio>
-        </template>
-        <template v-slot:item.rafTeteGroupeReglementaire="{ item }">
-          <v-radio v-if="item.rafTeteGroupeReglementaire && item.rafTeteGroupeReglementaire.trim()" :value="item.rafTeteGroupeReglementaire" class="d-inline-block">
-            <template v-slot:label>
-              <span class="radio-label">{{ item.rafTeteGroupeReglementaire }}</span>
-            </template>
-          </v-radio>
-        </template>
-      </v-data-table-server>
-    </v-radio-group>
+    <v-data-table-server
+      v-model:items-per-page="options.itemsPerPage"
+      :headers="tableHeaders"
+      :items="serverItems"
+      :items-length="totalItems"
+      :loading="loading"
+      :search="search"
+      @update:options="updateOptions"
+      class="elevation-1 modern-table"
+      density="compact"
+      fixed-header
+      hover
+    >
+      <template v-slot:top>
+        <div class="filter-controls">
+          <v-text-field v-model="filters.RaisonSociale" density="compact" placeholder="Search by Raison Sociale, Cpt..." hide-details clearable prepend-inner-icon="mdi-magnify"></v-text-field>
+        </div>
+        <v-progress-linear :active="loading" indeterminate color="primary"></v-progress-linear>
+      </template>
+      <template v-slot:item.actions="{ item }">
+        <v-btn size="small" color="primary" @click="assignItem(item)">
+          Assign
+        </v-btn>
+      </template>
+    </v-data-table-server>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed, defineEmits, watch } from 'vue';
+import { onMounted, ref, computed, defineEmits, watch, defineProps } from 'vue';
 import { useAuditStore } from '../../stores/auditStore';
-import { useDataTable } from '../../composables/useDataTable';
+import { searchTethys } from '../../api/tethysApi';
 
-const emit = defineEmits(['selection-changed']);
+type VDataTableHeader = {
+  key: string;
+  value?: string;
+  title: string;
+  align?: 'start' | 'end' | 'center';
+  sortable?: boolean;
+  [key: string]: any;
+};
+
+const props = defineProps<{
+  prefill: { query: string, context?: any },
+  pageSize: number,
+}>();
+
+const emit = defineEmits(['assign']);
 const auditStore = useAuditStore();
-const selectedValue = ref(null);
 const search = ref('');
 
 const options = ref({
   page: 1,
-  itemsPerPage: 10,
+  itemsPerPage: props.pageSize || 20,
   sortBy: [],
   groupBy: [],
 });
 
-const {
-  serverItems,
-  loading,
-  totalItems,
-  filters,
-  loadServerItems,
-} = useDataTable('/api/audit/tethys/data', {
-  IdentifiantRaf: '',
-  RaisonSociale: '',
-  CodeIsin: '',
-  CodeCusip: '',
-});
+const serverItems = ref<any[]>([]);
+const loading = ref(false);
+const totalItems = ref(0);
+const filters = ref({ RaisonSociale: '' });
 
-watch(serverItems, (newItems) => {
-  console.log('Server items in DetailsTable:', newItems);
-});
+async function loadServerItems() {
+    loading.value = true;
+    const data = await searchTethys(filters.value.RaisonSociale, undefined, options.value.itemsPerPage);
+    serverItems.value = data.items;
+    totalItems.value = data.total;
+    loading.value = false;
+}
+
+watch(() => props.prefill, (newPrefill) => {
+    if (newPrefill) {
+        filters.value.RaisonSociale = newPrefill.query;
+        loadServerItems();
+    }
+}, { immediate: true, deep: true });
+
 
 let debounceTimer: any;
 watch(filters, () => {
@@ -84,24 +87,27 @@ watch(filters, () => {
   }, 300);
 }, { deep: true });
 
-const tableHeaders = computed(() => {
-  return auditStore.tethysColumns.map((header: any) => ({
+const tableHeaders = computed((): VDataTableHeader[] => {
+  const headers: VDataTableHeader[] = auditStore.tethysColumns.map((header: any) => ({
     title: header.text,
     value: header.value,
     key: header.value,
     sortable: true,
   }));
+  // Add an actions column
+  headers.push({ title: 'Actions', key: 'actions', sortable: false, align: 'end' });
+  return headers;
 });
 
-function onSelectionChange(newValue) {
-  if (newValue) {
-    emit('selection-changed', newValue);
+function assignItem(item: any) {
+  if (item && item.identifiantRaf) {
+    emit('assign', { raf: item.identifiantRaf });
   }
 }
 
 const updateOptions = (newOptions: any) => {
   options.value = newOptions;
-  loadServerItems(newOptions);
+  loadServerItems();
 };
 
 onMounted(async () => {
@@ -112,7 +118,7 @@ onMounted(async () => {
 <style scoped>
 .filter-controls {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr; /* Single column for one search bar */
   gap: 12px;
   padding: 8px 16px;
 }
