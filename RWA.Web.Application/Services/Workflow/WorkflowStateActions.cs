@@ -406,12 +406,30 @@ namespace RWA.Web.Application.Services.Workflow
                 {
                     var match = bddItems.First(b => b.IdentifiantUniqueRetenu == item.IdentifiantOrigine);
                     additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdUniqueRetenu = true };
+                    if (string.IsNullOrEmpty(item.Raf)) {
+
+                         additionalInfo.RafOrigin = "HecateInterneHistorique";
+                    
+                    }
+                    else if (item.Raf != match.Raf)
+                    {
+                        additionalInfo.RafOrigin = "HecateInterneHistoriqueOverrideIdentifiantUniqueRetenu";
+                    }
                     item.Raf = match.Raf;
                 }
                 else if (bddIdOrigineSet.Contains(item.IdentifiantOrigine))
                 {
                     var match = bddItems.First(b => b.IdentifiantOrigine == item.IdentifiantOrigine);
                     additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdOrigine = true };
+                    if (string.IsNullOrEmpty(item.Raf)) {
+
+                         additionalInfo.RafOrigin = "HecateInterneHistorique";
+                    
+                    }
+                    else if (item.Raf != match.Raf)
+                    {
+                        additionalInfo.RafOrigin = "HecateInterneHistoriqueOverrideIdentifiantOrigine";
+                    }
                     item.Raf = match.Raf;
                 }
                 else
@@ -441,7 +459,6 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 Console.WriteLine($"[OnRafManagerEntryAsync] Entering Raf Manager step");
 
-                await ApplyCptTransparence();
                 await SetTethysStatus();
             });
         }
@@ -449,22 +466,19 @@ namespace RWA.Web.Application.Services.Workflow
         private async Task ApplyCptTransparence()
         {
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
-            var categories = await _dbProvider.GetCategorieRwaOptionsAsync();
-            var categoriesDict = categories.ToDictionary(c => c.IdCatRwa, c => c);
             var transparenceData = await _dbProvider.GetHecateContrepartiesTransparenceAsync();
 
             var itemsToUpdate = new List<HecateInventaireNormalise>();
 
             foreach (var item in allItems)
             {
-                var isValeurMobiliere = categoriesDict.ContainsKey(item.RefCategorieRwa) && ((categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("Y", StringComparison.OrdinalIgnoreCase) ?? false) || (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false));
-
-                if (!isValeurMobiliere && string.IsNullOrEmpty(item.Raf))
+                if (!item.AdditionalInformation.IsValeurMobiliere && string.IsNullOrEmpty(item.Raf))
                 {
                     var match = transparenceData.FirstOrDefault(t => t.LibelleContrepartieOrigine.TrimmedEquals(item.Nom));
                     if (match != null)
                     {
                         item.Raf = match.RafEntite;
+                        item.AdditionalInformation.RafOrigin = "CounterpartyTransparence";
                         itemsToUpdate.Add(item);
                     }
                 }
@@ -597,7 +611,9 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task OnBDDManagerExitAsync(string stepName)
         {
-            await ExecuteSafelyAsync(nameof(OnBDDManagerExitAsync), stepName, () => Task.CompletedTask);
+            await ExecuteSafelyAsync(nameof(OnBDDManagerExitAsync), stepName, async () =>
+                await ApplyCptTransparence()
+            );
         }
 
         public async Task OnRafManagerExitAsync(string stepName)

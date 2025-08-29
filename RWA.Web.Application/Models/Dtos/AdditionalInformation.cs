@@ -9,7 +9,7 @@ namespace RWA.Web.Application.Models.Dtos
         public bool IsValeurMobiliere { get; set; }
         public AddtoBDDDto AddtoBDDDto { get; set; }
         public bool TethysRafStatus { get; set; }
-        public int RafOrigin { get; set; }
+        public string RafOrigin { get; set; }
     }
 
     public class AddtoBDDDto

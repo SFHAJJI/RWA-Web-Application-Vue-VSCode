@@ -94,6 +94,11 @@ namespace RWA.Web.Application.Services.Workflow
                     if (!string.IsNullOrEmpty(rafStr))
                     {
                         ent.Raf = rafStr.PadLeft(7, '0');
+                        ent.AdditionalInformation.RafOrigin = "Inventory";
+                    }
+                    else
+                    {
+                        ent.AdditionalInformation.RafOrigin = "Inexistant";
                     }
 
                     ent.BoaSj = colBoaSj != null && !(r[colBoaSj] is DBNull) ? r[colBoaSj].ToString()?.Trim() : null;
