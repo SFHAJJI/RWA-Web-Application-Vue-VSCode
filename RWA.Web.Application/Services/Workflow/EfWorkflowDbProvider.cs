@@ -313,7 +313,12 @@ namespace RWA.Web.Application.Services.Workflow
                 }
                 else if (categorieRwa.ValeurMobiliere.Trim().Equals("N", StringComparison.OrdinalIgnoreCase))
                 {
-                    item.IdentifiantUniqueRetenu = $"{item.Source}{categorieRwa.IdCatRwa}{item.PeriodeCloture}";
+                    var periodeCloture = item.PeriodeCloture;
+                    if (!string.IsNullOrEmpty(periodeCloture) && periodeCloture.Length > 4)
+                    {
+                        periodeCloture = $"{periodeCloture.Substring(0, 2)}{periodeCloture.Substring(periodeCloture.Length - 2)}";
+                    }
+                    item.IdentifiantUniqueRetenu = $"{item.Source}{categorieRwa.IdCatRwa}{periodeCloture}";
                     item.AdditionalInformation.IsValeurMobiliere = false;
                 }
             }

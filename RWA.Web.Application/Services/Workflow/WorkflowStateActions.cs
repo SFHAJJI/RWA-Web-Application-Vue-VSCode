@@ -399,8 +399,7 @@ namespace RWA.Web.Application.Services.Workflow
             var bddIdOrigineSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantOrigine));
 
             var itemsToProcess = allItems.Where(i => i.AdditionalInformation.IsValeurMobiliere && !string.IsNullOrEmpty(i.Raf)).ToList();
-
-            Parallel.ForEach(itemsToProcess, item =>
+           Parallel.ForEach(itemsToProcess, item =>
             {
                 var additionalInfo = item.AdditionalInformation;
                 if (bddIdUniqueRetenuSet.Contains(item.IdentifiantOrigine))
@@ -574,6 +573,22 @@ namespace RWA.Web.Application.Services.Workflow
                                              (categoriesDict[item.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false));
 
                     item.AdditionalInformation = new AdditionalInformation { IsValeurMobiliere = isValeurMobiliere };
+                });
+
+                var itemsToUpdate = allItems.Where(i => !i.AdditionalInformation.IsValeurMobiliere).ToList();
+                var groupedItems = itemsToUpdate.GroupBy(i => i.IdentifiantUniqueRetenu);
+
+                Parallel.ForEach(groupedItems, group =>
+                {
+                    int counter = 0;
+                    foreach (var item in group)
+                    {
+                        char firstChar = (char)('A' + (counter / 26));
+                        char secondChar = (char)('A' + (counter % 26));
+                        string suffix = $"{firstChar}{secondChar}";
+                        item.IdentifiantUniqueRetenu = $"{item.IdentifiantUniqueRetenu}{suffix}";
+                        counter++;
+                    }
                 });
 
                 await _dbProvider.UpdateInventaireNormaliseRangeAsync(allItems);

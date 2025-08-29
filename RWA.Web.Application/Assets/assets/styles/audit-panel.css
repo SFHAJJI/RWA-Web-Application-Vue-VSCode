@@ -265,6 +265,34 @@
     align-items: center !important;
 }
 
+@media (max-width: 1200px) {
+  .audit-card {
+    padding: 12px;
+    min-width: 180px;
+  }
+
+  .card-content {
+    gap: 12px;
+  }
+
+  .card-icon .v-icon {
+    font-size: 28px !important;
+  }
+
+  .card-title {
+    font-size: 1rem;
+  }
+
+  .card-description {
+    font-size: 0.85rem;
+  }
+
+  .stat-badge {
+    padding: 3px 6px;
+    font-size: 0.75rem;
+  }
+}
+
 .filter-input .v-input__control .v-input__slot {
     align-items: center !important;
 }
