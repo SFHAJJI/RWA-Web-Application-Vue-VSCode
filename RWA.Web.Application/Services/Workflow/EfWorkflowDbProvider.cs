@@ -706,6 +706,14 @@ namespace RWA.Web.Application.Services.Workflow
             });
         }
 
+        public async Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsNoTrackingAsync()
+        {
+            return await WithDbAsync(async db =>
+            {
+                return await db.HecateInventaireNormalises.AsNoTracking().ToListAsync();
+            });
+        }
+
         public async Task<List<HecateInterneHistorique>> GetAllHecateInterneHistoriqueAsync()
         {
             return await WithDbAsync(async db =>
@@ -714,7 +722,7 @@ namespace RWA.Web.Application.Services.Workflow
             });
         }
 
-        public async Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate)
+        public async Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<Func<HecateInterneHistorique, bool>> predicate)
         {
             return await WithDbAsync(async db =>
             {
@@ -792,6 +800,60 @@ namespace RWA.Web.Application.Services.Workflow
                 }
 
                 return await query.Where(predicate).Select(item => item.TrimProperties()).ToListAsync();
+            });
+        }
+
+        public Task<bool> TethysExistsAsync(string raf, CancellationToken ct = default)
+        {
+            var key = raf?.Trim().ToUpperInvariant();
+            if (string.IsNullOrEmpty(key)) return Task.FromResult(false);
+
+            return WithDbAsync(db =>
+                db.HecateTethys
+                  .AsNoTracking()
+                  .AnyAsync(t =>
+                      (t.IdentifiantRaf != null && t.IdentifiantRaf.Trim().ToUpper() == key) ||
+                      (t.RafTeteGroupeReglementaire != null && t.RafTeteGroupeReglementaire.Trim().ToUpper() == key),
+                      ct)
+            );
+        }
+
+        public async Task<HashSet<string>> GetExistingTethysRafsAsync(List<string> rafs)
+        {
+            return await WithDbAsync(async db =>
+            {
+                var upperRafs = rafs.Select(r => r.ToUpperInvariant()).ToList();
+
+                var results = await db.HecateTethys
+                    .AsNoTracking()
+                    .Where(t => (t.IdentifiantRaf != null && upperRafs.Contains(t.IdentifiantRaf)) ||
+                                (t.RafTeteGroupeReglementaire != null && upperRafs.Contains(t.RafTeteGroupeReglementaire)))
+                    .Select(t => new[] { t.IdentifiantRaf, t.RafTeteGroupeReglementaire })
+                    .ToListAsync();
+
+                return new HashSet<string>(results.SelectMany(r => r).Where(r => r != null && upperRafs.Contains(r.ToUpperInvariant())), StringComparer.OrdinalIgnoreCase);
+            });
+        }
+
+        public async Task<int> GetTethysCountAsync()
+        {
+            return await WithDbAsync(async db => await db.HecateTethys.CountAsync());
+        }
+
+        public async Task UpdateTethysStatusForNumLignesAsync(List<int> numLignes, bool status)
+        {
+            await WithDbAsync(async db =>
+            {
+                var itemsToUpdate = await db.HecateInventaireNormalises
+                    .Where(h => numLignes.Contains(h.NumLigne))
+                    .ToListAsync();
+
+                foreach (var item in itemsToUpdate)
+                {
+                    item.AdditionalInformation.TethysRafStatus = status;
+                }
+
+                await db.SaveChangesAsync();
             });
         }
 

@@ -7,7 +7,14 @@
                 <strong>{{ Math.ceil(value) }}%</strong>
             </template>
         </v-progress-linear>
-        <v-data-table :headers="headers" :items="sortedPayload">
+        <h3>Failed Mappings ({{ failedMappings.length }})</h3>
+        <v-data-table :headers="headers" :items="failedMappings" class="mb-4">
+            <template v-slot:item.IsMappingTethysSuccessful="{ value }">
+                <v-chip :color="getColor(value)" :text="value ? 'OK' : 'KO'" size="x-small"></v-chip>
+            </template>
+        </v-data-table>
+        <h3>Successful Mappings ({{ successfulMappings.length }})</h3>
+        <v-data-table :headers="headers" :items="successfulMappings">
             <template v-slot:item.IsMappingTethysSuccessful="{ value }">
                 <v-chip :color="getColor(value)" :text="value ? 'OK' : 'KO'" size="x-small"></v-chip>
             </template>
@@ -66,9 +73,12 @@ connection.on("ReceiveTethysUpdate", (tethysDto: any) => {
     progress.value++;
 });
 
+connection.on("ReceiveTethysTotalItems", (total: number) => {
+    totalItems.value = total;
+});
+
 const fetchData = async () => {
     const data = await getTethysStatus();
-    totalItems.value = data.length;
     payload.value = data.map((item: any) => ({
         NumLigne: item.numLigne,
         Source: item.source,
@@ -82,6 +92,7 @@ const fetchData = async () => {
 
 onMounted(async () => {
     await connection.start();
+    await fetchData();
 });
 
 const reloadData = async () => {
@@ -97,16 +108,12 @@ const exportToExcel = () => {
     XLSX.writeFile(workbook, "tethys-status.xlsx");
 };
 
-const sortedPayload = computed(() => {
-    if (!payload.value) {
-        return [];
-    }
-    return [...payload.value].sort((a, b) => {
-        if (a.IsMappingTethysSuccessful === b.IsMappingTethysSuccessful) {
-            return 0;
-        }
-        return a.IsMappingTethysSuccessful ? 1 : -1;
-    });
+const successfulMappings = computed(() => {
+    return payload.value.filter(item => item.IsMappingTethysSuccessful);
+});
+
+const failedMappings = computed(() => {
+    return payload.value.filter(item => !item.IsMappingTethysSuccessful);
 });
 
 const headers = ref([

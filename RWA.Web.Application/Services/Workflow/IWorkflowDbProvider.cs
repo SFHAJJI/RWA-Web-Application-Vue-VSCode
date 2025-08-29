@@ -39,6 +39,7 @@ namespace RWA.Web.Application.Services.Workflow
 
         // BDD Manager specific methods
         Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsync();
+        Task<List<HecateInventaireNormalise>> GetAllInventaireNormaliseAsNoTrackingAsync();
         Task<List<HecateInterneHistorique>> GetAllHecateInterneHistoriqueAsync();
         Task<HecateInterneHistorique> FindMatchInHistoriqueAsync(System.Linq.Expressions.Expression<System.Func<HecateInterneHistorique, bool>> predicate);
         Task AddBddHistoriqueAsync(List<HecateInterneHistoriqueDto> items);
@@ -48,6 +49,10 @@ namespace RWA.Web.Application.Services.Workflow
         Task<List<HecateContrepartiesTransparence>> GetHecateContrepartiesTransparenceAsync();
         Task UpdateInventaireNormaliseRangeAsync(List<HecateInventaireNormalise> items);
         Task<List<HecateTethy>> GetTethysDataByRafAsync(List<string> rafs);
+        Task<bool> TethysExistsAsync(string raf, CancellationToken ct = default);
+        Task<HashSet<string>> GetExistingTethysRafsAsync(List<string> rafs);
+        Task<int> GetTethysCountAsync();
+        Task UpdateTethysStatusForNumLignesAsync(List<int> numLignes, bool status);
         Task UpdateRafAsync(List<HecateTethysDto> items);
         Task<bool> AreAllRafsCompletedAsync();
         Task<HecateTethysPayload> GetTethysMappingPayloadAsync();

@@ -488,7 +488,7 @@ namespace RWA.Web.Application.Services.Seeding
 
                 var batch = new List<HecateTethy>();
                 var batchSize = 10000; // Process in batches of 10,000
-                var processedKeys = new HashSet<(string, string, string)>(); // Track composite keys
+                var processedKeys = new HashSet<(string, string, string, string, string, string)>(); // Track composite keys
 
                 using (var reader = new StreamReader(filePath))
                 {
@@ -499,46 +499,51 @@ namespace RWA.Web.Application.Services.Seeding
                         if (fields.Length >= 19)
                         {
                             var identifiantRaf = fields[0];
+                            var libelleCourt = fields[1];
                             var codeIsin = fields[9];
                             var codeCusip = fields[12];
+                            var dateNotationInterne = fields[15];
+                            var codeApparentement = fields[18];
 
-                            if (string.IsNullOrEmpty(identifiantRaf) || string.IsNullOrEmpty(codeIsin) || string.IsNullOrEmpty(codeCusip))
+
+                            if (string.IsNullOrEmpty(identifiantRaf) || string.IsNullOrEmpty(codeIsin) || string.IsNullOrEmpty(codeCusip) || string.IsNullOrEmpty(dateNotationInterne) || string.IsNullOrEmpty(codeApparentement) || string.IsNullOrEmpty(libelleCourt))
                             {
                                 continue; // Skip if any part of the composite key is null/empty
                             }
 
-                            var compositeKey = (identifiantRaf, codeIsin, codeCusip);
+                            var compositeKey = (identifiantRaf, codeIsin, codeCusip, dateNotationInterne, codeApparentement, libelleCourt);
                             if (!processedKeys.Add(compositeKey))
                             {
-                                Console.WriteLine($"[DUPLICATE DETECTED] Found duplicate Tethys key: (IdentifiantRaf: {identifiantRaf}, CodeIsin: {codeIsin}, CodeCusip: {codeCusip})");
+                                Console.WriteLine($"[DUPLICATE DETECTED] Found duplicate Tethys key: (IdentifiantRaf: {identifiantRaf}, CodeIsin: {codeIsin}, CodeCusip: {codeCusip}, DateNotationInterne: {dateNotationInterne}, CodeApparentement: {codeApparentement}, LibelleCourt: {libelleCourt})");
                                 continue; // Skip already processed key
                             }
 
                             batch.Add(new HecateTethy
                             {
-                                IdentifiantRaf = identifiantRaf,
-                                LibelleCourt = fields[1],
-                                RaisonSociale = fields[2],
-                                PaysDeResidence = fields[3],
-                                PaysDeNationalite = fields[4],
-                                NumeroEtNomDeRue = fields[5],
-                                Ville = fields[6],
-                                CategorieTethys = fields[7],
-                                NafNace = fields[8],
-                                CodeIsin = codeIsin,
-                                SegmentDeRisque = fields[10],
-                                SegmentationBpce = fields[11],
-                                CodeCusip = codeCusip,
-                                RafTeteGroupeReglementaire = fields[13],
-                                NomTeteGroupeReglementaire = fields[14],
-                                DateNotationInterne = fields[15],
-                                CodeNotation = fields[16],
-                                CodeConso = fields[17],
-                                CodeApparentement = fields[18]
+                                IdentifiantRaf = identifiantRaf.Trim(),
+                                LibelleCourt = fields[1].Trim(),
+                                RaisonSociale = fields[2].Trim(),
+                                PaysDeResidence = fields[3].Trim(),
+                                PaysDeNationalite = fields[4].Trim(),
+                                NumeroEtNomDeRue = fields[5].Trim(),
+                                Ville = fields[6].Trim(),
+                                CategorieTethys = fields[7].Trim(),
+                                NafNace = fields[8].Trim(),
+                                CodeIsin = codeIsin.Trim(),
+                                SegmentDeRisque = fields[10].Trim(),
+                                SegmentationBpce = fields[11].Trim(),
+                                CodeCusip = codeCusip.Trim(),
+                                RafTeteGroupeReglementaire = fields[13].Trim(),
+                                NomTeteGroupeReglementaire = fields[14].Trim(),
+                                DateNotationInterne = fields[15].Trim(),
+                                CodeNotation = fields[16].Trim(),
+                                CodeConso = fields[17].Trim(),
+                                CodeApparentement = fields[18].Trim()
                             });
 
                             if (batch.Count >= batchSize)
                             {
+                                _context.ChangeTracker.AutoDetectChangesEnabled = false;
                                 await _context.HecateTethys.AddRangeAsync(batch);
                                 await _context.SaveChangesAsync();
                                 batch.Clear();
@@ -550,6 +555,7 @@ namespace RWA.Web.Application.Services.Seeding
                 // Save any remaining records
                 if (batch.Any())
                 {
+                    _context.ChangeTracker.AutoDetectChangesEnabled = false;
                     await _context.HecateTethys.AddRangeAsync(batch);
                     await _context.SaveChangesAsync();
                 }

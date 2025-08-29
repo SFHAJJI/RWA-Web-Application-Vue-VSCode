@@ -524,28 +524,26 @@ namespace RWA.Web.Application.Services.Workflow
 
         public async Task<List<HecateTethysDto>> UpdateTethysStatusAsync()
         {
-            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsNoTrackingAsync();
+            await _hubContext.Clients.All.SendAsync("ReceiveTethysTotalItems", allItems.Count);
 
-            // Handle items with empty RAF
-            var emptyRafItems = allItems.Where(i => string.IsNullOrEmpty(i.Raf)).ToList();
-            foreach (var item in emptyRafItems)
+            var rafsToUpdate = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).Select(i => i.Raf).ToList();
+            var existingRafs = await _dbProvider.GetExistingTethysRafsAsync(rafsToUpdate);
+
+            var successfulRafNumLignes = new System.Collections.Concurrent.ConcurrentBag<int>();
+            var failedRafNumLignes = new System.Collections.Concurrent.ConcurrentBag<int>();
+
+            var updateTasks = allItems.Select(async item =>
             {
-                item.AdditionalInformation.TethysRafStatus = false;
-            }
+                bool tethysExists = !string.IsNullOrEmpty(item.Raf) && existingRafs.Contains(item.Raf);
 
-            // Handle items with RAF
-            var itemsWithRaf = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).ToList();
-
-            var updateTasks = itemsWithRaf.Select(async item =>
-            {
-                var tethysData = await _dbProvider.GetTethysDataByRafAsync(new List<string> { item.Raf });
-                if (tethysData.Any())
+                if (tethysExists)
                 {
-                    item.AdditionalInformation.TethysRafStatus = true;
+                    successfulRafNumLignes.Add(item.NumLigne);
                 }
                 else
                 {
-                    item.AdditionalInformation.TethysRafStatus = false;
+                    failedRafNumLignes.Add(item.NumLigne);
                 }
 
                 var dto = new HecateTethysDto
@@ -554,7 +552,7 @@ namespace RWA.Web.Application.Services.Workflow
                     Source = item.Source,
                     Cpt = item.Nom,
                     Raf = item.Raf,
-                    IsMappingTethysSuccessful = item.AdditionalInformation.TethysRafStatus
+                    IsMappingTethysSuccessful = tethysExists
                 };
 
                 await _hubContext.Clients.All.SendAsync("ReceiveTethysUpdate", dto);
@@ -562,7 +560,8 @@ namespace RWA.Web.Application.Services.Workflow
 
             await Task.WhenAll(updateTasks);
 
-            await _dbProvider.UpdateInventaireNormaliseRangeAsync(allItems);
+            await _dbProvider.UpdateTethysStatusForNumLignesAsync(successfulRafNumLignes.ToList(), true);
+            await _dbProvider.UpdateTethysStatusForNumLignesAsync(failedRafNumLignes.ToList(), false);
 
             return await GetTethysStatusAsync();
         }
