@@ -399,7 +399,7 @@ namespace RWA.Web.Application.Services.Workflow
             var bddIdOrigineSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantOrigine));
 
             var itemsToProcess = allItems.Where(i => i.AdditionalInformation.IsValeurMobiliere ).ToList();
-            foreach (var item in itemsToProcess)
+            Parallel.ForEach(itemsToProcess, item =>
             {
                 var additionalInfo = item.AdditionalInformation;
                 if (bddIdUniqueRetenuSet.Contains(item.IdentifiantOrigine))
@@ -436,13 +436,14 @@ namespace RWA.Web.Application.Services.Workflow
                 }
                 else
                 {
-                    if (!string.IsNullOrEmpty(item.Raf)) {
-                         additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = true };
-               
+                    if (!string.IsNullOrEmpty(item.Raf))
+                    {
+                        additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = true };
+
                     }
-                    }
+                }
                 item.AdditionalInformation = additionalInfo;
-            }
+            });
 
             await _dbProvider.UpdateInventaireNormaliseRangeAsync(itemsToProcess);
             return itemsToProcess;
@@ -471,6 +472,7 @@ namespace RWA.Web.Application.Services.Workflow
         private async Task ApplyCptTransparence()
         {
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+      
             var transparenceData = await _dbProvider.GetHecateContrepartiesTransparenceAsync();
 
             var itemsToUpdate = new List<HecateInventaireNormalise>();
