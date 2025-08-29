@@ -525,45 +525,67 @@ namespace RWA.Web.Application.Services.Workflow
         public async Task<List<HecateTethysDto>> UpdateTethysStatusAsync()
         {
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsNoTrackingAsync();
-            await _hubContext.Clients.All.SendAsync("ReceiveTethysTotalItems", allItems.Count);
 
-            var rafsToUpdate = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).Select(i => i.Raf).ToList();
-            var existingRafs = await _dbProvider.GetExistingTethysRafsAsync(rafsToUpdate);
+            // Only look up rows that need it: not yet looked up OR RAF empty (empties are KO)
+            var toLookup = allItems
+                .Where(i => !string.IsNullOrEmpty(i.Raf))
+                .Where(i => !i.AdditionalInformation.IsRafLookedUp || !string.Equals(i.AdditionalInformation.RafOrigin, i.Raf, StringComparison.Ordinal))
+                .ToList();
+            var emptyRaf = allItems.Where(i => string.IsNullOrEmpty(i.Raf)).Select(i => i.NumLigne).ToList();
+
+            var totalToProcess = toLookup.Count + emptyRaf.Count;
+            await _hubContext.Clients.All.SendAsync("ReceiveTethysTotalItems", totalToProcess);
 
             var successfulRafNumLignes = new System.Collections.Concurrent.ConcurrentBag<int>();
-            var failedRafNumLignes = new System.Collections.Concurrent.ConcurrentBag<int>();
+            var failedRafNumLignes = new System.Collections.Concurrent.ConcurrentBag<int>(emptyRaf);
 
-            var updateTasks = allItems.Select(async item =>
+            // Emit updates for empty RAFs immediately (KO)
+            foreach (var item in allItems.Where(i => string.IsNullOrEmpty(i.Raf)))
             {
-                bool tethysExists = !string.IsNullOrEmpty(item.Raf) && existingRafs.Contains(item.Raf);
-
-                if (tethysExists)
-                {
-                    successfulRafNumLignes.Add(item.NumLigne);
-                }
-                else
-                {
-                    failedRafNumLignes.Add(item.NumLigne);
-                }
-
-                var dto = new HecateTethysDto
+                await _hubContext.Clients.All.SendAsync("ReceiveTethysUpdate", new HecateTethysDto
                 {
                     NumLigne = item.NumLigne,
                     Source = item.Source,
-                    Cpt = item.Nom,
+                    Cpt = item.Tiers,
                     Raf = item.Raf,
-                    IsMappingTethysSuccessful = tethysExists
-                };
+                    IsMappingTethysSuccessful = false
+                });
+            }
 
-                await _hubContext.Clients.All.SendAsync("ReceiveTethysUpdate", dto);
-            });
+            if (toLookup.Count > 0)
+            {
+                var rafsToUpdate = toLookup.Select(i => i.Raf).ToList();
+                var existingRafs = await _dbProvider.GetExistingTethysRafsAsync(rafsToUpdate);
 
-            await Task.WhenAll(updateTasks);
+                foreach (var item in toLookup)
+                {
+                    bool tethysExists = existingRafs.Contains(item.Raf);
+                    if (tethysExists) successfulRafNumLignes.Add(item.NumLigne); else failedRafNumLignes.Add(item.NumLigne);
 
-            await _dbProvider.UpdateTethysStatusForNumLignesAsync(successfulRafNumLignes.ToList(), true);
-            await _dbProvider.UpdateTethysStatusForNumLignesAsync(failedRafNumLignes.ToList(), false);
+                    await _hubContext.Clients.All.SendAsync("ReceiveTethysUpdate", new HecateTethysDto
+                    {
+                        NumLigne = item.NumLigne,
+                        Source = item.Source,
+                        Cpt = item.Tiers,
+                        Raf = item.Raf,
+                        IsMappingTethysSuccessful = tethysExists
+                    });
+                }
+            }
 
+            if (successfulRafNumLignes.Count > 0)
+                await _dbProvider.UpdateTethysStatusForNumLignesAsync(successfulRafNumLignes.ToList(), true);
+            if (failedRafNumLignes.Count > 0)
+                await _dbProvider.UpdateTethysStatusForNumLignesAsync(failedRafNumLignes.ToList(), false);
+
+            // Return snapshot for UI
             return await GetTethysStatusAsync();
+        }
+
+        public async Task<TethysSearchPage> SearchTethysAsync(string q, string? cursor, int take, System.Threading.CancellationToken ct = default)
+        {
+            // Delegate to provider; this stays stateless
+            return await _dbProvider.SearchTethysAsync(q, cursor, take, ct);
         }
         // State exit actions
 

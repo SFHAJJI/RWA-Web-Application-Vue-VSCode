@@ -54,7 +54,13 @@ namespace RWA.Web.Application.Services.Workflow
         Task<int> GetTethysCountAsync();
         Task UpdateTethysStatusForNumLignesAsync(List<int> numLignes, bool status);
         Task UpdateRafAsync(List<HecateTethysDto> items);
+        Task UpdateRafForNumLignesAsync(List<int> numLignes, string raf, string? cptTethys = null);
         Task<bool> AreAllRafsCompletedAsync();
         Task<HecateTethysPayload> GetTethysMappingPayloadAsync();
+        Task<RWA.Web.Application.Models.Dtos.TethysStatusCounts> GetTethysStatusCountsAsync();
+        Task<bool> AreAllTethysValidatedAsync();
+
+        // Tethys search (right pane)
+        Task<RWA.Web.Application.Models.Dtos.TethysSearchPage> SearchTethysAsync(string q, string? cursor, int take, System.Threading.CancellationToken ct = default);
     }
 }

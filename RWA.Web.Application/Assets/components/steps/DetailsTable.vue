@@ -20,9 +20,14 @@
         <v-progress-linear :active="loading" indeterminate color="primary"></v-progress-linear>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-btn size="small" color="primary" @click="assignItem(item)">
-          Assign
-        </v-btn>
+        <div class="d-flex gap-2 justify-end">
+          <v-btn size="x-small" color="primary" variant="text" @click="assignItem(item, 'IdentifiantRaf')" :disabled="!item.identifiantRaf">
+            RAF
+          </v-btn>
+          <v-btn size="x-small" color="secondary" variant="text" @click="assignItem(item, 'RafTeteGroupeReglementaire')" :disabled="!item.rafTeteGroupeReglementaire">
+            Tête
+          </v-btn>
+        </div>
       </template>
     </v-data-table-server>
   </v-card>
@@ -47,7 +52,9 @@ const props = defineProps<{
   pageSize: number,
 }>();
 
-const emit = defineEmits(['assign']);
+const emit = defineEmits<{
+  (e: 'assign', payload: { raf: string; sourceField: 'IdentifiantRaf'|'RafTeteGroupeReglementaire'; candidate?: any }): void
+}>()
 const auditStore = useAuditStore();
 const search = ref('');
 
@@ -58,17 +65,28 @@ const options = ref({
   groupBy: [],
 });
 
-const serverItems = ref<any[]>([]);
-const loading = ref(false);
-const totalItems = ref(0);
-const filters = ref({ RaisonSociale: '' });
+const serverItems = ref<any[]>([])
+const loading = ref(false)
+const totalItems = ref(0)
+const filters = ref({ RaisonSociale: '' })
+const minChars = 2
 
 async function loadServerItems() {
-    loading.value = true;
-    const data = await searchTethys(filters.value.RaisonSociale, undefined, options.value.itemsPerPage);
-    serverItems.value = data.items;
-    totalItems.value = data.total;
-    loading.value = false;
+  const q = (filters.value.RaisonSociale || '').trim()
+  if (q.length < minChars) {
+    // avoid heavy queries on empty/short strings; wait for user input
+    serverItems.value = []
+    totalItems.value = 0
+    return
+  }
+  loading.value = true
+  try {
+    const data = await searchTethys(q, undefined, options.value.itemsPerPage)
+    serverItems.value = data.items
+    totalItems.value = data.total
+  } finally {
+    loading.value = false
+  }
 }
 
 watch(() => props.prefill, (newPrefill) => {
@@ -83,8 +101,9 @@ let debounceTimer: any;
 watch(filters, () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    search.value = String(Date.now());
-  }, 300);
+    search.value = String(Date.now())
+    loadServerItems()
+  }, 300)
 }, { deep: true });
 
 const tableHeaders = computed((): VDataTableHeader[] => {
@@ -99,10 +118,10 @@ const tableHeaders = computed((): VDataTableHeader[] => {
   return headers;
 });
 
-function assignItem(item: any) {
-  if (item && item.identifiantRaf) {
-    emit('assign', { raf: item.identifiantRaf });
-  }
+function assignItem(item: any, sourceField: 'IdentifiantRaf'|'RafTeteGroupeReglementaire') {
+  const raf = sourceField === 'IdentifiantRaf' ? item?.identifiantRaf : item?.rafTeteGroupeReglementaire
+  if (!raf) return
+  emit('assign', { raf, sourceField, candidate: item })
 }
 
 const updateOptions = (newOptions: any) => {
@@ -112,6 +131,10 @@ const updateOptions = (newOptions: any) => {
 
 onMounted(async () => {
   await auditStore.fetchTethysColumns();
+  // Initial load (prefill watcher will also trigger if provided)
+  if ((filters.value.RaisonSociale || '').trim().length >= minChars) {
+    loadServerItems()
+  }
 });
 </script>
 
@@ -146,4 +169,5 @@ onMounted(async () => {
 .modern-table tbody tr:nth-of-type(odd) {
   background-color: #fafafa;
 }
+.empty-hint { color: #888; font-size: 0.9rem; padding: 8px 16px; }
 </style>

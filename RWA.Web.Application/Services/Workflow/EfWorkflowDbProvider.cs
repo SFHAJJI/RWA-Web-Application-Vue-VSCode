@@ -399,6 +399,108 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
+        public async Task<RWA.Web.Application.Models.Dtos.TethysSearchPage> SearchTethysAsync(string q, string? cursor, int take, CancellationToken ct = default)
+        {
+            try
+            {
+                return await WithDbAsync(async db =>
+                {
+                    var baseQuery = db.HecateTethys.AsNoTracking();
+
+                    // Tokenized search: AND across tokens, OR across columns per token
+                    if (!string.IsNullOrWhiteSpace(q))
+                    {
+                        var tokens = q
+                            .Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(t => t.Trim())
+                            .Where(t => t.Length > 0)
+                            .ToArray();
+
+                        foreach (var tok in tokens)
+                        {
+                            var pattern = $"%{tok}%";
+                            baseQuery = baseQuery.Where(t =>
+                                EF.Functions.Like(t.RaisonSociale!, pattern) ||
+                                EF.Functions.Like(t.LibelleCourt!, pattern) ||
+                                EF.Functions.Like(t.IdentifiantRaf!, pattern) ||
+                                EF.Functions.Like(t.RafTeteGroupeReglementaire!, pattern) ||
+                                EF.Functions.Like(t.NomTeteGroupeReglementaire!, pattern)
+                            );
+                        }
+                    }
+
+                    // Keyset cursor based on (RaisonSociale, IdentifiantRaf)
+                    string? lastRaison = null;
+                    string? lastRaf = null;
+                    if (!string.IsNullOrWhiteSpace(cursor))
+                    {
+                        var parts = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(cursor)).Split('|');
+                        if (parts.Length == 2)
+                        {
+                            lastRaison = parts[0];
+                            lastRaf = parts[1];
+                        }
+                    }
+
+                    var ordered = baseQuery
+                        .OrderBy(t => t.RaisonSociale)
+                        .ThenBy(t => t.IdentifiantRaf);
+                    if (!string.IsNullOrEmpty(lastRaison) || !string.IsNullOrEmpty(lastRaf))
+                    {
+                        ordered = ordered.Where(t => string.Compare(t.RaisonSociale, lastRaison) > 0 ||
+                                                     (t.RaisonSociale == lastRaison && string.Compare(t.IdentifiantRaf, lastRaf) > 0))
+                                         .OrderBy(t => t.RaisonSociale).ThenBy(t => t.IdentifiantRaf);
+                    }
+
+                    var items = await ordered
+                        .Select(t => new RWA.Web.Application.Models.Dtos.TethysSearchRowDto
+                        {
+                            IdentifiantRaf = t.IdentifiantRaf,
+                            LibelleCourt = t.LibelleCourt,
+                            RaisonSociale = t.RaisonSociale,
+                            PaysDeResidence = t.PaysDeResidence,
+                            PaysDeNationalite = t.PaysDeNationalite,
+                            NumeroEtNomDeRue = t.NumeroEtNomDeRue,
+                            Ville = t.Ville,
+                            CategorieTethys = t.CategorieTethys,
+                            NafNace = t.NafNace,
+                            CodeIsin = t.CodeIsin,
+                            SegmentDeRisque = t.SegmentDeRisque,
+                            SegmentationBpce = t.SegmentationBpce,
+                            CodeCusip = t.CodeCusip,
+                            RafTeteGroupeReglementaire = t.RafTeteGroupeReglementaire,
+                            NomTeteGroupeReglementaire = t.NomTeteGroupeReglementaire,
+                            DateNotationInterne = t.DateNotationInterne,
+                            CodeNotation = t.CodeNotation,
+                            CodeConso = t.CodeConso,
+                            CodeApparentement = t.CodeApparentement
+                        })
+                        .Take(take)
+                        .ToListAsync(ct);
+
+                    string? nextCursor = null;
+                    if (items.Count == take)
+                    {
+                        var last = items.Last();
+                        var token = $"{last.RaisonSociale}|{last.IdentifiantRaf}";
+                        nextCursor = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(token));
+                    }
+
+                    var total = await baseQuery.CountAsync(ct);
+                    return new RWA.Web.Application.Models.Dtos.TethysSearchPage
+                    {
+                        Items = items,
+                        NextCursor = nextCursor,
+                        Total = total
+                    };
+                });
+            }
+            catch (ObjectDisposedException)
+            {
+                return new RWA.Web.Application.Models.Dtos.TethysSearchPage { Items = new List<RWA.Web.Application.Models.Dtos.TethysSearchRowDto>(), NextCursor = null, Total = 0 };
+            }
+        }
+
         public async Task<System.Collections.Generic.List<RWA.Web.Application.Models.Dtos.EquivalenceCandidateDto>> GetEquivalenceCandidatesForMissingRowsAsync()
         {
             try
@@ -851,6 +953,8 @@ namespace RWA.Web.Application.Services.Workflow
                 foreach (var item in itemsToUpdate)
                 {
                     item.AdditionalInformation.TethysRafStatus = status;
+                    item.AdditionalInformation.IsRafLookedUp = true;
+                    item.AdditionalInformation.RafOrigin = item.Raf;
                 }
 
                 await db.SaveChangesAsync();
@@ -897,6 +1001,11 @@ namespace RWA.Web.Application.Services.Workflow
                             LibelleCourtTethys = item.CptTethys
                         });
                     }
+
+                    // Mark as looked up and successful when RAF is assigned
+                    entity.AdditionalInformation.IsRafLookedUp = true;
+                    entity.AdditionalInformation.TethysRafStatus = !string.IsNullOrEmpty(entity.Raf);
+                    entity.AdditionalInformation.RafOrigin = entity.Raf;
                 }
 
                 if (transparenceItemsToAdd.Any())
@@ -908,11 +1017,135 @@ namespace RWA.Web.Application.Services.Workflow
             });
         }
 
+        public async Task UpdateRafForNumLignesAsync(List<int> numLignes, string raf, string? cptTethys = null)
+        {
+            await WithDbAsync(async db =>
+            {
+                var entities = await db.HecateInventaireNormalises
+                    .Where(h => numLignes.Contains(h.NumLigne))
+                    .ToListAsync();
+
+                var categories = await db.HecateCategorieRwas.AsNoTracking().ToListAsync();
+                var categoriesDict = categories.ToDictionary(c => c.IdCatRwa, c => c);
+
+                var transparenceItemsToAdd = new List<HecateContrepartiesTransparence>();
+
+                foreach (var entity in entities)
+                {
+                    if (entity.Raf != raf)
+                    {
+                        entity.Raf = raf;
+                    }
+                    if (!string.IsNullOrEmpty(cptTethys) && entity.LibelleOrigine != cptTethys)
+                    {
+                        entity.LibelleOrigine = cptTethys;
+                    }
+
+                    var isValeurMobiliere = categoriesDict.ContainsKey(entity.RefCategorieRwa) &&
+                        ((categoriesDict[entity.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("Y", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                         (categoriesDict[entity.RefCategorieRwa]?.ValeurMobiliere.TrimmedEquals("O", StringComparison.OrdinalIgnoreCase) ?? false));
+
+                    if (!isValeurMobiliere && !string.IsNullOrEmpty(raf))
+                    {
+                        transparenceItemsToAdd.Add(new HecateContrepartiesTransparence
+                        {
+                            LibelleContrepartieOrigine = entity.Nom,
+                            RafEntite = raf,
+                            LibelleCourtTethys = cptTethys ?? entity.LibelleOrigine
+                        });
+                    }
+
+                    entity.AdditionalInformation.IsRafLookedUp = true;
+                    entity.AdditionalInformation.TethysRafStatus = !string.IsNullOrEmpty(entity.Raf);
+                    entity.AdditionalInformation.RafOrigin = entity.Raf;
+                }
+
+                if (transparenceItemsToAdd.Any())
+                {
+                    db.HecateContrepartiesTransparences.AddRange(transparenceItemsToAdd);
+                }
+
+                await db.SaveChangesAsync();
+            });
+        }
+
+        public async Task<RWA.Web.Application.Models.Dtos.TethysStatusCounts> GetTethysStatusCountsAsync()
+        {
+            try
+            {
+                return await WithDbAsync(async db =>
+                {
+                    var raw = await db.HecateInventaireNormalises
+                        .AsNoTracking()
+                        .Select(h => new { h.Raf, h.Commentaires })
+                        .ToListAsync();
+
+                    int total = raw.Count;
+                    int lookedUp = 0, failed = 0, successful = 0;
+
+                    foreach (var r in raw)
+                    {
+                        Models.Dtos.AdditionalInformation info = new Models.Dtos.AdditionalInformation();
+                        if (!string.IsNullOrEmpty(r.Commentaires))
+                        {
+                            try
+                            {
+                                info = System.Text.Json.JsonSerializer.Deserialize<Models.Dtos.AdditionalInformation>(r.Commentaires) ?? new Models.Dtos.AdditionalInformation();
+                            }
+                            catch { }
+                        }
+
+                        bool emptyRaf = string.IsNullOrEmpty(r.Raf);
+                        bool isLookedUp = info.IsRafLookedUp || emptyRaf; // count empty RAFs as looked up
+                        lookedUp += isLookedUp ? 1 : 0;
+                        bool ok = info.TethysRafStatus;
+                        if (ok) successful++; else failed++;
+                    }
+
+                    return new RWA.Web.Application.Models.Dtos.TethysStatusCounts
+                    {
+                        Total = total,
+                        LookedUp = lookedUp,
+                        PendingLookup = total - lookedUp,
+                        Failed = failed,
+                        Successful = successful
+                    };
+                });
+            }
+            catch (ObjectDisposedException)
+            {
+                return new RWA.Web.Application.Models.Dtos.TethysStatusCounts();
+            }
+        }
+
         public async Task<bool> AreAllRafsCompletedAsync()
         {
             return await WithDbAsync(async db =>
             {
                 return await db.HecateInventaireNormalises.AllAsync(h => !string.IsNullOrEmpty(h.Raf));
+            });
+        }
+
+        public async Task<bool> AreAllTethysValidatedAsync()
+        {
+            return await WithDbAsync(async db =>
+            {
+                var rows = await db.HecateInventaireNormalises
+                    .AsNoTracking()
+                    .Select(h => h.Commentaires)
+                    .ToListAsync();
+
+                foreach (var c in rows)
+                {
+                    var info = new Models.Dtos.AdditionalInformation();
+                    if (!string.IsNullOrEmpty(c))
+                    {
+                        try { info = System.Text.Json.JsonSerializer.Deserialize<Models.Dtos.AdditionalInformation>(c) ?? new Models.Dtos.AdditionalInformation(); }
+                        catch { }
+                    }
+                    if (!info.TethysRafStatus) return false;
+                }
+                return true;
             });
         }
 
@@ -945,3 +1178,4 @@ namespace RWA.Web.Application.Services.Workflow
         }
     }
 }
+

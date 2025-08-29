@@ -18,13 +18,11 @@ namespace RWA.Web.Application.Controllers
     public class WorkflowController : ControllerBase
     {
         private readonly IWorkflowOrchestrator _orchestrator;
-        private readonly Services.Workflow.IWorkflowDbProvider _dbProvider;
         private readonly Microsoft.Extensions.Options.IOptions<RWA.Web.Application.Models.WorkflowStatusMappingOptions> _statusMapping;
 
-        public WorkflowController(IWorkflowOrchestrator orchestrator, Services.Workflow.IWorkflowDbProvider dbProvider, Microsoft.Extensions.Options.IOptions<RWA.Web.Application.Models.WorkflowStatusMappingOptions> statusMapping)
+        public WorkflowController(IWorkflowOrchestrator orchestrator, Microsoft.Extensions.Options.IOptions<RWA.Web.Application.Models.WorkflowStatusMappingOptions> statusMapping)
         {
             _orchestrator = orchestrator;
-            _dbProvider = dbProvider;
             _statusMapping = statusMapping;
         }
         [HttpGet("get-status")]
@@ -326,10 +324,9 @@ namespace RWA.Web.Application.Controllers
         public async Task<ActionResult<TethysStatusPage>> GetTethysStatus(
             [FromQuery] string filter = "all",
             [FromQuery] string? cursor = null,
-            [FromQuery] int take = 20,
-            [FromQuery] string? q = null)
+            [FromQuery] int take = 20)
         {
-            var page = await _orchestrator.GetTethysStatusPageAsync(filter, cursor, take, q);
+            var page = await _orchestrator.GetTethysStatusPageAsync(filter, cursor, take);
             return Ok(page);
         }
 
@@ -361,12 +358,6 @@ namespace RWA.Web.Application.Controllers
         {
             // This is a placeholder implementation. You will need to replace this with your actual assignment logic.
             await (_orchestrator as WorkflowOrchestrator).TriggerUpdateRafAsync(new List<HecateTethysDto> { new HecateTethysDto { NumLigne = (int)req.NumLigne, Raf = req.Raf } });
-            // If all rows are validated, auto-trigger next step
-            var allOk = await _dbProvider.AreAllTethysValidatedAsync();
-            if (allOk)
-            {
-                await _orchestrator.TriggerAsync("NextRafManagerToEnrichiExport");
-            }
             return Ok();
         }
 
@@ -374,22 +365,18 @@ namespace RWA.Web.Application.Controllers
         public async Task<IActionResult> AssignBatch([FromBody] RWA.Web.Application.Models.Dtos.AssignRafBatchRequest req)
         {
             if (req?.NumLignes == null || req.NumLignes.Count == 0) return BadRequest("No rows provided");
-            await _dbProvider.UpdateRafForNumLignesAsync(req.NumLignes, req.Raf, req.CptTethys);
-            var allOk = await _dbProvider.AreAllTethysValidatedAsync();
-            if (allOk)
-            {
-                await _orchestrator.TriggerAsync("NextRafManagerToEnrichiExport");
-            }
+            await (_orchestrator as WorkflowOrchestrator)!.DbProvider.UpdateRafForNumLignesAsync(req.NumLignes, req.Raf, req.CptTethys);
             return Ok();
         }
 
         [HttpGet("tethys/counts")]
         public async Task<ActionResult<RWA.Web.Application.Models.Dtos.TethysStatusCounts>> GetTethysCounts()
         {
-            var counts = await _dbProvider.GetTethysStatusCountsAsync();
+            var counts = await (_orchestrator as WorkflowOrchestrator)!.DbProvider.GetTethysStatusCountsAsync();
             return Ok(counts);
         }
 
         // No in-memory mock helpers - workflow is persisted through the orchestrator-owned DbContext
     }
 }
+

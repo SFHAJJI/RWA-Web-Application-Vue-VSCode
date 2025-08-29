@@ -10,6 +10,8 @@ namespace RWA.Web.Application.Models.Dtos
         public AddtoBDDDto AddtoBDDDto { get; set; }
         public bool TethysRafStatus { get; set; }
         public string RafOrigin { get; set; }
+        // Marks that Tethys RAF existence has been evaluated for this row
+        public bool IsRafLookedUp { get; set; }
     }
 
     public class AddtoBDDDto

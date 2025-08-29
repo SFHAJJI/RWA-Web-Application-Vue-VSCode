@@ -9,13 +9,13 @@
         </v-progress-linear>
         <h3>Failed Mappings ({{ failedMappings.length }})</h3>
         <v-data-table :headers="headers" :items="failedMappings" class="mb-4">
-            <template v-slot:item.IsMappingTethysSuccessful="{ value }">
+            <template v-slot:item.isMappingTethysSuccessful="{ value }">
                 <v-chip :color="getColor(value)" :text="value ? 'OK' : 'KO'" size="x-small"></v-chip>
             </template>
         </v-data-table>
         <h3>Successful Mappings ({{ successfulMappings.length }})</h3>
         <v-data-table :headers="headers" :items="successfulMappings">
-            <template v-slot:item.IsMappingTethysSuccessful="{ value }">
+            <template v-slot:item.isMappingTethysSuccessful="{ value }">
                 <v-chip :color="getColor(value)" :text="value ? 'OK' : 'KO'" size="x-small"></v-chip>
             </template>
         </v-data-table>
@@ -29,13 +29,13 @@ import { HubConnectionBuilder } from '@microsoft/signalr';
 import * as XLSX from 'xlsx';
 
 interface TethysDto {
-    NumLigne: number;
-    Source: string;
-    Cpt: string;
-    Raf: string;
-    CptTethys: string;
-    IsGeneric: boolean;
-    IsMappingTethysSuccessful: boolean;
+    numLigne: number;
+    source: string;
+    cpt: string;
+    raf: string;
+    cptTethys: string;
+    isGeneric: boolean;
+    isMappingTethysSuccessful: boolean;
 }
 
 const payload = ref<TethysDto[]>([]);
@@ -48,26 +48,26 @@ const connection = new HubConnectionBuilder()
 
 connection.on("ReceiveTethysUpdate", (tethysDto: any) => {
     console.log('Received Tethys DTO:', tethysDto);
-    const index = payload.value.findIndex(item => item.NumLigne === tethysDto.numLigne);
+    const index = payload.value.findIndex(item => item.numLigne === tethysDto.numLigne);
     if (index !== -1) {
         payload.value[index] = {
-            NumLigne: tethysDto.numLigne,
-            Source: tethysDto.source,
-            Cpt: tethysDto.cpt,
-            Raf: tethysDto.raf,
-            CptTethys: tethysDto.cptTethys,
-            IsGeneric: tethysDto.isGeneric,
-            IsMappingTethysSuccessful: tethysDto.isMappingTethysSuccessful,
+            numLigne: tethysDto.numLigne,
+            source: tethysDto.source,
+            cpt: tethysDto.cpt,
+            raf: tethysDto.raf,
+            cptTethys: tethysDto.cptTethys,
+            isGeneric: tethysDto.isGeneric,
+            isMappingTethysSuccessful: tethysDto.isMappingTethysSuccessful,
         };
     } else {
         payload.value.push({
-            NumLigne: tethysDto.numLigne,
-            Source: tethysDto.source,
-            Cpt: tethysDto.cpt,
-            Raf: tethysDto.raf,
-            CptTethys: tethysDto.cptTethys,
-            IsGeneric: tethysDto.isGeneric,
-            IsMappingTethysSuccessful: tethysDto.isMappingTethysSuccessful,
+            numLigne: tethysDto.numLigne,
+            source: tethysDto.source,
+            cpt: tethysDto.cpt,
+            raf: tethysDto.raf,
+            cptTethys: tethysDto.cptTethys,
+            isGeneric: tethysDto.isGeneric,
+            isMappingTethysSuccessful: tethysDto.isMappingTethysSuccessful,
         });
     }
     progress.value++;
@@ -104,21 +104,21 @@ const exportToExcel = () => {
 };
 
 const successfulMappings = computed(() => {
-    return payload.value.filter(item => item.IsMappingTethysSuccessful);
+    return payload.value.filter(item => item.isMappingTethysSuccessful);
 });
 
 const failedMappings = computed(() => {
-    return payload.value.filter(item => !item.IsMappingTethysSuccessful);
+    return payload.value.filter(item => !item.isMappingTethysSuccessful);
 });
 
 const headers = ref([
-    { title: 'Num Ligne', value: 'NumLigne' },
-    { title: 'Source', value: 'Source' },
-    { title: 'Cpt', value: 'Cpt' },
-    { title: 'Raf', value: 'Raf' },
-    { title: 'Cpt Tethys', value: 'CptTethys' },
-    { title: 'Is Generic', value: 'IsGeneric' },
-    { title: 'Tethys Status', value: 'IsMappingTethysSuccessful' },
+    { title: 'Num Ligne', key: 'numLigne' },
+    { title: 'Source', key: 'source' },
+    { title: 'Cpt', key: 'cpt' },
+    { title: 'Raf', key: 'raf' },
+    { title: 'Cpt Tethys', key: 'cptTethys' },
+    { title: 'Is Generic', key: 'isGeneric' },
+    { title: 'Tethys Status', key: 'isMappingTethysSuccessful' },
 ]);
 
 const getColor = (isMappingTethysSuccessful) => {

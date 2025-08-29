@@ -3,18 +3,18 @@
     <h3 class="text-h6">RAF Helper</h3>
     <br />
 
-    <v-alert v-if="!unresolved.length" type="success" prominent border="start">
+    <v-alert v-if="!left.loading && left.total === 0" type="success" prominent border="start">
       All inventory files are validated in Tethys
-      <v-btn color="success" variant="outlined" class="ml-4">Generate Fichier Enrichi</v-btn>
+      <v-btn color="success" variant="outlined" class="ml-4" @click="forceNext">Generate Fichier Enrichi</v-btn>
     </v-alert>
 
-    <div v-else class="split">
+    <div v-else ref="splitEl" class="split" :style="splitStyle">
       <!-- LEFT: KO list -->
       <section class="left">
-        <div class="left-toolbar">
-          <v-switch v-model="isGroupedView" label="Grouped View" color="primary" />
-          <v-text-field v-model="leftFilter" density="compact" hide-details
-                        prepend-inner-icon="mdi-magnify" placeholder="Filter…" />
+        <div class="left-toolbar d-flex align-center gap-sm">
+          <v-switch v-model="isGroupedView" label="Grouped View" color="primary" inset />
+          <v-switch v-model="hideResolved" label="Hide Resolved" color="primary" inset class="ml-4" />
+          <v-text-field v-model="leftFilter" density="compact" hide-details prepend-inner-icon="mdi-magnify" placeholder="Filter…" class="ml-4" />
         </div>
 
         <!-- Raw mode -->
@@ -22,28 +22,39 @@
           v-if="!isGroupedView"
           :items="pagedKOs"
           :headers="leftHeaders"
-          item-key="NumLigne"
+          item-key="numLigne"
           fixed-header height="70vh"
           density="compact"
-          :loading="loadingLeft"
-          @click:row="(event, { item }) => selectKO(item)"
+          :loading="left.loading"
+          :item-class="itemClass"
+          @click:row="(e, { item }) => selectKO(item)"
+          class="left-table"
         >
-          <template #item.Raf="{ item }">
-            <StatusCell :raf="item.Raf" />
+          <template #item.raf="{ item }">
+            <StatusCell :raf="item.raf" />
+          </template>
+          <template #bottom>
+            <div class="footer">
+              <v-chip size="x-small" variant="tonal">{{ unresolved.length }} / {{ left.total }} pending</v-chip>
+              <v-spacer />
+              <v-btn size="small" variant="text" :disabled="!left.cursor || left.loading" @click="loadLeft(false)">Load more</v-btn>
+            </div>
           </template>
         </v-data-table>
 
         <!-- Grouped mode (no nested DetailsTable) -->
-        <v-list v-else class="grouped-list" style="height:70vh; overflow:auto">
+        <v-list v-else class="grouped-list card-like" style="height:70vh; overflow:auto">
           <v-list-group
             v-for="(group, key) in grouped"
             :key="key"
             :value="key"
+            :class="['group-header', { active: selectedGroupKey === key }]"
           >
             <template #activator="{ props }">
-              <v-list-item v-bind="props">
+              <v-list-item v-bind="props" @click="selectGroup(key)">
                 <v-list-item-title>{{ key }}</v-list-item-title>
                 <template #append>
+                  <v-chip size="x-small" class="mr-2" color="primary" variant="tonal">{{ group.length }}</v-chip>
                   <v-icon :color="isGroupComplete(group)?'success':'error'">
                     {{ isGroupComplete(group) ? 'mdi-check-circle' : 'mdi-close-circle' }}
                   </v-icon>
@@ -58,33 +69,43 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in group" :key="row.NumLigne" @click="selectKO(row)" class="clickable">
-                  <td>{{ row.NumLigne }}</td>
-                  <td>{{ row.CptTethys }}</td>
-                  <td>{{ row.IsGeneric }}</td>
-                  <td>{{ row.IsMappingTethysSuccessful }}</td>
-                  <td><StatusCell :raf="row.Raf" /></td>
+                <tr v-for="row in group" :key="row.numLigne" @click="selectKO(row)" class="clickable" :class="{ active: selectedKO?.numLigne === row.numLigne }">
+                  <td>
+                    <v-icon size="small" :color="selectedKO?.numLigne === row.numLigne ? 'primary' : 'grey'" class="mr-1">mdi-circle-small</v-icon>
+                    {{ row.numLigne }}
+                  </td>
+                  <td>{{ row.cptTethys }}</td>
+                  <td>{{ row.isGeneric }}</td>
+                  <td>{{ row.isMappingTethysSuccessful }}</td>
+                  <td><StatusCell :raf="row.raf" /></td>
                 </tr>
               </tbody>
             </v-table>
           </v-list-group>
         </v-list>
+        <div class="footer" v-if="isGroupedView">
+          <v-chip size="x-small" variant="tonal">{{ Object.keys(grouped).length }} groups</v-chip>
+          <v-spacer />
+          <v-btn size="small" variant="text" :disabled="!left.cursor || left.loading" @click="loadLeft(false)">Load more</v-btn>
+        </div>
 
         <div class="left-footer">
           <v-btn color="primary" @click="submit" :disabled="!hasChanges">
             <v-icon start>mdi-check-circle</v-icon> Submit
           </v-btn>
         </div>
+        <div ref="loadMoreSentinel" class="sentinel"></div>
       </section>
 
-      <v-divider vertical />
+      <!-- resizer -->
+      <div class="resizer" @mousedown="startResize"></div>
 
       <!-- RIGHT: single reusable DetailsTable -->
-      <section class="right">
+      <section class="right card-like">
         <div class="right-toolbar">
           <div class="current">
             <span v-if="selectedKO">
-              Working on <strong>#{{ selectedKO.NumLigne }}</strong> – {{ selectedKO.Source }} / {{ selectedKO.Cpt }}
+              Working on <strong>#{{ selectedKO.numLigne }}</strong> — {{ selectedKO.source }} / {{ selectedKO.cpt }}
             </span>
             <span v-else class="muted">Select a KO on the left to begin</span>
           </div>
@@ -106,124 +127,203 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, onBeforeUnmount, watch } from 'vue'
 import DetailsTable from './DetailsTable.vue'
 import StatusCell from './StatusCell.vue'
-import { fetchFailed, assignRaf, fetchSuggestions } from '../../api/tethysApi'
+import { fetchFailed, assignRaf, assignRafBatch } from '../../api/tethysApi'
 
 const isGroupedView = ref(false)
-const loadingLeft = ref(false)
 const leftFilter = ref('')
+const hideResolved = ref(true)
 const selectedKO = ref<any | null>(null)
-const dirtyIds = ref(new Set())
+const selectedGroupKey = ref<string | null>(null)
+const dirtyIds = ref(new Set<number>())
 
 const left = reactive({ items: [] as any[], cursor: null as string | null, total: 0, loading: false })
 
 async function loadLeft(initial = false) {
-    if (left.loading) return
-    left.loading = true
-    const d = await fetchFailed(initial ? undefined : left.cursor ?? undefined, 20)
-    left.items = initial ? d.items : [...left.items, ...d.items]
-    left.cursor = d.nextCursor ?? null
-    left.total = d.total
-    left.loading = false
+  if (left.loading) return
+  left.loading = true
+  const d = await fetchFailed(initial ? undefined : left.cursor ?? undefined, 20)
+  left.items = initial ? d.items : [...left.items, ...d.items]
+  left.cursor = d.nextCursor ?? null
+  left.total = d.total
+  left.loading = false
+  if (!selectedKO.value && left.items.length) selectKO(left.items[0])
 }
 
 onMounted(() => loadLeft(true))
 
 const unresolved = computed(() => left.items.filter(i => !i.isMappingTethysSuccessful))
+const displayList = computed(() => hideResolved.value ? unresolved.value : left.items)
 const leftHeaders = [
-  { title:'NumLigne', key:'NumLigne' },
-  { title:'Source', key:'Source' },
-  { title:'CptTethys', key:'CptTethys' },
-  { title:'Cpt', key:'Cpt' },
-  { title:'IsGeneric', key:'IsGeneric' },
-  { title:'OK?', key:'IsMappingTethysSuccessful' },
-  { title:'Raf', key:'Raf' },
+  { title:'NumLigne', key:'numLigne' },
+  { title:'Source', key:'source' },
+  { title:'CptTethys', key:'cptTethys' },
+  { title:'Cpt', key:'cpt' },
+  { title:'IsGeneric', key:'isGeneric' },
+  { title:'OK?', key:'isMappingTethysSuccessful' },
+  { title:'Raf', key:'raf' },
 ]
 
 const pagedKOs = computed(() => {
-    const f = (leftFilter.value || '').toLowerCase()
-    return unresolved.value.filter(x =>
-        !f || String(x.numLigne).includes(f) || (x.cptTethys?.toLowerCase().includes(f)))
+  const f = (leftFilter.value || '').toLowerCase()
+  return displayList.value.filter(x =>
+    !f || String(x.numLigne).includes(f) || (x.cptTethys?.toLowerCase().includes(f)))
 })
 
 const grouped = computed(() => {
-  return unresolved.value.reduce((acc, it) => {
-    const k = `${it.Source} - ${it.Cpt}`
+  return displayList.value.reduce((acc, it) => {
+    const k = `${it.source} - ${it.cpt}`
     ;(acc[k] ||= []).push(it)
     return acc
   }, {} as Record<string, any[]>)
 })
 
 function isGroupComplete(group: any[]) {
-  return group.every(i => i.Raf && i.Raf.trim() !== '')
+  return group.every(i => i.raf && i.raf.trim() !== '')
+}
+
+function itemClass(item: any) {
+  if (!selectedKO.value) return ''
+  return item.numLigne === selectedKO.value.numLigne ? 'active' : 'dim'
 }
 
 function selectKO(row: any) {
   selectedKO.value = row
+  selectedGroupKey.value = `${row.source} - ${row.cpt}`
+}
+
+function selectGroup(key: string) {
+  selectedGroupKey.value = key
+  const first = grouped.value[key]?.find((r: any) => !r.isMappingTethysSuccessful) || grouped.value[key]?.[0]
+  if (first) selectedKO.value = first
 }
 
 function prefillFromKO(row: any) {
-  // return an object the DetailsTable can use to set initial query/filters
-  // e.g. { query: row.CptTethys ?? row.Cpt, chips: [row.Source, row.Tiers] }
-  return { query: row.CptTethys || row.Cpt, context: { source: row.Source, cpt: row.Cpt } }
+  return { query: row.cptTethys || row.cpt, context: { source: row.source, cpt: row.cpt } }
 }
 
-async function assign(candidate: { raf: string, id?: number }) {
-    if (!selectedKO.value) return
+async function assign(candidate: { raf: string, sourceField?: 'IdentifiantRaf'|'RafTeteGroupeReglementaire', candidate?: any }) {
+  if (!selectedKO.value) return
+  if (selectedGroupKey.value && grouped.value[selectedGroupKey.value]) {
+    const rows = grouped.value[selectedGroupKey.value]
+    const ids = rows.map((r:any) => r.numLigne)
+    // optimistic UI
+    const prev = rows.map((r:any) => ({ id: r.numLigne, raf: r.raf, ok: r.isMappingTethysSuccessful }))
+    rows.forEach((r:any) => { r.raf = candidate.raf; r.isMappingTethysSuccessful = true; dirtyIds.value.add(r.numLigne) })
+    try {
+      await assignRafBatch(ids, candidate.raf, candidate?.candidate?.libelleCourt)
+    } catch {
+      // revert on failure
+      prev.forEach(p => {
+        const r = rows.find((x:any) => x.numLigne === p.id)
+        if (r) { r.raf = p.raf; r.isMappingTethysSuccessful = p.ok; dirtyIds.value.delete(r.numLigne) }
+      })
+    }
+    const next = unresolved.value.find(r => `${r.source} - ${r.cpt}` !== selectedGroupKey.value)
+    selectedKO.value = next || null
+    selectedGroupKey.value = next ? `${next.source} - ${next.cpt}` : null
+  } else {
     const originalRaf = selectedKO.value.raf
     const originalStatus = selectedKO.value.isMappingTethysSuccessful
-
-    // optimistic update
     selectedKO.value.raf = candidate.raf
     selectedKO.value.isMappingTethysSuccessful = true
     dirtyIds.value.add(selectedKO.value.numLigne)
-
     try {
-        await assignRaf(selectedKO.value.numLigne, candidate.raf)
-    } catch (error) {
-        // revert on failure
-        selectedKO.value.raf = originalRaf
-        selectedKO.value.isMappingTethysSuccessful = originalStatus
-        dirtyIds.value.delete(selectedKO.value.numLigne)
-        // show error toast
+      await assignRaf(selectedKO.value.numLigne, candidate.raf)
+    } catch {
+      selectedKO.value.raf = originalRaf
+      selectedKO.value.isMappingTethysSuccessful = originalStatus
+      dirtyIds.value.delete(selectedKO.value.numLigne)
     }
-
-    // auto-advance
     const idx = unresolved.value.findIndex(i => i.numLigne === selectedKO.value.numLigne)
     selectedKO.value = unresolved.value[idx + 1] || null
-}
-
-function undo(row: any) {
-  row.Raf = ''
-  row.IsMappingTethysSuccessful = false
-  dirtyIds.value.delete(row.NumLigne)
-  selectedKO.value = row
+  }
 }
 
 const hasChanges = computed(() => dirtyIds.value.size > 0)
 
 async function submit() {
-    const changed = left.items.filter(i => dirtyIds.value.has(i.numLigne))
-    for (const item of changed) {
-        await assignRaf(item.numLigne, item.raf)
-    }
-    dirtyIds.value.clear()
+  const changed = left.items.filter(i => dirtyIds.value.has(i.numLigne))
+  for (const item of changed) {
+    await assignRaf(item.numLigne, item.raf)
+  }
+  dirtyIds.value.clear()
+}
+
+async function forceNext() {
+  await fetch('/api/workflow/force-next', { method: 'POST' })
 }
 
 function skip() {
-  // mark item to revisit or move on
-  const idx = unresolved.value.findIndex(i => i.NumLigne === selectedKO.value?.NumLigne)
+  const idx = unresolved.value.findIndex(i => i.numLigne === selectedKO.value?.numLigne)
   selectedKO.value = unresolved.value[idx + 1] || null
+  selectedGroupKey.value = selectedKO.value ? `${selectedKO.value.source} - ${selectedKO.value.cpt}` : null
 }
+
+// Resizable split
+const splitEl = ref<HTMLElement | null>(null)
+const loadMoreSentinel = ref<HTMLElement | null>(null)
+const leftPct = ref(45)
+const splitStyle = computed(() => ({ gridTemplateColumns: `minmax(0, ${leftPct.value}%) 4px minmax(0, ${100 - leftPct.value}%)` }))
+let resizing = false
+let rect: DOMRect | null = null
+
+function onMouseMove(e: MouseEvent) {
+  if (!resizing || !rect) return
+  const x = e.clientX - rect.left
+  const pct = Math.min(80, Math.max(20, (x / rect.width) * 100))
+  leftPct.value = Math.round(pct)
+}
+function onMouseUp() {
+  resizing = false
+  rect = null
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseup', onMouseUp)
+}
+function startResize(e: MouseEvent) {
+  if (!splitEl.value) return
+  rect = splitEl.value.getBoundingClientRect()
+  resizing = true
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+onBeforeUnmount(() => onMouseUp())
+
+// Auto-load next page when sentinel is visible
+let observer: IntersectionObserver | null = null
+onMounted(() => {
+  if (loadMoreSentinel.value) {
+    observer = new IntersectionObserver(entries => {
+      const entry = entries[0]
+      if (entry.isIntersecting && left.cursor && !left.loading) {
+        loadLeft(false)
+      }
+    })
+    observer.observe(loadMoreSentinel.value)
+  }
+})
+onBeforeUnmount(() => { if (observer && loadMoreSentinel.value) { observer.unobserve(loadMoreSentinel.value) } })
+
+// Clear selection when mode/filter changes to avoid stale references
+watch(isGroupedView, () => { selectedKO.value = null; selectedGroupKey.value = null })
+watch(leftFilter, () => { selectedKO.value = null; selectedGroupKey.value = null })
 </script>
 
 <style scoped>
-.split { display: grid; grid-template-columns: 5fr 1px 7fr; gap: 0; }
-.left, .right { display: flex; flex-direction: column; min-height: 70vh; }
+.split { display: grid; grid-template-columns: minmax(0, 45%) 4px minmax(0, 55%); gap: 0; align-items: start; }
+.left, .right { display: flex; flex-direction: column; min-height: 70vh; min-width: 0; }
 .left-toolbar, .right-toolbar { position: sticky; top: 0; background: white; z-index: 1; padding: .5rem; border-bottom: 1px solid #eee; }
 .left-footer { padding: .5rem; border-top: 1px solid #eee; }
 .skeleton { height: 70vh; }
 .clickable { cursor: pointer; }
+.right :deep(.v-data-table) { min-width: 0; width: 100%; }
+.group-header.active > .v-list-item { background: rgba(25,118,210,0.08); }
+tr.active { background: rgba(25,118,210,0.06); }
+.resizer { width: 4px; cursor: col-resize; background: rgba(0,0,0,0.1); }
+.dim { opacity: .6; }
+.footer { display: flex; align-items: center; gap: .5rem; padding: .25rem .5rem; }
+.card-like { border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: #fff; box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+.sentinel { height: 1px; }
 </style>

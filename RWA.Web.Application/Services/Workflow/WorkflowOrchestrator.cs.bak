@@ -380,29 +380,11 @@ namespace RWA.Web.Application.Services.Workflow
             await (_actions as WorkflowStateActions).UpdateTethysStatusAsync();
         }
 
-        public async Task<RWA.Web.Application.Models.Dtos.TethysStatusPage> GetTethysStatusPageAsync(string filter, string? cursor, int take, string? q)
+        public async Task<RWA.Web.Application.Models.Dtos.TethysStatusPage> GetTethysStatusPageAsync(string filter, string? cursor, int take)
         {
             var allItems = await (_actions as WorkflowStateActions).GetTethysStatusAsync();
 
             IEnumerable<RWA.Web.Application.Models.Dtos.HecateTethysDto> filtered = allItems;
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var tokens = q.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-                               .Select(t => t.Trim())
-                               .Where(t => t.Length > 0)
-                               .ToArray();
-                if (tokens.Length > 0)
-                {
-                    filtered = filtered.Where(i =>
-                        tokens.All(tok =>
-                            (i.Cpt?.IndexOf(tok, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
-                            (i.Source?.IndexOf(tok, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
-                            (i.Raf?.IndexOf(tok, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
-                            (i.CptTethys?.IndexOf(tok, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0
-                        )
-                    );
-                }
-            }
             if (string.Equals(filter, "failed", StringComparison.OrdinalIgnoreCase))
                 filtered = filtered.Where(i => !i.IsMappingTethysSuccessful);
             else if (string.Equals(filter, "successful", StringComparison.OrdinalIgnoreCase))

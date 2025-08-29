@@ -48,8 +48,8 @@ export async function assignRafBatch(numLignes: number[], raf: string, cptTethys
   await axios.post('/api/workflow/tethys/assign-batch', { numLignes, raf, cptTethys });
 }
 
-export async function getTethysStatus(filter = "all", cursor?: string, take = 20, q?: string): Promise<Page<any>> {
-  const { data } = await axios.get('/api/workflow/tethys-status', { params: { filter, cursor, take, q }});
+export async function getTethysStatus(filter = "all", cursor?: string, take = 20): Promise<Page<any>> {
+  const { data } = await axios.get('/api/workflow/tethys-status', { params: { filter, cursor, take }});
   return data as Page<any>;
 }
 
@@ -61,3 +61,4 @@ export async function getTethysCounts() {
   const { data } = await axios.get('/api/workflow/tethys/counts')
   return data as { total: number; lookedUp: number; pendingLookup: number; failed: number; successful: number }
 }
+
