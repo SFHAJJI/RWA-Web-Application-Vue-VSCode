@@ -38,6 +38,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task OnRWACategoryManagerEntryAsync();
         Task OnBDDManagerEntryAsync();
         Task OnRafManagerEntryAsync();
+        Task OnEnrichiExportEntryAsync();
 
         // State exit actions
         Task OnRWACategoryManagerExitAsync(string stepName);
@@ -75,5 +76,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task<List<Models.HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
         Task<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>> GetInvalidObligations();
         Task<List<Models.HecateInventaireNormalise>> GetItemsToAddTobdd();
+        Task<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>> GetTethysStatusAsync();
+        Task<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>> UpdateTethysStatusAsync();
     }
 }

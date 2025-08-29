@@ -465,7 +465,17 @@ namespace RWA.Web.Application.Services.Workflow
             {
                 Console.WriteLine($"[OnRafManagerEntryAsync] Entering Raf Manager step");
 
-                await SetTethysStatus();
+            });
+        }
+
+        public async Task OnEnrichiExportEntryAsync()
+        {
+            await ExecuteSafelyAsync(nameof(OnEnrichiExportEntryAsync), _workflowStepNames.FichierEnrichieGeneration, async () =>
+            {
+                Console.WriteLine($"[OnEnrichiExportEntryAsync] Entering Enrichi Export step");
+                await _dbProvider.UpdateStepStatusAsync(_workflowStepNames.FichierEnrichieGeneration, _statusOptions.CurrentWarningStatus);
+                await NotifyWorkflowStepsUpdatedAsync();
+                // TODO: Add excel export logic here.
             });
         }
 
@@ -497,84 +507,64 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
-        private async Task SetTethysStatus()
+        public async Task<List<HecateTethysDto>> GetTethysStatusAsync()
         {
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
-            var payload = new HecateTethysPayload();
+            var dtos = allItems.Select(item => new HecateTethysDto
+            {
+                NumLigne = item.NumLigne,
+                Source = item.Source,
+                Cpt = item.Nom,
+                Raf = item.Raf,
+                IsMappingTethysSuccessful = item.AdditionalInformation.TethysRafStatus
+            }).ToList();
+
+            return dtos;
+        }
+
+        public async Task<List<HecateTethysDto>> UpdateTethysStatusAsync()
+        {
+            var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
 
             // Handle items with empty RAF
             var emptyRafItems = allItems.Where(i => string.IsNullOrEmpty(i.Raf)).ToList();
             foreach (var item in emptyRafItems)
             {
-                payload.Dtos.Add(new HecateTethysDto
+                item.AdditionalInformation.TethysRafStatus = false;
+            }
+
+            // Handle items with RAF
+            var itemsWithRaf = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).ToList();
+
+            var updateTasks = itemsWithRaf.Select(async item =>
+            {
+                var tethysData = await _dbProvider.GetTethysDataByRafAsync(new List<string> { item.Raf });
+                if (tethysData.Any())
+                {
+                    item.AdditionalInformation.TethysRafStatus = true;
+                }
+                else
+                {
+                    item.AdditionalInformation.TethysRafStatus = false;
+                }
+
+                var dto = new HecateTethysDto
                 {
                     NumLigne = item.NumLigne,
                     Source = item.Source,
                     Cpt = item.Nom,
                     Raf = item.Raf,
-                    IsMappingTethysSuccessful = false
-                });
-            }
+                    IsMappingTethysSuccessful = item.AdditionalInformation.TethysRafStatus
+                };
 
-            // Initial update for empty RAF items
-            var payloadJson = JsonSerializer.Serialize(payload);
-            await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.RAFManager, _statusOptions.CurrentStatus, payloadJson);
-            await NotifyWorkflowStepsUpdatedAsync();
+                await _hubContext.Clients.All.SendAsync("ReceiveTethysUpdate", dto);
+            });
 
-            // Handle items with RAF
-            var itemsWithRaf = allItems.Where(i => !string.IsNullOrEmpty(i.Raf)).ToList();
-            var distinctRafs = itemsWithRaf.Select(i => i.Raf).Distinct().ToList();
+            await Task.WhenAll(updateTasks);
 
-            foreach (var raf in distinctRafs)
-            {
-                // Query Tethys for the current RAF
-                var tethysData = await _dbProvider.GetTethysDataByRafAsync(new List<string> { raf });
+            await _dbProvider.UpdateInventaireNormaliseRangeAsync(allItems);
 
-                var tethysDataDictByIdentifiantRaf = tethysData
-                    .Where(t => !string.IsNullOrEmpty(t.IdentifiantRaf))
-                    .ToDictionary(t => t.IdentifiantRaf.Replace(" ", "").ToLower(), StringComparer.OrdinalIgnoreCase);
-
-                var tethysDataDictByRafTeteGroupeReglementaire = tethysData
-                    .Where(t => !string.IsNullOrEmpty(t.RafTeteGroupeReglementaire))
-                    .ToDictionary(t => t.RafTeteGroupeReglementaire.Replace(" ", "").ToLower(), StringComparer.OrdinalIgnoreCase);
-
-                var itemsForCurrentRaf = itemsWithRaf.Where(i => i.Raf == raf);
-
-                foreach (var item in itemsForCurrentRaf)
-                {
-                    var dto = new HecateTethysDto
-                    {
-                        NumLigne = item.NumLigne,
-                        Source = item.Source,
-                        Cpt = item.Nom,
-                        Raf = item.Raf,
-                        IsMappingTethysSuccessful = false
-                    };
-
-                    if (tethysDataDictByIdentifiantRaf.TryGetValue(item.Raf.Replace(" ", "").ToLower(), out var tethy))
-                    {
-                        dto.CptTethys = tethy.LibelleCourt;
-                        dto.IsGeneric = false;
-                        dto.IsMappingTethysSuccessful = true;
-                    }
-                    else if (tethysDataDictByRafTeteGroupeReglementaire.TryGetValue(item.Raf.Replace(" ", "").ToLower(), out tethy))
-                    {
-                        dto.CptTethys = tethy.NomTeteGroupeReglementaire;
-                        dto.IsGeneric = true;
-                        dto.IsMappingTethysSuccessful = true;
-                    }
-
-                    payload.Dtos.Add(dto);
-                     payloadJson = JsonSerializer.Serialize(payload);
-                    await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.RAFManager, _statusOptions.CurrentStatus, payloadJson);
-                    await NotifyWorkflowStepsUpdatedAsync();
-                }
-
-                // Update after processing all items for the current RAF
-                payloadJson = JsonSerializer.Serialize(payload);
-                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.RAFManager, _statusOptions.CurrentStatus, payloadJson);
-                await NotifyWorkflowStepsUpdatedAsync();
-            }
+            return await GetTethysStatusAsync();
         }
         // State exit actions
 

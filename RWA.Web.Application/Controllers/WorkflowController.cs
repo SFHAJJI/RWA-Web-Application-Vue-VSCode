@@ -320,6 +320,20 @@ namespace RWA.Web.Application.Controllers
             return NoContent();
         }
 
+        [HttpGet("tethys-status")]
+        public async Task<ActionResult<IEnumerable<HecateTethysDto>>> GetTethysStatus()
+        {
+            var data = await _orchestrator.GetTethysStatusAsync();
+            return Ok(data);
+        }
+
+        [HttpPost("update-tethys-status")]
+        public async Task<ActionResult<IEnumerable<HecateTethysDto>>> UpdateTethysStatus()
+        {
+            var data = await _orchestrator.TriggerUpdateTethysStatusAsync();
+            return Ok(data);
+        }
+
         // No in-memory mock helpers - workflow is persisted through the orchestrator-owned DbContext
     }
 }

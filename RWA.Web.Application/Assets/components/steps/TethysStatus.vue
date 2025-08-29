@@ -1,5 +1,12 @@
 <template>
     <div>
+        <v-btn @click="reloadData" class="mb-4">Reload</v-btn>
+        <v-btn @click="exportToExcel" class="mb-4 ml-2">Export</v-btn>
+        <v-progress-linear v-if="progress > 0 && progress < totalItems" :model-value="progress" :max="totalItems" height="25">
+            <template v-slot:default="{ value }">
+                <strong>{{ Math.ceil(value) }}%</strong>
+            </template>
+        </v-progress-linear>
         <v-data-table :headers="headers" :items="sortedPayload">
             <template v-slot:item.IsMappingTethysSuccessful="{ value }">
                 <v-chip :color="getColor(value)" :text="value ? 'OK' : 'KO'" size="x-small"></v-chip>
@@ -9,7 +16,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { getTethysStatus, updateTethysStatus } from '../../api/tethysApi';
+import { HubConnectionBuilder } from '@microsoft/signalr';
+import * as XLSX from 'xlsx';
 
 interface TethysDto {
     NumLigne: number;
@@ -21,18 +31,77 @@ interface TethysDto {
     IsMappingTethysSuccessful: boolean;
 }
 
-const props = defineProps({
-    payload: {
-        type: Array as () => TethysDto[],
-        required: true
+const payload = ref<TethysDto[]>([]);
+const progress = ref(0);
+const totalItems = ref(0);
+
+const connection = new HubConnectionBuilder()
+    .withUrl("/workflowHub")
+    .build();
+
+connection.on("ReceiveTethysUpdate", (tethysDto: any) => {
+    console.log('Received Tethys DTO:', tethysDto);
+    const index = payload.value.findIndex(item => item.NumLigne === tethysDto.numLigne);
+    if (index !== -1) {
+        payload.value[index] = {
+            NumLigne: tethysDto.numLigne,
+            Source: tethysDto.source,
+            Cpt: tethysDto.cpt,
+            Raf: tethysDto.raf,
+            CptTethys: tethysDto.cptTethys,
+            IsGeneric: tethysDto.isGeneric,
+            IsMappingTethysSuccessful: tethysDto.isMappingTethysSuccessful,
+        };
+    } else {
+        payload.value.push({
+            NumLigne: tethysDto.numLigne,
+            Source: tethysDto.source,
+            Cpt: tethysDto.cpt,
+            Raf: tethysDto.raf,
+            CptTethys: tethysDto.cptTethys,
+            IsGeneric: tethysDto.isGeneric,
+            IsMappingTethysSuccessful: tethysDto.isMappingTethysSuccessful,
+        });
     }
+    progress.value++;
 });
 
+const fetchData = async () => {
+    const data = await getTethysStatus();
+    totalItems.value = data.length;
+    payload.value = data.map((item: any) => ({
+        NumLigne: item.numLigne,
+        Source: item.source,
+        Cpt: item.cpt,
+        Raf: item.raf,
+        CptTethys: item.cptTethys,
+        IsGeneric: item.isGeneric,
+        IsMappingTethysSuccessful: item.isMappingTethysSuccessful,
+    }));
+};
+
+onMounted(async () => {
+    await connection.start();
+});
+
+const reloadData = async () => {
+    progress.value = 0;
+    payload.value = [];
+    await updateTethysStatus();
+};
+
+const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(payload.value);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tethys Status");
+    XLSX.writeFile(workbook, "tethys-status.xlsx");
+};
+
 const sortedPayload = computed(() => {
-    if (!props.payload) {
+    if (!payload.value) {
         return [];
     }
-    return [...props.payload].sort((a, b) => {
+    return [...payload.value].sort((a, b) => {
         if (a.IsMappingTethysSuccessful === b.IsMappingTethysSuccessful) {
             return 0;
         }

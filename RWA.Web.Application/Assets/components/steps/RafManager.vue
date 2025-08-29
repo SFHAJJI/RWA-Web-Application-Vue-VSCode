@@ -1,14 +1,14 @@
 <template>
     <div>
-        <v-btn color="primary" @click="triggerNext" class="mb-4">
-            Next to Enrichi Export
+        <v-btn color="primary" @click="downloadEnrichedFile" class="mb-4">
+            Download Enriched File
         </v-btn>
 
         <v-card>
             <v-card-text>
                 <v-stepper v-model="currentStep" :items="items">
                     <template v-slot:item.1>
-                        <TethysStatus :payload="payload" />
+                        <TethysStatus />
                     </template>
 
                     <template v-slot:item.2>

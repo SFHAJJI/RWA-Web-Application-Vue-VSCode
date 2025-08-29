@@ -16,5 +16,10 @@ namespace RWA.Web.Application.Hubs
         {
             await Clients.All.SendAsync("ReceiveToast", new { level, message, actionLabel, actionToken });
         }
+
+        public async Task SendTethysUpdate(RWA.Web.Application.Models.Dtos.HecateTethysDto tethysDto)
+        {
+            await Clients.All.SendAsync("ReceiveTethysUpdate", tethysDto);
+        }
     }
 }

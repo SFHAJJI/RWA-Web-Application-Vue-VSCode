@@ -161,6 +161,7 @@ namespace RWA.Web.Application.Services.Workflow
             _stateMachine.RWACategoryManagerEntry += _actions.OnRWACategoryManagerEntryAsync;
             _stateMachine.BDDManagerEntry += _actions.OnBDDManagerEntryAsync;
             _stateMachine.RafManagerEntry += _actions.OnRafManagerEntryAsync;
+            _stateMachine.EnrichiExportEntry += _actions.OnEnrichiExportEntryAsync;
 
             // State exit actions
             _stateMachine.RWACategoryManagerExit += _actions.OnRWACategoryManagerExitAsync;
@@ -369,6 +370,16 @@ namespace RWA.Web.Application.Services.Workflow
             return (_actions as WorkflowStateActions).GetItemsToAddTobdd();
         }
 
+        public Task<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>> GetTethysStatusAsync()
+        {
+            return (_actions as WorkflowStateActions).GetTethysStatusAsync();
+        }
+
+        public async Task<List<RWA.Web.Application.Models.Dtos.HecateTethysDto>> TriggerUpdateTethysStatusAsync()
+        {
+            return await (_actions as WorkflowStateActions).UpdateTethysStatusAsync();
+        }
+
         /// <summary>
         /// Dispose method to unsubscribe from state machine events.
         /// This prevents multiple subscriptions to the singleton state machine.
@@ -380,7 +391,11 @@ namespace RWA.Web.Application.Services.Workflow
             try
             {
                 // Unsubscribe from all events to prevent memory leaks and multiple subscriptions
-              
+                _stateMachine.RWACategoryManagerEntry -= _actions.OnRWACategoryManagerEntryAsync;
+                _stateMachine.BDDManagerEntry -= _actions.OnBDDManagerEntryAsync;
+                _stateMachine.RafManagerEntry -= _actions.OnRafManagerEntryAsync;
+                _stateMachine.EnrichiExportEntry -= _actions.OnEnrichiExportEntryAsync;
+
                 _stateMachine.RWACategoryManagerExit -= _actions.OnRWACategoryManagerExitAsync;
                 _stateMachine.BDDManagerExit -= _actions.OnBDDManagerExitAsync;
                 _stateMachine.RafManagerExit -= _actions.OnRafManagerExitAsync;

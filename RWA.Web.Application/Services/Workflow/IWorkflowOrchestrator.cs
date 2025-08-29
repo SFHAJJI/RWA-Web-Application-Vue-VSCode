@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using RWA.Web.Application.Models;
+using RWA.Web.Application.Models.Dtos;
 using RWA.Web.Application.Services.Validation;
 
 namespace RWA.Web.Application.Services.Workflow
@@ -46,5 +47,7 @@ namespace RWA.Web.Application.Services.Workflow
         Task<List<HecateInventaireNormalise>> GetInventaireNormaliseByNumLignes(List<int> numLignes);
         Task<List<RWA.Web.Application.Models.Dtos.HecateInventaireNormaliseDto>> GetInvalidObligations();
         Task<List<HecateInventaireNormalise>> GetItemsToAddTobdd();
+        Task<List<HecateTethysDto>> GetTethysStatusAsync();
+        Task<List<HecateTethysDto>> TriggerUpdateTethysStatusAsync();
     }
 }

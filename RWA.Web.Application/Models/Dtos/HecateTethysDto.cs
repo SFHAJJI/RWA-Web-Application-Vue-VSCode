@@ -6,8 +6,8 @@ namespace RWA.Web.Application.Models.Dtos
         public string Source { get; set; }
         public string Cpt { get; set; }
         public string Raf { get; set; }
-        public string CptTethys { get; set; }
-        public bool IsGeneric { get; set; }
+        public string CptTethys { get; set; } = "";
+        public bool IsGeneric { get; set; } = false;
         public bool IsMappingTethysSuccessful { get; set; }
     }
 }
