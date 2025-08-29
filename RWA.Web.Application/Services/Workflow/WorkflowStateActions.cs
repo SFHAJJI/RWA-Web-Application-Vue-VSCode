@@ -398,46 +398,48 @@ namespace RWA.Web.Application.Services.Workflow
             var bddIdUniqueRetenuSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantUniqueRetenu));
             var bddIdOrigineSet = new HashSet<string>(bddItems.Select(b => b.IdentifiantOrigine));
 
-            var itemsToProcess = allItems.Where(i => i.AdditionalInformation.IsValeurMobiliere && !string.IsNullOrEmpty(i.Raf)).ToList();
-           Parallel.ForEach(itemsToProcess, item =>
+            var itemsToProcess = allItems.Where(i => i.AdditionalInformation.IsValeurMobiliere ).ToList();
+            foreach (var item in itemsToProcess)
             {
                 var additionalInfo = item.AdditionalInformation;
                 if (bddIdUniqueRetenuSet.Contains(item.IdentifiantOrigine))
                 {
                     var match = bddItems.First(b => b.IdentifiantUniqueRetenu == item.IdentifiantOrigine);
                     additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdUniqueRetenu = true };
-                    if (string.IsNullOrEmpty(item.Raf)) {
-
-                         additionalInfo.RafOrigin = "HecateInterneHistorique";
-                    
+                    if (string.IsNullOrEmpty(item.Raf))
+                    {
+                        additionalInfo.RafOrigin = "HecateInterneHistorique";
                     }
                     else if (item.Raf != match.Raf)
                     {
                         additionalInfo.RafOrigin = "HecateInterneHistoriqueOverrideIdentifiantUniqueRetenu";
                     }
                     item.Raf = match.Raf;
+                    item.IdentifiantUniqueRetenu = match.IdentifiantUniqueRetenu;
+                    item.DateFinContrat = match.DateEcheance;
                 }
                 else if (bddIdOrigineSet.Contains(item.IdentifiantOrigine))
                 {
                     var match = bddItems.First(b => b.IdentifiantOrigine == item.IdentifiantOrigine);
                     additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdOrigine = true };
-                    if (string.IsNullOrEmpty(item.Raf)) {
-
-                         additionalInfo.RafOrigin = "HecateInterneHistorique";
-                    
+                    if (string.IsNullOrEmpty(item.Raf))
+                    {
+                        additionalInfo.RafOrigin = "HecateInterneHistorique";
                     }
                     else if (item.Raf != match.Raf)
                     {
                         additionalInfo.RafOrigin = "HecateInterneHistoriqueOverrideIdentifiantOrigine";
                     }
                     item.Raf = match.Raf;
+                    item.IdentifiantUniqueRetenu = match.IdentifiantUniqueRetenu;
+                    item.DateFinContrat = match.DateEcheance;
                 }
                 else
                 {
                     additionalInfo.AddtoBDDDto = new AddtoBDDDto { AddToBDD = true };
                 }
                 item.AdditionalInformation = additionalInfo;
-            });
+            }
 
             await _dbProvider.UpdateInventaireNormaliseRangeAsync(itemsToProcess);
             return itemsToProcess;
@@ -466,6 +468,7 @@ namespace RWA.Web.Application.Services.Workflow
         private async Task ApplyCptTransparence()
         {
             var allItems = await _dbProvider.GetAllInventaireNormaliseAsync();
+            var test = allItems.Where(i => string.IsNullOrEmpty(i.Raf)).ToArray();
             var transparenceData = await _dbProvider.GetHecateContrepartiesTransparenceAsync();
 
             var itemsToUpdate = new List<HecateInventaireNormalise>();
