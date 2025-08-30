@@ -1,0 +1,86 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using RWA.Web.Application.Models;
+using RWA.Web.Application.Models.Dtos;
+using RWA.Web.Application.Services.Workflow;
+
+namespace RWA.Web.Application.Services.BddMatch
+{
+    public class BddMatchService : IBddMatchService
+    {
+        private readonly IWorkflowDbProvider _db;
+        private readonly IBddMatchStore _store;
+        private readonly ILogger<BddMatchService> _logger;
+
+        public BddMatchService(IWorkflowDbProvider db, IBddMatchStore store, ILogger<BddMatchService> logger)
+        {
+            _db = db;
+            _store = store;
+            _logger = logger;
+        }
+
+        public async Task ComputeAndPersistAsync(string version, CancellationToken ct = default)
+        {
+            var all = await _db.GetAllInventaireNormaliseAsync();
+            var bdd = await _db.GetAllHecateInterneHistoriqueAsync();
+
+            var bddByIdU = bdd.Where(b => b.IdentifiantUniqueRetenu != null).ToDictionary(b => b.IdentifiantUniqueRetenu!, b => b);
+            var bddByIdO = bdd.Where(b => b.IdentifiantOrigine != null).ToDictionary(b => b.IdentifiantOrigine!, b => b);
+
+            var items = all.Where(i => i.AdditionalInformation.IsValeurMobiliere).ToList();
+            _store.Init(version, items.Count);
+
+            var processed = 0;
+            var batchSize = 500;
+            for (int i = 0; i < items.Count; i += batchSize)
+            {
+                var batch = items.Skip(i).Take(batchSize).ToList();
+                var resultRows = new List<BddMatchRow>(batch.Count);
+
+                foreach (var item in batch)
+                {
+                    var info = item.AdditionalInformation ?? new AdditionalInformation();
+                    BddMatchRow row;
+                    if (!string.IsNullOrEmpty(item.IdentifiantOrigine) && bddByIdU.TryGetValue(item.IdentifiantOrigine, out var matchU))
+                    {
+                        info.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdUniqueRetenu = true };
+                        if (string.IsNullOrEmpty(item.Raf)) info.RafOrigin = "BDDHistory";
+                        item.Raf = matchU.Raf;
+                        item.IdentifiantUniqueRetenu = matchU.IdentifiantUniqueRetenu;
+                        item.DateFinContrat = matchU.DateEcheance;
+                        row = new BddMatchRow(item.NumLigne, false, item.Raf, "IdUniqueRetenu");
+                    }
+                    else if (!string.IsNullOrEmpty(item.IdentifiantOrigine) && bddByIdO.TryGetValue(item.IdentifiantOrigine, out var matchO))
+                    {
+                        info.AddtoBDDDto = new AddtoBDDDto { AddToBDD = false, IsMappedByIdOrigine = true };
+                        if (string.IsNullOrEmpty(item.Raf)) info.RafOrigin = "BDDHistory";
+                        item.Raf = matchO.Raf;
+                        item.IdentifiantUniqueRetenu = matchO.IdentifiantUniqueRetenu;
+                        item.DateFinContrat = matchO.DateEcheance;
+                        row = new BddMatchRow(item.NumLigne, false, item.Raf, "IdOrigine");
+                    }
+                    else
+                    {
+                        var add = !string.IsNullOrEmpty(item.Raf);
+                        info.AddtoBDDDto = new AddtoBDDDto { AddToBDD = add };
+                        row = new BddMatchRow(item.NumLigne, add, item.Raf, add ? "AddToBDD" : "NoMatch");
+                    }
+                    item.AdditionalInformation = info;
+                    resultRows.Add(row);
+                }
+
+                await _db.UpdateInventaireNormaliseRangeAsync(batch);
+                processed += batch.Count;
+                _store.Append(version, resultRows, processed);
+                if (ct.IsCancellationRequested) break;
+            }
+            _logger.LogInformation("BDD matching complete for version {Version}. Processed {Processed} items.", version, processed);
+        }
+    }
+}
+
+

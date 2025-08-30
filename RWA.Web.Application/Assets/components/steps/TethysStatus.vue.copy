@@ -1,16 +1,7 @@
 <template>
     <div>
-        <div class="d-flex align-center mb-4" style="gap:8px;">
-            <v-btn @click="reloadData">Reload</v-btn>
-            <v-btn @click="exportToExcel">Export</v-btn>
-            <v-spacer />
-            <v-text-field v-model="q" density="compact" hide-details prepend-inner-icon="mdi-magnify" placeholder="Search…" style="max-width: 320px" @update:model-value="onSearchDebounced" />
-        </div>
-        <div class="mb-3 d-flex align-center" style="gap:8px;">
-            <v-chip color="primary" variant="tonal">Failed: {{ counts.failed }}</v-chip>
-            <v-chip color="success" variant="tonal">Successful: {{ counts.successful }}</v-chip>
-            <v-chip :color="counts.pendingLookup ? 'warning' : 'success'" variant="tonal">Pending: {{ counts.pendingLookup }}</v-chip>
-        </div>
+        <v-btn @click="reloadData" class="mb-4">Reload</v-btn>
+        <v-btn @click="exportToExcel" class="mb-4 ml-2">Export</v-btn>
         <v-progress-linear v-if="progress > 0 && progress < totalItems" :model-value="progress" :max="totalItems" height="25">
             <template v-slot:default="{ value }">
                 <strong>{{ Math.ceil(value) }}%</strong>
@@ -47,12 +38,9 @@ interface TethysDto {
     isMappingTethysSuccessful: boolean;
 }
 
-const emit = defineEmits(['counts']);
 const payload = ref<TethysDto[]>([]);
 const progress = ref(0);
 const totalItems = ref(0);
-const q = ref('');
-const counts = ref({ total: 0, lookedUp: 0, pendingLookup: 0, failed: 0, successful: 0 });
 
 const connection = new HubConnectionBuilder()
     .withUrl("/workflowHub")
@@ -83,46 +71,30 @@ connection.on("ReceiveTethysUpdate", (tethysDto: any) => {
         });
     }
     progress.value++;
-    refreshCounts();
 });
 
 connection.on("ReceiveTethysTotalItems", (total: number) => {
     totalItems.value = total;
-    refreshCounts();
 });
 
 const fetchData = async (initial = false) => {
     if (initial) {
         payload.value = [];
     }
-    const data = await getTethysStatus("all", payload.value.length.toString(), 20, q.value.trim() || undefined);
+    const data = await getTethysStatus("all", payload.value.length.toString(), 20);
     payload.value = [...payload.value, ...data.items];
-    // data list is independent of counts; refresh counts from backend
-    refreshCounts();
 };
 
 onMounted(async () => {
     await connection.start();
-    await fetchData(true);
-    await refreshCounts();
+    await fetchData();
 });
 
 const reloadData = async () => {
     progress.value = 0;
     payload.value = [];
     await updateTethysStatus();
-    await fetchData(true);
-    await refreshCounts();
 };
-
-let searchTimer: any = null;
-function onSearchDebounced() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    payload.value = [];
-    fetchData(true);
-  }, 300);
-}
 
 const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(payload.value);
@@ -130,23 +102,6 @@ const exportToExcel = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Tethys Status");
     XLSX.writeFile(workbook, "tethys-status.xlsx");
 };
-
-async function refreshCounts() {
-  try {
-    const apiCounts = await (await import('../../api/tethysApi')).getTethysCounts();
-    counts.value = apiCounts;
-    emit('counts', counts.value);
-  } catch (e) {
-    // fallback to local estimation if API fails
-    const total = totalItems.value || payload.value.length;
-    const successful = payload.value.filter(i => i.isMappingTethysSuccessful === true).length;
-    const failed = payload.value.filter(i => i.isMappingTethysSuccessful === false).length;
-    const lookedUp = successful + failed;
-    const pendingLookup = Math.max(0, total - lookedUp);
-    counts.value = { total, lookedUp, pendingLookup, failed, successful } as any;
-    emit('counts', counts.value);
-  }
-}
 
 const successfulMappings = computed(() => {
     return payload.value.filter(item => item.isMappingTethysSuccessful);
@@ -171,10 +126,3 @@ const getColor = (isMappingTethysSuccessful) => {
     else return 'error'
 };
 </script>
-
-<style scoped>
-@media (max-width: 768px) {
-  .d-flex.align-center.mb-4 { flex-wrap: wrap; }
-  .mb-3.d-flex.align-center { flex-wrap: wrap; }
-}
-</style>

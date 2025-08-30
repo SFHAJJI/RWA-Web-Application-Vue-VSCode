@@ -39,6 +39,7 @@
                                         v-if="header.value === 'libelleTypeDette'"
                                         v-model="item.libelleTypeDette"
                                         :items="['', 'SUBORDONNE']"
+                                        :menu-props="{ attach: 'body' }"
                                         dense
                                         hide-details
                                         variant="outlined"

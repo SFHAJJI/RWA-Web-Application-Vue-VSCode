@@ -95,12 +95,6 @@ namespace RWA.Web.Application
             builder.Services.AddSingleton<Services.Workflow.IWorkflowStateActions, Services.Workflow.WorkflowStateActions>();
             builder.Services.AddSingleton<Services.Workflow.IWorkflowOrchestrator, Services.Workflow.WorkflowOrchestrator>();
             builder.Services.AddScoped<Services.Workflow.IExcelExportService, Services.Workflow.ExcelExportService>();
-            // BDD matching background services
-            builder.Services.AddSingleton<RWA.Web.Application.Services.BddMatch.IBddMatchJobQueue, RWA.Web.Application.Services.BddMatch.BddMatchJobQueue>();
-            builder.Services.AddSingleton<RWA.Web.Application.Services.BddMatch.IBddMatchStore, RWA.Web.Application.Services.BddMatch.InMemoryBddMatchStore>();
-            builder.Services.AddSingleton<RWA.Web.Application.Services.BddMatch.IBddMatchService, RWA.Web.Application.Services.BddMatch.BddMatchService>();
-            builder.Services.AddHostedService<RWA.Web.Application.Services.BddMatch.BddMatchBackgroundService>();
-
             
             // Configure DbContext: Production uses SQL Server, Development uses in-memory via middleware
             if (builder.Environment.IsDevelopment())
@@ -165,5 +159,4 @@ namespace RWA.Web.Application
         }
     }
 }
-
 

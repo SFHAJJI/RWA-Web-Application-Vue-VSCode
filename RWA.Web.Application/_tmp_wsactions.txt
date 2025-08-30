@@ -352,34 +352,16 @@ namespace RWA.Web.Application.Services.Workflow
             }
         }
 
-        // Heavy BDD matching runs in the background service. Here, only evaluate OBL validation
-        // and set the BDD Manager step payload/status so the UI can open AddToBDD when OBL is OK.
+        // Heavy BDD matching moved to background worker; here we only set statuses for 3.1 and open 3.2
+
         public async Task OnBDDManagerEntryAsync()
         {
             await ExecuteSafelyAsync(nameof(OnBDDManagerEntryAsync), _workflowStepNames.BDDManager, async () =>
             {
-                Console.WriteLine("[OnBDDManagerEntryAsync] Entering BDD Manager step (OBL validation only)");
+                Console.WriteLine($"[OnBDDManagerEntryAsync] Entering BDD Manager step");
 
-                var invalidObls = await GetInvalidObligations();
-                var isOblOk = invalidObls.Count == 0;
-
-                // Create a version and include it in the payload so the UI can fetch results/progress even if it misses early events
-                var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
-                var payload = new RWA.Web.Application.Models.Dtos.BddManagerStepStatusDto
-                {
-                    OBLValidationStepStatus = isOblOk ? "Finished" : "Open",
-                    AddToBDDStepStatus = "Open",
-                    Version = version
-                };
-
-                var payloadJson = System.Text.Json.JsonSerializer.Serialize(payload);
-
-                // Keep BDD Manager as current, with DataPayload driving the stepper in UI
-                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.BDDManager, _statusOptions.CurrentStatus, payloadJson);
-                await NotifyWorkflowStepsUpdatedAsync();
-
-                // Ensure BDD matching is enqueued for this version
-                _bddQueue.Enqueue(new Services.BddMatch.BddMatchJob(version));
+                // Process BDD matching for all inventory rows
+                await ProcessBddMatchingAsync();
             });
         }
         public async Task OnRafManagerEntryAsync()
@@ -513,7 +495,7 @@ namespace RWA.Web.Application.Services.Workflow
         // State exit actions
 
 
-        
+        private readonly Services.BddMatch.IBddMatchJobQueue _bddQueue;
 
         public async Task OnRWACategoryManagerExitAsync(string stepName)
         {
@@ -907,18 +889,8 @@ namespace RWA.Web.Application.Services.Workflow
             if (success)
             {
                 await SendToastNotificationAsync("success", "Obligations updated successfully.");
-
-                // Re-evaluate OBL validation only; do not trigger matching here.
-                var invalidObls = await GetInvalidObligations();
-                var isOblOk = invalidObls.Count == 0;
-                var payload = new RWA.Web.Application.Models.Dtos.BddManagerStepStatusDto
-                {
-                    OBLValidationStepStatus = isOblOk ? "Finished" : "Open",
-                    AddToBDDStepStatus = "Open"
-                };
-                var payloadJson = System.Text.Json.JsonSerializer.Serialize(payload);
-                await _dbProvider.UpdateStepStatusAndDataAsync(_workflowStepNames.BDDManager, _statusOptions.CurrentStatus, payloadJson);
-                await NotifyWorkflowStepsUpdatedAsync();
+                // Reprocess to see if we can now add to BDD
+                await ProcessBddMatchingAsync();
             }
             else
             {
@@ -1224,3 +1196,4 @@ namespace RWA.Web.Application.Services.Workflow
         }
     }
 }
+

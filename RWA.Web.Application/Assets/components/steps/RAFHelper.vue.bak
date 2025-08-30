@@ -11,7 +11,7 @@
     <div v-else ref="splitEl" class="split" :style="splitStyle">
       <!-- LEFT: KO list -->
       <section class="left">
-        <div class="left-toolbar d-flex align-center gap-sm">\n          <v-switch v-model="pinSelection" label="Pin Selection" inset class="ml-2" />
+        <div class="left-toolbar d-flex align-center gap-sm">
           <v-switch v-model="isGroupedView" label="Grouped View" color="primary" inset />
           <v-switch v-model="hideResolved" label="Hide Resolved" color="primary" inset class="ml-4" />
           <v-text-field v-model="leftFilter" density="compact" hide-details prepend-inner-icon="mdi-magnify" placeholder="Filter…" class="ml-4" />
@@ -27,7 +27,7 @@
           density="compact"
           :loading="left.loading"
           :item-class="itemClass"
-          @click:row="args => selectKO(args[1]?.item)"
+          @click:row="(e, { item }) => selectKO(item)"
           class="left-table"
         >
           <template #item.raf="{ item }">
@@ -46,12 +46,12 @@
         <v-list v-else class="grouped-list card-like" style="height:70vh; overflow:auto">
           <v-list-group
             v-for="(group, key) in grouped"
-            :key="String(key)"
-            :value="String(key)"
-            :class="['group-header', { active: selectedGroupKey === String(key) }]"
+            :key="key"
+            :value="key"
+            :class="['group-header', { active: selectedGroupKey === key }]"
           >
             <template #activator="{ props }">
-              <v-list-item v-bind="props" @click="selectGroup(String(key))">
+              <v-list-item v-bind="props" @click="selectGroup(key)">
                 <v-list-item-title>{{ key }}</v-list-item-title>
                 <template #append>
                   <v-chip size="x-small" class="mr-2" color="primary" variant="tonal">{{ group.length }}</v-chip>
@@ -69,11 +69,9 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in group" :key="row.numLigne" :id="`ko-${row.numLigne}`" @click="selectKO(row)" class="clickable" :class="{ active: selectedKO?.numLigne === row.numLigne, dim: selectedKO && selectedKO.numLigne !== row.numLigne }">
-                  <td class="left-marker">
-                    <v-chip v-if="selectedKO?.numLigne === row.numLigne" size="x-small" color="primary" variant="flat" class="mr-1">
-                      <v-icon size="14">mdi-lock</v-icon>
-                    </v-chip>
+                <tr v-for="row in group" :key="row.numLigne" @click="selectKO(row)" class="clickable" :class="{ active: selectedKO?.numLigne === row.numLigne }">
+                  <td>
+                    <v-icon size="small" :color="selectedKO?.numLigne === row.numLigne ? 'primary' : 'grey'" class="mr-1">mdi-circle-small</v-icon>
                     {{ row.numLigne }}
                   </td>
                   <td>{{ row.cptTethys }}</td>
@@ -129,13 +127,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, reactive, onBeforeUnmount, watch } from 'vue'
 import DetailsTable from './DetailsTable.vue'
 import StatusCell from './StatusCell.vue'
 import { fetchFailed, assignRaf, assignRafBatch } from '../../api/tethysApi'
 
 const isGroupedView = ref(false)
-const pinSelection = ref(false)
 const leftFilter = ref('')
 const hideResolved = ref(true)
 const selectedKO = ref<any | null>(null)
@@ -195,10 +192,6 @@ function itemClass(item: any) {
 function selectKO(row: any) {
   selectedKO.value = row
   selectedGroupKey.value = `${row.source} - ${row.cpt}`
-  nextTick(() => {
-    const el = document.getElementById(`ko-${row.numLigne}`)
-    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  })
 }
 
 function selectGroup(key: string) {
@@ -289,7 +282,7 @@ function onMouseUp() {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
 }
-function startResize() {
+function startResize(e: MouseEvent) {
   if (!splitEl.value) return
   rect = splitEl.value.getBoundingClientRect()
   resizing = true
@@ -314,8 +307,8 @@ onMounted(() => {
 onBeforeUnmount(() => { if (observer && loadMoreSentinel.value) { observer.unobserve(loadMoreSentinel.value) } })
 
 // Clear selection when mode/filter changes to avoid stale references
-watch(isGroupedView, () => { if (!pinSelection.value) { selectedKO.value = null; selectedGroupKey.value = null } })
-watch(leftFilter, () => { if (!pinSelection.value) { selectedKO.value = null; selectedGroupKey.value = null } })
+watch(isGroupedView, () => { selectedKO.value = null; selectedGroupKey.value = null })
+watch(leftFilter, () => { selectedKO.value = null; selectedGroupKey.value = null })
 </script>
 
 <style scoped>
@@ -327,18 +320,11 @@ watch(leftFilter, () => { if (!pinSelection.value) { selectedKO.value = null; se
 .clickable { cursor: pointer; }
 .right :deep(.v-data-table) { min-width: 0; width: 100%; }
 .group-header.active > .v-list-item { background: rgba(25,118,210,0.08); }
-tr.active { background: rgba(25,118,210,0.06); border-left: 4px solid #1976d2; }
-.left-marker { display:flex; align-items:center; }
+tr.active { background: rgba(25,118,210,0.06); }
 .resizer { width: 4px; cursor: col-resize; background: rgba(0,0,0,0.1); }
 .dim { opacity: .6; }
 .footer { display: flex; align-items: center; gap: .5rem; padding: .25rem .5rem; }
 .card-like { border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; background: #fff; box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
 .sentinel { height: 1px; }
-
-@media (max-width: 992px) {
-  .split { grid-template-columns: minmax(0, 100%) 0 minmax(0, 100%); }
-  .resizer { display: none; }
-  .left, .right { min-height: auto; }
-}
 </style>
 

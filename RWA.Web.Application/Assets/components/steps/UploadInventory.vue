@@ -90,8 +90,8 @@ const validationError = computed(() => {
             This step is successfully finished.
         </v-alert>
 
-        <!-- Show skeleton loader while uploading -->
-        <SkeletonLoader v-if="store.loading" />
+        <!-- Subtle inline loader on the button only; avoid full skeleton during validation/transition -->
+        <!-- Removed global skeleton to prevent flicker between validation and next step -->
 
         <!-- Show upload component only when step is not successfully finished and not uploading -->
         <div v-else-if="!isUploadSuccessful">

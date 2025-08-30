@@ -90,7 +90,7 @@ namespace RWA.Web.Application.Controllers
         [HttpGet("get-missing-rows")]
         public ActionResult<IEnumerable<Models.Dtos.RwaMappingRowDto>> GetRowsMissingCategory()
         {
-            var rows = (_orchestrator as WorkflowOrchestrator)?.GetMissingRowsWithSuggestions();
+            var rows = (_orchestrator)?.GetMissingRowsWithSuggestions();
             if (rows == null) return Ok(new Models.Dtos.RwaMappingRowDto[0]);
             return Ok(rows);
         }
@@ -196,7 +196,7 @@ namespace RWA.Web.Application.Controllers
         [HttpPost("get-inventaire-normalise-by-numlignes")]
         public async Task<ActionResult<IEnumerable<HecateInventaireNormalise>>> GetInventaireNormaliseByNumLignes([FromBody] List<int> numLignes)
         {
-            var rows = await (_orchestrator as WorkflowOrchestrator).GetInventaireNormaliseByNumLignes(numLignes);
+            var rows = await _orchestrator.GetInventaireNormaliseByNumLignes(numLignes);
             return Ok(rows);
         }
 
@@ -223,7 +223,7 @@ namespace RWA.Web.Application.Controllers
         {
             if (items == null || items.Count == 0) return BadRequest("No items provided.");
 
-            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateRafAsync(items);
+            await (_orchestrator).TriggerUpdateRafAsync(items);
             return NoContent();
         }
 
@@ -272,7 +272,7 @@ namespace RWA.Web.Application.Controllers
         [HttpGet("obl-validation-data")]
         public async Task<IActionResult> GetOblValidationData()
         {
-            var data = await (_orchestrator as WorkflowOrchestrator).GetInvalidObligations();
+            var data = await (_orchestrator).GetInvalidObligations();
             return Ok(data);
         }
 
@@ -298,7 +298,7 @@ namespace RWA.Web.Application.Controllers
         [HttpGet("add-to-bdd-data")]
         public async Task<IActionResult> GetAddToBddData()
         {
-            var data = await (_orchestrator as WorkflowOrchestrator).GetItemsToAddTobdd();
+            var data = await (_orchestrator).GetItemsToAddTobdd();
             var filteredData = data.Where(i => i.AdditionalInformation.AddtoBDDDto.AddToBDD);
             var dto = filteredData.Select(i => i.ToBddHistoDto());
             return Ok(dto);
@@ -309,7 +309,7 @@ namespace RWA.Web.Application.Controllers
         {
             if (items == null || items.Count == 0) return BadRequest("No items provided.");
 
-            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateObligationsAsync(items);
+            await (_orchestrator).TriggerUpdateObligationsAsync(items);
             return NoContent();
         }
 
@@ -318,7 +318,7 @@ namespace RWA.Web.Application.Controllers
         {
             if (items == null || items.Count == 0) return BadRequest("No items provided.");
 
-            await (_orchestrator as WorkflowOrchestrator).TriggerAddBddHistoriqueAsync(items);
+            await (_orchestrator).TriggerAddBddHistoriqueAsync(items);
             return NoContent();
         }
 
@@ -360,7 +360,7 @@ namespace RWA.Web.Application.Controllers
         public async Task<IActionResult> Assign([FromBody] AssignRafRequest req)
         {
             // This is a placeholder implementation. You will need to replace this with your actual assignment logic.
-            await (_orchestrator as WorkflowOrchestrator).TriggerUpdateRafAsync(new List<HecateTethysDto> { new HecateTethysDto { NumLigne = (int)req.NumLigne, Raf = req.Raf } });
+            await (_orchestrator).TriggerUpdateRafAsync(new List<HecateTethysDto> { new HecateTethysDto { NumLigne = (int)req.NumLigne, Raf = req.Raf } });
             // If all rows are validated, auto-trigger next step
             var allOk = await _dbProvider.AreAllTethysValidatedAsync();
             if (allOk)
@@ -390,6 +390,50 @@ namespace RWA.Web.Application.Controllers
             return Ok(counts);
         }
 
+        // BDD Match results paging (from in-memory store)
+        [HttpGet("bddmatch/results")]
+        public ActionResult<object> GetBddMatchResults(
+            [FromServices] RWA.Web.Application.Services.BddMatch.IBddMatchStore store,
+            [FromQuery] string version,
+            [FromQuery] int skip = 0,
+            [FromQuery] int take = 50)
+        {
+            var (items, total, processed) = store.Get(version, Math.Max(0, skip), Math.Clamp(take, 1, 200));
+            return Ok(new { items, total, processed });
+        }
+
+        // BDD Match summary for the strip (processed/total and breakdown)
+        [HttpGet("bddmatch/summary")]
+        public ActionResult<object> GetBddMatchSummary(
+            [FromServices] RWA.Web.Application.Services.BddMatch.IBddMatchStore store,
+            [FromQuery] string version)
+        {
+            var (_, total, processed) = store.Get(version, 0, 0);
+            var (allItems, _, _) = store.Get(version, 0, processed);
+            int byIdU = 0, byIdO = 0, addToBdd = 0, noMatch = 0;
+            foreach (var r in allItems)
+            {
+                if (r.MatchBy == "IdUniqueRetenu") byIdU++;
+                else if (r.MatchBy == "IdOrigine") byIdO++;
+                else if (r.MatchBy == "AddToBDD") addToBdd++;
+                else if (r.MatchBy == "NoMatch") noMatch++;
+            }
+            // Duplicates not tracked in store yet; expose 0 for now.
+            var duplicates = 0;
+            return Ok(new { processed, total, byIdU, byIdO, addToBdd, noMatch, duplicates });
+        }
+
+        // Re-trigger matching (enqueue a new version)
+        [HttpPost("bddmatch/retrigger")]
+        public ActionResult<object> RetriggerBddMatch(
+            [FromServices] RWA.Web.Application.Services.BddMatch.IBddMatchJobQueue queue)
+        {
+            var version = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+            queue.Enqueue(new RWA.Web.Application.Services.BddMatch.BddMatchJob(version));
+            return Ok(new { version });
+        }
+
         // No in-memory mock helpers - workflow is persisted through the orchestrator-owned DbContext
     }
 }
+
